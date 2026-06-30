@@ -274,6 +274,8 @@ export function milestoneAt(score) {
     case 25: return 'Luminous';
     case 50: return 'Radiant';
     case 100: return 'Transcendent';
+    case 150: return 'Supernova';
+    case 200: return 'Cosmic bloom';
     default: return null;
   }
 }

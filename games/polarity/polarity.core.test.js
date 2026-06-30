@@ -232,3 +232,9 @@ test('spawnGate keeps the stream evenly spaced beyond the last gate', () => {
   const gate = spawnGate(g);
   assert.ok(Math.abs(gate.x - (lastX + CONFIG.GATE_GAP)) < 1e-9);
 });
+
+test('milestoneAt covers the deeper tiers (150, 200) for long runs', () => {
+  assert.equal(milestoneAt(CONFIG, 150), 'Event horizon');
+  assert.equal(milestoneAt(CONFIG, 200), 'Absolute zero');
+  assert.equal(milestoneAt(CONFIG, 175), null);
+});

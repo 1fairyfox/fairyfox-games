@@ -33,7 +33,7 @@ const ctx = canvas.getContext('2d');
 const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
-const startPanel = el('start'), overPanel = el('gameover');
+const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
 const toastEl = el('toast');
 
 let toastTimer = 0;
@@ -98,6 +98,12 @@ window.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
 function onDeath() {
   shake = 18;
   finalEl.textContent = game.score;
+  // a second thing to chase: how daring were the skims?
+  if (overSubEl) {
+    overSubEl.textContent = game.skims > 0
+      ? `${game.skims} close-pass skim${game.skims === 1 ? '' : 's'} · best +${game.bestBonus}`
+      : '';
+  }
   const record = game.score > best;
   if (record) {
     best = game.score;
@@ -143,8 +149,11 @@ function update(now) {
       if (r.scored) {
         shake = Math.min(shake + 4, 10);
         scoreEl.textContent = game.score;
-        // a milestone takes the toast; otherwise celebrate a close-pass bonus
-        if (!showMilestone(prev, game.score) && r.bonus > 0) showToast('Close pass +' + r.bonus);
+        // a milestone takes the toast; otherwise celebrate a close-pass bonus —
+        // a dead-on max skim earns the louder "Skim!" call-out.
+        if (!showMilestone(prev, game.score) && r.bonus > 0) {
+          showToast((r.bonus >= game.cfg.CLOSE_BONUS_MAX ? 'Skim! +' : 'Close pass +') + r.bonus);
+        }
       }
       if (r.died) onDeath();
     }

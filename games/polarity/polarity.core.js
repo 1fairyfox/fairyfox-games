@@ -41,6 +41,8 @@ export const CONFIG = Object.freeze({
     Object.freeze({ score: 25, label: 'Locked in' }),
     Object.freeze({ score: 50, label: 'Untouchable' }),
     Object.freeze({ score: 100, label: 'Singularity' }),
+    Object.freeze({ score: 150, label: 'Event horizon' }),
+    Object.freeze({ score: 200, label: 'Absolute zero' }),
   ]),
 });
 

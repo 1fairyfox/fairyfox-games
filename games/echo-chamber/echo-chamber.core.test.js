@@ -263,3 +263,30 @@ test('three deliberate misses end the run', () => {
   assert.equal(g.phase, 'dead');
   assert.equal(g.lives, 0);
 });
+
+// ── 9. Run stats: perfect count + longest streak ────────────────────────────────
+test('perfect catches accumulate and bestCombo tracks the longest streak', () => {
+  const g = newGame();
+  start(g);
+  // dead-centre catches are "perfect" and build a combo; re-arm by re-centring the ring
+  for (let i = 0; i < 4; i++) {
+    g.ringR = g.targetR;
+    const r = echo(g);
+    assert.ok(r.hit && r.perfect, `catch ${i} is a perfect`);
+  }
+  assert.equal(g.perfects, 4);
+  assert.equal(g.combo, 4);
+  assert.equal(g.bestCombo, 4);
+  // an off-centre but in-tolerance catch is a hit, not a perfect: it breaks the
+  // live combo but must NOT lower the recorded best streak.
+  g.ringR = g.targetR + g.tol;        // exactly on the boundary → hit, not perfect
+  const r = echo(g);
+  assert.ok(r.hit && !r.perfect);
+  assert.equal(g.combo, 0);
+  assert.equal(g.perfects, 4);        // an off-centre catch is not a perfect
+  assert.equal(g.bestCombo, 4);       // personal-best streak is preserved
+  // reset clears the per-run stats
+  reset(g);
+  assert.equal(g.perfects, 0);
+  assert.equal(g.bestCombo, 0);
+});

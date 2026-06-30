@@ -55,6 +55,8 @@ export const CONFIG = Object.freeze({
  * @property {number} score              successful catches this run
  * @property {number} lives              lives remaining
  * @property {number} combo              consecutive perfect catches (drives the multiplier)
+ * @property {number} perfects           total perfect (dead-centre) catches this run
+ * @property {number} bestCombo          longest perfect-catch streak reached this run
  * @property {number} t                  ticks elapsed this run
  */
 
@@ -93,7 +95,7 @@ export function createGame(width, height, opts = {}) {
     rng: opts.rng || Math.random,
     phase: 'menu',
     ringR: 0, targetR: 0, tol: cfg.TOL_START,
-    score: 0, lives: cfg.LIVES, combo: 0, t: 0,
+    score: 0, lives: cfg.LIVES, combo: 0, perfects: 0, bestCombo: 0, t: 0,
   };
   reset(g);
   return g;
@@ -111,6 +113,8 @@ export function reset(g) {
   g.score = 0;
   g.lives = g.cfg.LIVES;
   g.combo = 0;
+  g.perfects = 0;
+  g.bestCombo = 0;
   g.t = 0;
   pickTarget(g);
   return g;
@@ -192,6 +196,8 @@ export function echo(g) {
     const mult = Math.min(1 + g.combo, g.cfg.MULT_MAX); // multiplier from the current combo
     g.score += perfect ? mult : 1;        // perfect catches earn the combo multiplier
     g.combo = perfect ? g.combo + 1 : 0;  // a plain (non-perfect) catch breaks the combo
+    if (perfect) g.perfects++;            // lifetime perfect count this run (a stat to chase)
+    if (g.combo > g.bestCombo) g.bestCombo = g.combo; // track the longest streak reached
     g.tol = Math.max(g.cfg.TOL_MIN, g.tol - g.cfg.TOL_SHRINK);
     g.ringR = 0;
     pickTarget(g);
