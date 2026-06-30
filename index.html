@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fairy Fox Games</title>
+<meta name="description" content="A collection of small, self-contained canvas games — one mechanic, beat your own score. A fresh experiment most days.">
+<style>
+  :root{
+    --bg:#0a0a12; --panel:#141420; --ink:#e8e8f0; --muted:#9a9ab0;
+    --accent:#8b7bff; --accent2:#7af9d0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    min-height:100vh; padding:0 20px 80px;
+  }
+  a{color:inherit}
+  .wrap{max-width:920px;margin:0 auto}
+  .home{display:inline-flex;align-items:center;gap:6px;margin:22px 0 0;
+    font-size:14px;color:var(--muted);text-decoration:none;transition:color .2s}
+  .home:hover{color:var(--ink)}
+  header.hero{padding:48px 0 28px;border-bottom:1px solid #ffffff14;margin-bottom:36px}
+  .hero h1{font-size:clamp(34px,7vw,52px);font-weight:700;letter-spacing:-.02em;
+    background:linear-gradient(90deg,var(--accent2),var(--accent),#d98aff);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin-top:14px;color:var(--muted);max-width:60ch;font-size:17px}
+  .meta{margin-top:18px;display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+  .meta a{color:var(--accent2);text-decoration:none}
+  .meta a:hover{text-decoration:underline}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+  .card{display:block;background:var(--panel);border:1px solid #ffffff12;border-radius:16px;
+    padding:22px;text-decoration:none;transition:transform .15s,border-color .2s,box-shadow .2s}
+  .card:hover{transform:translateY(-3px);border-color:var(--accent);
+    box-shadow:0 12px 36px -12px #8b7bff66}
+  .card h3{font-size:20px;font-weight:600}
+  .card .tag{display:inline-block;margin-top:10px;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--accent);opacity:.85}
+  .card p{margin-top:10px;color:var(--muted);font-size:14.5px}
+  .card .play{margin-top:16px;font-size:14px;color:var(--accent2)}
+  footer{margin-top:54px;padding-top:22px;border-top:1px solid #ffffff14;
+    color:var(--muted);font-size:13.5px}
+  footer a{color:var(--accent2);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="https://fairyfox.io/">← Back to Fairy Fox</a>
+
+  <header class="hero">
+    <h1>Fairy Fox Games</h1>
+    <p>Small, self-contained canvas games — one mechanic, one screen, beat your own
+       score. A fresh, polished little experiment most days. Each one splits tested
+       logic from rendering, so it's honest about quality even when the idea is simple.</p>
+    <div class="meta">
+      <span>Play embedded on the <a href="https://fairyfox.io/fun/">Fun page</a></span>
+      <span><a href="https://github.com/junebug12851/fairyfox-games">Source &amp; contributing ↗</a></span>
+    </div>
+  </header>
+
+  <main class="grid" id="games">
+    <!-- One card per game. Keep in step with the games/ folder + the site's _data/games.yml. -->
+    <a class="card" href="./games/ink-bloom/">
+      <h3>Ink Bloom</h3>
+      <span class="tag">Steer · grow · survive</span>
+      <p>Steer a growing line, drink glowing motes to grow, and don't cross your own
+         trail. The longer you live, the less room you leave yourself.</p>
+      <span class="play">▶ Play</span>
+    </a>
+  </main>
+
+  <footer>
+    Part of the <a href="https://fairyfox.io">Fairy Fox</a> project mesh ·
+    <a href="https://github.com/junebug12851/fairyfox-games">GitHub</a> ·
+    Contributions welcome — see the
+    <a href="https://github.com/junebug12851/fairyfox-games/blob/main/CONTRIBUTING.md">contributing guide</a>.
+    MIT licensed.
+  </footer>
+</div>
+</body>
+</html>

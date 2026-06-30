@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Play the games
+    url: https://fairyfox.io/fun/
+    about: Try them embedded on the Fairy Fox Fun page first.
+  - name: How to contribute
+    url: https://github.com/junebug12851/fairyfox-games/blob/main/CONTRIBUTING.md
+    about: The quality bar and how to add a new game.

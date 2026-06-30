@@ -1,0 +1,16 @@
+# ── Cross-project reference clones (shared standard) ─────────────────────────
+# Read-only clones of OTHER repos (e.g. the fairyfox.io hub), pulled on demand.
+# Never commit them — see the cross-project-sync standard.
+assets/references/*
+!assets/references/README.md
+
+# ── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+
+# ── OS / editor cruft ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
