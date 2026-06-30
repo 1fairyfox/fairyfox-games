@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.3.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.4.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -28,6 +28,9 @@ the fairyfox.io mesh.
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — a gravity game: hold to thrust a
   probe around a planet, sweep targets, don't crash or escape. Pure core (symplectic
   Euler) + 16-test suite (incl. a 600-tick orbit-stability check). Done and playable.
+- **Polarity** (`games/polarity/`) — a charge-match runner: flip cyan/magenta to match
+  each incoming gate; clash ends the run, and it speeds up. Pure core + 15-test suite
+  (incl. a 2000-tick buffer-integrity check). Done and playable.
 
 ## In flight / awaiting
 
@@ -44,9 +47,11 @@ the fairyfox.io mesh.
 
 ## Next
 
-- Flip `adopts_hub: true` in the hub registry (+ bump the registry version).
-- Finish owner-only Netlify steps so `games.fairyfox.io` goes live.
-- Add more games (Echo Chamber, Orbit Slingshot, Polarity were the pitched concepts).
+- Finish owner-only Netlify steps so `games.fairyfox.io` goes live (set the
+  `NETLIFY_AUTH_TOKEN` secret, add the custom domain + DNS CNAME).
+- The three pitched concepts (Echo Chamber, Orbit Slingshot, Polarity) are all built
+  and released — the 1am schedule carries the cadence forward from here.
+- Keep inventing fresh, mechanically-distinct experiments (the daily job's job).
 
 ## Health
 
