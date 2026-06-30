@@ -1,0 +1,50 @@
+name: Deploy to Netlify
+
+# Second deploy target alongside GitHub Pages: publishes the static site to the
+# Netlify project "fairyfox-games" (served at games.fairyfox.io). Runs on every push
+# to main, mirroring the Pages workflow. Deploys via the Netlify CLI using a token —
+# the SITE_ID is public config (embedded below); only the auth token is a secret.
+#
+# One-time setup (owner, in the repo or `gh`):
+#   gh secret set NETLIFY_AUTH_TOKEN --repo junebug12851/fairyfox-games
+#   (value = a Netlify personal access token from app.netlify.com → User settings →
+#    Applications → New access token)
+# Plus, in the Netlify UI: add games.fairyfox.io as a custom domain on the
+# "fairyfox-games" project, then add the DNS CNAME games.fairyfox.io → Netlify.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Don't pile up concurrent deploys; let an in-flight one finish.
+concurrency:
+  group: netlify
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Assemble the publishable site
+        # Publish only the actual static site — not .git, .github, notes, or the
+        # git-ignored reference clone. Keep this list in step with the site's files.
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r assets games _site/
+          [ -f .nojekyll ] && cp .nojekyll _site/ || true
+      - name: Deploy static site to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: 418513bf-eb19-4773-9283-b741091b337e
+        run: |
+          npx --yes netlify-cli@17 deploy \
+            --prod \
+            --dir=_site \
+            --site="$NETLIFY_SITE_ID" \
+            --message="Deploy ${GITHUB_SHA::7} from CI"
