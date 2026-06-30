@@ -34,6 +34,16 @@ plus each game at `…/games/<game>/`.
 
 ## In flight / awaiting
 
+- **Concurrency blocker (2026-06-30 run).** A second daily-maintainer run was editing
+  the working tree at the same time as this one (ink-bloom prism motes, echo-chamber
+  milestones+combo with a RED test, a root-`index.html` change). To avoid clobbering
+  it or shipping a RED tree, this run committed only its own isolated, green work to
+  `dev` — the new **Ricochet** game (pure core + shell + 20 tests) and the **Polarity**
+  milestone growth (19 tests) — and did **not** release to main, bump `VERSION`, or
+  register Ricochet in the shared landing page / README. See
+  `plans/next-steps.md` for the finish-up + reconcile steps.
+
+
 - **Netlify deploy — owner action pending.** The site now has a second home at
   `games.fairyfox.io` (Netlify project `fairyfox-games`), wired via
   `.github/workflows/netlify.yml`. Before it goes live the owner must: (1) set the
