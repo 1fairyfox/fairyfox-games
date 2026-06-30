@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.1.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.1.1` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
