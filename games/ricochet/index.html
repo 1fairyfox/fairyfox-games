@@ -51,6 +51,13 @@
   .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
   .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
   .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
+  .toast { position:absolute; top:22%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    font-size:clamp(26px,6vw,44px); font-weight:700; letter-spacing:-.01em; text-align:center;
+    background:linear-gradient(90deg,#7af9d0,#8ab4ff,#d98aff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
+  .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 </style>
 </head>
 <body>
@@ -70,7 +77,8 @@
     <div class="tip"><b>Tip:</b> a shot that collects <em>nothing</em> costs a life — three
       misses ends the run. Aim off the walls, not just straight at a target: the targets
       shrink as you score, so the easy line-of-sight shots dry up and banking becomes the
-      whole game.</div>
+      whole game. Sweep <b>two or more in one shot</b> for a bank — Double, Triple, Quad… all
+      the way to a full <b>Ricochet!</b></div>
     <div class="prompt">Aim &amp; click to fire</div>
   </div>
 
@@ -81,6 +89,8 @@
     <div class="oversub" id="overSub"></div>
     <div class="prompt">Click or press Space to play again</div>
   </div>
+
+  <div class="toast" id="toast"></div>
 </div>
 
 <!-- The game logic core + render shell are external modules; this is the

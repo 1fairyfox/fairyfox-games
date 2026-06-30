@@ -35,7 +35,7 @@ const ctx = canvas.getContext('2d');
 const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const livesEl = el('lives'), newbestEl = el('newbest'), overTitle = el('overTitle');
-const startPanel = el('start'), overPanel = el('gameover');
+const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
 const toastEl = el('toast'), comboEl = el('combo');
 
 let toastTimer = 0;
@@ -126,6 +126,11 @@ function renderLives() {
 function onDeath() {
   shake = 16;
   finalEl.textContent = game.score;
+  // a second thing to chase beyond the streak: how clean were the catches?
+  if (overSubEl) {
+    const streak = game.bestCombo > 1 ? ` · best streak ${game.bestCombo} in a row` : '';
+    overSubEl.textContent = game.perfects > 0 ? `${game.perfects} perfect catches${streak}` : '';
+  }
   const record = game.score > best;
   if (record) {
     best = game.score;

@@ -265,6 +265,9 @@ test('both mote kinds appear across many spawns under a seed', () => {
 test('milestoneAt returns labels at thresholds and null otherwise', () => {
   assert.equal(milestoneAt(10), 'Blooming');
   assert.equal(milestoneAt(50), 'Radiant');
+  assert.equal(milestoneAt(100), 'Transcendent');
+  assert.equal(milestoneAt(150), 'Supernova');     // deeper tiers for long runs
+  assert.equal(milestoneAt(200), 'Cosmic bloom');
   assert.equal(milestoneAt(11), null);
   assert.equal(milestoneAt(0), null);
 });

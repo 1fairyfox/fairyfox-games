@@ -45,6 +45,7 @@
   .final { margin-top:18px; font-size:18px; }
   .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
   .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
+  .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
   .tips { margin-top:18px; font-size:13px; line-height:1.6; opacity:.6; max-width:360px; }
   .tips b { color:#9fb4ff; }
   .toast { position:absolute; top:24%; left:50%; transform:translate(-50%,-50%) scale(.96);
@@ -69,7 +70,7 @@
     <div class="sub">Your probe orbits the planet. Hold the mouse, tap, or press Space to fire a
       prograde thrust — adding energy widens the orbit; let go and gravity reels you back.
       Sweep through the glowing targets. Don't crash, and don't fly off into deep space.</div>
-    <div class="tips">Tip: short taps shape the orbit — don't just hold. Skim close past the planet for a <b>close-pass bonus</b>, but mind the surface.</div>
+    <div class="tips">Tip: short taps shape the orbit — don't just hold. Skim close past the planet for a <b>close-pass bonus</b> (a perfect skim is worth up to +3), but mind the surface. Your skim count and best bonus are tallied at the end.</div>
     <div class="prompt">Hold to thrust — press to begin</div>
   </div>
 
@@ -77,6 +78,7 @@
     <div class="title" id="overTitle">Crashed</div>
     <div class="final">Score<b id="finalScore">0</b></div>
     <div class="newbest" id="newbest"></div>
+    <div class="oversub" id="overSub"></div>
     <div class="prompt">Click or press Space to try again</div>
   </div>
 

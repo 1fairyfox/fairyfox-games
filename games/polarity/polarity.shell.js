@@ -46,6 +46,7 @@ bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
 let flash = 0, shake = 0, ms = 0;   // ms: milestone-banner life, 1 → 0
+let beatBest = false;               // fired the one-time "New best!" flash this run?
 
 /** Pop the milestone banner for a freshly-reached label. */
 function showMilestone(label) {
@@ -67,8 +68,8 @@ game = Pol.createGame(W, H);
 
 // ── Input — one control: flip polarity (also starts / restarts) ───────────────
 function press() {
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); Pol.start(game); return; }
-  if (game.phase === 'dead') { overPanel.classList.add('hide'); Pol.start(game); return; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); beatBest = false; Pol.start(game); return; }
+  if (game.phase === 'dead') { overPanel.classList.add('hide'); beatBest = false; Pol.start(game); return; }
   Pol.toggle(game);
 }
 window.addEventListener('mousedown', e => { e.preventDefault(); press(); });
@@ -110,6 +111,9 @@ function update(now) {
         flash = 1; scoreEl.textContent = game.score;
         const label = Pol.milestoneAt(game.cfg, game.score);
         if (label) showMilestone(label);
+        // the moment you overtake your own record, mid-run — a single celebratory flash
+        else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
+        if (best > 0 && game.score > best) beatBest = true;
       }
       if (r.died) { shake = 18; onDeath(); }
     }

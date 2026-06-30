@@ -63,6 +63,8 @@ export const CONFIG = Object.freeze({
  * @property {Vec} vel                   probe velocity
  * @property {Vec} target               active target position
  * @property {number} score              score this run (targets + close-pass bonuses)
+ * @property {number} skims              targets caught with a close-pass bonus (a stat to chase)
+ * @property {number} bestBonus          biggest single close-pass bonus earned this run
  * @property {number} minDist            closest approach to the planet since the last pickup
  * @property {number} t                  ticks elapsed this run
  * @property {boolean} thrusting         whether thrust was applied last tick (view)
@@ -96,7 +98,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 },
     target: { x: 0, y: 0 },
-    score: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
+    score: 0, skims: 0, bestBonus: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
   };
   reset(g);
   return g;
@@ -114,6 +116,8 @@ export function reset(g) {
   g.pos = { x: p.x + g.cfg.R0, y: p.y };
   g.vel = { x: 0, y: v };                   // perpendicular → counter-clockwise orbit
   g.score = 0;
+  g.skims = 0;
+  g.bestBonus = 0;
   g.minDist = Infinity;
   g.t = 0;
   g.thrusting = false;
@@ -241,6 +245,10 @@ export function tick(g, input = {}) {
   if (Math.hypot(g.pos.x - g.target.x, g.pos.y - g.target.y) < g.cfg.TARGET_R + g.cfg.PROBE_R) {
     bonus = closePassBonus(g);   // reward a risky skim past the planet
     g.score += 1 + bonus;
+    if (bonus > 0) {             // a rewarded skim — track count and personal-best skim
+      g.skims++;
+      if (bonus > g.bestBonus) g.bestBonus = bonus;
+    }
     scored = true;
     g.minDist = Infinity;        // fresh skim window for the next target
     pickTarget(g);

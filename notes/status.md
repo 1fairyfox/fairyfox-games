@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.5.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.5.1` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -20,19 +20,21 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 **Games so far (5):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
-  your trail. Rare **prism motes** (×3) + milestone toasts. Pure core + 25 tests.
+  your trail. Rare **prism motes** (×3) + milestone toasts (now to **Cosmic bloom**).
+  Pure core + 25 tests.
 - **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band; the
-  window tightens. **Perfect-catch ×2–×3 combo** + milestones. Pure core + 22 tests.
+  window tightens. **Perfect-catch ×2–×3 combo** + **perfect/best-streak stats** on
+  game over + milestones. Pure core + 23 tests.
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
-  sweep targets. **Close-pass skim bonus** + milestones. Pure core (symplectic Euler)
-  + 19 tests.
+  sweep targets. **Close-pass skim bonus** + **skim tally / best-bonus** + a **Skim!**
+  toast + milestones. Pure core (symplectic Euler) + 21 tests.
 - **Polarity** (`games/polarity/`) — flip cyan/magenta to match each gate; it speeds
-  up. **Milestone progress feedback**. Pure core + 19 tests.
+  up. **Milestones to 150/200** + a live **New best!** flash. Pure core + 20 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
-  sweeping up targets in its path; bank chains, three misses end it. Pure core
-  (`computeShot`) + 20 tests.
+  sweeping up targets in its path; **chain-bank toasts** (Double…**RICOCHET!**); three
+  misses end it. Pure core (`computeShot`) + 21 tests.
 
-**Tests:** 105/105 green across the collection.
+**Tests:** 110/110 green across the collection.
 
 ## In flight / awaiting
 
@@ -51,7 +53,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 105/105 across 5 games |
+| Tests (`node --test`) | ✅ 110/110 across 5 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

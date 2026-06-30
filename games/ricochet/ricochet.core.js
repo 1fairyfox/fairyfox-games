@@ -360,3 +360,19 @@ export function fire(g) {
   }
   return { shot, chain, died: false };
 }
+
+/**
+ * A celebratory label for a multi-target shot (a banked chain), or `null` for a
+ * one-or-zero collect. Pure — the shell flashes the returned label as a toast the
+ * instant a chain lands, rewarding the core skill of banking one shot through
+ * several targets. Not gameplay-affecting.
+ * @param {number} chain targets collected in a single shot
+ * @returns {string|null} the chain label, or null when chain < 2
+ */
+export function chainLabel(chain) {
+  if (chain < 2) return null;
+  if (chain === 2) return 'Double bank!';
+  if (chain === 3) return 'Triple bank!';
+  if (chain === 4) return 'Quad bank!';
+  return 'RICOCHET!';   // 5+ in one shot
+}

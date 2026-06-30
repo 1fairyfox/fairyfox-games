@@ -20,7 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONFIG, dist2, targetRadius, clampAim, aimToward, setAim,
-  createGame, reset, start, spawnTarget, fillTargets, computeShot, fire,
+  createGame, reset, start, spawnTarget, fillTargets, computeShot, fire, chainLabel,
 } from './ricochet.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -249,4 +249,15 @@ test('a scripted run is deterministic under a fixed seed', () => {
     return { score: g.score, lives: g.lives, shots: g.shots, phase: g.phase };
   };
   assert.deepEqual(run(), run());
+});
+
+// ── 8. Chain labels (the banked-shot celebration) ───────────────────────────────
+test('chainLabel rewards multi-target shots and stays null below two', () => {
+  assert.equal(chainLabel(0), null);
+  assert.equal(chainLabel(1), null);     // a single collect is not a "bank"
+  assert.equal(chainLabel(2), 'Double bank!');
+  assert.equal(chainLabel(3), 'Triple bank!');
+  assert.equal(chainLabel(4), 'Quad bank!');
+  assert.equal(chainLabel(5), 'RICOCHET!');
+  assert.equal(chainLabel(9), 'RICOCHET!'); // any big chain tops out at the same label
 });

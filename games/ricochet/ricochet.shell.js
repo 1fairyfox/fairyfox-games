@@ -40,7 +40,18 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('overSub');
 const livesEl = el('lives');
-const startPanel = el('start'), overPanel = el('gameover');
+const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
+
+// Chain-bank toast — a brief celebratory flash when one shot banks through several
+// targets (label is pure logic in the core's chainLabel). Rewards the core skill.
+let toastTimer = 0;
+function showToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+}
 
 const BEST_KEY = 'ricochet.best';
 let best = 0;
@@ -144,6 +155,8 @@ function advanceFlight() {
     if (res) {
       scoreEl.textContent = game.score;
       renderLives();
+      const lbl = R.chainLabel(res.chain);   // celebrate a banked multi-target shot
+      if (lbl) showToast(lbl);
       if (res.chain === 0) { shake = Math.max(shake, 8); flash = 0.6; }
       if (res.died) onDeath();
     }

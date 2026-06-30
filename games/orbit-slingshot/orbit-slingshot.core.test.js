@@ -231,3 +231,32 @@ test('milestoneAt returns labels at thresholds and null otherwise', () => {
   assert.equal(milestoneAt(100), 'Cosmonaut');
   assert.equal(milestoneAt(13), null);
 });
+
+// ── Skim stats: close-pass count + best single bonus ───────────────────────────
+// GM:0 freezes the probe (circular speed sqrt(GM/R0) = 0, gravity = 0), so we can
+// place a target on it and control the skim window deterministically.
+test('a close-pass pickup records a skim and tracks the best bonus; reset clears them', () => {
+  const g = createGame(W, H, { rng: seeded(1), config: { GM: 0 } });
+  start(g);
+  g.target = { x: g.pos.x, y: g.pos.y };          // sit the target on the stationary probe
+  g.minDist = g.cfg.PLANET_R + g.cfg.PROBE_R;      // force a dead-on skim → max bonus
+  const r = tick(g, { thrust: false });
+  assert.ok(r.scored && r.bonus > 0, 'scored with a bonus');
+  assert.equal(g.skims, 1);
+  assert.equal(g.bestBonus, r.bonus);
+  reset(g);
+  assert.equal(g.skims, 0);
+  assert.equal(g.bestBonus, 0);
+});
+
+test('a far pickup scores without counting as a skim', () => {
+  const g = createGame(W, H, { rng: seeded(1), config: { GM: 0 } });
+  start(g);
+  g.target = { x: g.pos.x, y: g.pos.y };
+  // leave minDist at its post-reset Infinity → the tick records a far approach, bonus 0
+  const r = tick(g, { thrust: false });
+  assert.ok(r.scored);
+  assert.equal(r.bonus, 0);
+  assert.equal(g.skims, 0);
+  assert.equal(g.bestBonus, 0);
+});
