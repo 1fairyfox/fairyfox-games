@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.1.2` (single source of truth: repo-root `VERSION`).
+**Version:** `0.2.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -21,6 +21,10 @@ the fairyfox.io mesh.
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your own trail. Pure core + 20-test suite (incl. a regression test for the original
   frame-one self-collision bug). Done and playable.
+- **Echo Chamber** (`games/echo-chamber/`) — a timing game: catch the expanding echo
+  as it crosses the target band; the window tightens each hit, three lives. Pure core
+  + 18-test suite (incl. the inclusive catch-tolerance boundary regression). Done and
+  playable.
 
 ## In flight / awaiting
 
