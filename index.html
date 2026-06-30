@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
 <title>Fairy Fox Games · beat-your-own-score canvas games</title>
-<meta name="description" content="A collection of small, self-contained canvas games — one mechanic, beat your own score. A fresh experiment most days. Each game splits tested logic from rendering.">
+<meta name="description" content="A collection of small, self-contained canvas games — one mechanic, beat your own score. Each game splits tested logic from rendering.">
 
 <!-- Same favicon/tab identity as fairyfox.io -->
 <link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
@@ -19,27 +19,24 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<!-- The fairyfox.io theme, vendored verbatim from the hub docs-site design system.
-     No per-project accent override: this page wears the exact homepage palette. -->
+<!-- The fairyfox.io theme, vendored verbatim from the hub docs-site design system. -->
 <link rel="stylesheet" href="./assets/styles.css">
 <style>
-  /* Game cards reuse the shared project-card styling; carry the site accent rail. */
+  /* Game cards reuse the hub's project-card styling; tags are plain .tag chips,
+     exactly as the hub renders them. */
   .game-card { --pc: var(--violet); display:flex; flex-direction:column; }
   .game-card .play { margin-top:auto; padding-top:.5rem; font-weight:650; color:var(--accent); }
-  /* The way-home brand sits on the left; a small back-arrow makes it explicit. */
-  .brand .back-arrow { color:var(--text-faint); font-weight:600; margin-right:.1rem; }
+  .game-card .tags { gap:.4rem; }
 </style>
 </head>
 <body>
 
-<!-- Header: an outright copy of the fairyfox.io site header (same brand, logo,
-     colours, nav style). Brand on the LEFT is the way home → fairyfox.io. The
-     "Games" item is the current site (active); the rest mirror the hub's nav and
-     link straight to its sections, so the bar matches the homepage 1:1. -->
+<!-- Header: an outright copy of the fairyfox.io site header (brand, logo, colours,
+     nav style). The brand on the left is the way home. "Games" sits right of
+     Projects, matching the hub's own nav. -->
 <header class="site-header">
   <div class="wrap">
-    <a class="brand" href="https://fairyfox.io/" title="Back to Fairy Fox">
-      <span class="back-arrow" aria-hidden="true">←</span>
+    <a class="brand" href="https://fairyfox.io/">
       <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
       <span class="brand-name">Fairy&nbsp;Fox</span>
     </a>
@@ -51,11 +48,11 @@
     <nav class="nav" aria-label="Primary">
       <a href="https://fairyfox.io/">Home</a>
       <a href="https://fairyfox.io/projects/">Projects</a>
+      <a href="#games" class="active">Games</a>
       <a href="https://fairyfox.io/docs/">Docs</a>
       <a href="https://fairyfox.io/downloads/">Downloads</a>
       <a href="https://fairyfox.io/blog/">Updates</a>
       <a href="https://fairyfox.io/about/">About</a>
-      <a href="#games" class="active">Games</a>
     </nav>
   </div>
 </header>
@@ -66,17 +63,12 @@
       <div class="mast-id">
         <div>
           <div class="mast-name">Fairy Fox Games</div>
-          <p class="mast-tag">Small, self-contained canvas games — one mechanic, one screen,
-            beat your own score. A fresh, polished experiment most days, each splitting
-            <strong>tested logic</strong> from rendering. Play them embedded on the
-            <a href="https://fairyfox.io/fun/">Fun page</a>.</p>
+          <p class="mast-tag">Small, self-contained canvas games.</p>
         </div>
       </div>
       <div class="mast-meta">
         <span class="mchip"><span class="pulse-dot"></span> Active</span>
         <span class="mchip">Games <b>4</b></span>
-        <span class="mchip">New <b>most days</b></span>
-        <span class="mchip"><b>MIT</b> · contributions welcome</span>
       </div>
     </div>
   </section>
@@ -86,38 +78,37 @@
       <div class="section-head">
         <div class="label">
           <h2>The collection</h2>
-          <p class="sub">One folder, one mechanic, one pure-logic core with a real test suite.
-            Click to play in your browser.</p>
         </div>
         <a class="more ext" href="https://github.com/junebug12851/fairyfox-games">Source &amp; how it's built ↗</a>
       </div>
 
-      <!-- One card per game. Keep in step with games/ and the root README. -->
+      <!-- One card per game. Keep in step with games/ and the root README.
+           Tags are standardized labels rendered exactly like the hub's project cards. -->
       <div class="grid cols-3" id="game-grid">
-        <a class="card game-card proj-card" href="./games/ink-bloom/">
+        <a class="card game-card proj-card" href="./games/ink-bloom/" data-tags="Steering Survival">
           <h3>Ink Bloom</h3>
-          <div class="tags"><span class="tag accent">Steer · grow · survive</span></div>
+          <div class="tags"><span class="tag">Steering</span><span class="tag">Survival</span></div>
           <p class="blurb">Steer a growing line, drink glowing motes to grow, and don't cross
             your own trail. The longer you live, the less room you leave yourself.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/echo-chamber/">
+        <a class="card game-card proj-card" href="./games/echo-chamber/" data-tags="Timing Reflex">
           <h3>Echo Chamber</h3>
-          <div class="tags"><span class="tag accent">Timing · nerve</span></div>
+          <div class="tags"><span class="tag">Timing</span><span class="tag">Reflex</span></div>
           <p class="blurb">An echo ring expands from the centre — catch it the instant it
             crosses the target band. Every hit tightens the window. Three lives.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/orbit-slingshot/">
+        <a class="card game-card proj-card" href="./games/orbit-slingshot/" data-tags="Physics Gravity">
           <h3>Orbit Slingshot</h3>
-          <div class="tags"><span class="tag accent">Gravity · physics</span></div>
+          <div class="tags"><span class="tag">Physics</span><span class="tag">Gravity</span></div>
           <p class="blurb">Your probe orbits a planet. Hold to fire a prograde thrust and
             bend your path through the targets — without crashing or flying off into space.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/polarity/">
+        <a class="card game-card proj-card" href="./games/polarity/" data-tags="Reflex Matching">
           <h3>Polarity</h3>
-          <div class="tags"><span class="tag accent">Reflex · match</span></div>
+          <div class="tags"><span class="tag">Reflex</span><span class="tag">Matching</span></div>
           <p class="blurb">Charged gates rush in — flip your charge, cyan or magenta, to match
             each one and phase through. Clash and it's over. The stream keeps speeding up.</p>
           <span class="play">▶ Play</span>
@@ -173,7 +164,7 @@
     <div class="footer-col">
       <h4>Elsewhere</h4>
       <a href="https://github.com/junebug12851/fairyfox-games">GitHub ↗</a>
-      <a href="https://fairyfox.io/fun/">Fun page</a>
+      <a href="https://games.fairyfox.io/">games.fairyfox.io ↗</a>
       <a href="https://fairyfox.io/projects/fairyfox-games/">Node page</a>
     </div>
   </div>
@@ -182,7 +173,7 @@
       <span>© 2026 Fairy Fox</span>
       <span>Part of the Fairy Fox mesh · MIT licensed</span>
       <span class="spacer"></span>
-      <a href="https://fairyfox.io/">← Back to Fairy Fox</a>
+      <a href="https://github.com/junebug12851">@junebug12851</a>
     </div>
   </div>
 </footer>
@@ -194,8 +185,7 @@
     var header = document.querySelector(".site-header");
     if (!header) return;
     var toggle = header.querySelector(".nav-toggle");
-    var nav = header.querySelector(".nav");
-    if (toggle && nav) {
+    if (toggle) {
       toggle.addEventListener("click", function () {
         var open = header.classList.toggle("nav-open");
         toggle.setAttribute("aria-expanded", open ? "true" : "false");

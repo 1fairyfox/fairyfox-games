@@ -39,6 +39,33 @@ the shared living-notes standard. Highlights:
   Pages serves them. `.nojekyll` is present so Pages serves files verbatim.
 - **Never bump MAJOR** (`→ 1.0.0`) — Fairy Fox's call only.
 
+## Standing Rules — the games are first-class citizens (a standing instruction)
+
+These games are **not** throwaway demos to be dumped and forgotten. They are
+first-class citizens that earn ongoing investment. Hold to these, by default:
+
+- **They grow a little deeper every day.** Beyond maintenance, docs, and tests, each
+  game **deserves regular growth and expansion** — the daily job tends the collection,
+  deepening at least one existing game a little each run, not only adding new ones.
+- **Every game carries real content.** Each game must have at least a little
+  genuinely **valuable, helpful content** — a couple of things (e.g. a clear how-to,
+  strategy tips, meaningful feedback/milestones) that make it more fun and engaging,
+  not filler.
+- **Stay simple — this is the hard constraint.** Growth must **never** make a game
+  convoluted, cluttered, disorganized, or unstable. The UI/UX stays **clean and
+  polished** (the bar is how it looks today). If an addition risks that, it doesn't
+  ship. Simple-but-deep beats busy.
+- **New games must be genuinely unique.** Every new game is a mechanically *distinct*
+  experiment — never a re-skin of an existing one. Check `games/` and the pitched
+  concepts before building.
+- **It's "Games", not "Fun".** The project is the games collection — do not use the
+  retired `/fun/` URL or "Fun page" wording anywhere. Play lives at
+  `games.fairyfox.io` and `fairyfox.io/fairyfox-games/`.
+- **Header conventions.** The landing page mirrors the fairyfox.io homepage chrome.
+  The **Games** nav item sits **right of Projects** (matching the hub); **About is
+  always last**. The brand/Home link is the way home — don't add a redundant
+  "← Back to Fairy Fox" control.
+
 ## Build / Run
 
 You CAN build, test, run, commit, and push — via PowerShell on the local machine

@@ -7,7 +7,7 @@ A collection of small, self-contained **canvas games** — the one-mechanic,
 days: easy to pick up, hard to put down, and honest about quality even when the
 idea is simple.
 
-**▶ Play them:** <https://fairyfox.io/fun/> (embedded player) — or directly at
+**▶ Play them:** <https://games.fairyfox.io/> — or at
 `https://fairyfox.io/fairyfox-games/<game>/`.
 
 This is part of the [Fairy Fox](https://fairyfox.io) project mesh. It is **not** a

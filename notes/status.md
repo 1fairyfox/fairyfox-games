@@ -12,9 +12,9 @@ way: a **pure logic core** (`*.core.js`, no DOM) + a **test suite** (`node --tes
 thin **rendering shell** (`index.html`). It's a public, contribution-friendly node in
 the fairyfox.io mesh.
 
-**Live:** the games are static and published by GitHub Pages at
-`fairyfox.io/fairyfox-games/` (landing page) and `fairyfox.io/fairyfox-games/<game>/`
-(each game). The fairyfox.io **Fun page** embeds them in a player.
+**Live:** the games are static and published two ways — GitHub Pages at
+`fairyfox.io/fairyfox-games/` and Netlify at `games.fairyfox.io` (landing page),
+plus each game at `…/games/<game>/`.
 
 **Games so far:**
 
