@@ -46,13 +46,23 @@
   .final { margin-top:18px; font-size:18px; }
   .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
   .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
+  .tips { margin-top:18px; font-size:13px; line-height:1.6; opacity:.6; max-width:360px; }
+  .tips b { color:#9ff5d3; }
+  .combo { margin-top:6px; font-size:14px; font-weight:700; color:#9ff5d3; min-height:18px; letter-spacing:.04em; }
+  .toast { position:absolute; top:24%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    font-size:clamp(26px,6vw,42px); font-weight:700; text-align:center;
+    background:linear-gradient(90deg,#7af9d0,#8ab4ff,#b58aff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
+  .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
   <div id="hud">
-    <div class="stat"><div class="label">Streak</div><div class="val" id="score">0</div></div>
+    <div class="stat"><div class="label">Score</div><div class="val" id="score">0</div><div class="combo" id="combo"></div></div>
     <div class="stat" id="best"><div class="label">Best</div><div class="val" id="bestVal">0</div></div>
   </div>
   <div id="lives">●●●</div>
@@ -62,6 +72,7 @@
     <div class="sub">An echo expands from the centre. Click, tap, or press Space the instant it
       crosses the green band. Nail it and the band tightens; miss it — or let the echo escape —
       and you lose one of three lives.</div>
+    <div class="tips">Tip: catch on the band's leading edge — don't wait until you see it cross. A <b>perfect</b> centre hit builds a combo, up to ×3.</div>
     <div class="prompt">Click / Space to begin</div>
   </div>
 
@@ -71,6 +82,8 @@
     <div class="newbest" id="newbest"></div>
     <div class="prompt">Click or press Space to try again</div>
   </div>
+
+  <div class="toast" id="toast"></div>
 </div>
 
 <!-- The game logic core + render shell are external modules; this is the

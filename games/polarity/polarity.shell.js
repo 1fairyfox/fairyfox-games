@@ -37,7 +37,7 @@ const ctx = canvas.getContext('2d');
 const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
-const startPanel = el('start'), overPanel = el('gameover');
+const startPanel = el('start'), overPanel = el('gameover'), milestoneEl = el('milestone');
 
 const BEST_KEY = 'polarity.best';
 let best = 0;
@@ -45,7 +45,14 @@ try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
-let flash = 0, shake = 0;
+let flash = 0, shake = 0, ms = 0;   // ms: milestone-banner life, 1 → 0
+
+/** Pop the milestone banner for a freshly-reached label. */
+function showMilestone(label) {
+  if (!milestoneEl) return;
+  milestoneEl.textContent = label;
+  ms = 1;
+}
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -71,7 +78,8 @@ window.addEventListener('keydown', e => {
 });
 
 function onDeath() {
-  shake = 18;
+  shake = 18; ms = 0;
+  if (milestoneEl) milestoneEl.style.opacity = 0;
   finalEl.textContent = game.score;
   const record = game.score > best;
   if (record) {
@@ -98,11 +106,20 @@ function update(now) {
   while (acc >= STEP_MS) {
     if (game.phase === 'play') {
       const r = Pol.tick(game);
-      if (r.passed) { flash = 1; scoreEl.textContent = game.score; }
+      if (r.passed) {
+        flash = 1; scoreEl.textContent = game.score;
+        const label = Pol.milestoneAt(game.cfg, game.score);
+        if (label) showMilestone(label);
+      }
       if (r.died) { shake = 18; onDeath(); }
     }
     if (shake > 0.3) shake *= 0.85; else shake = 0;
     if (flash > 0.01) flash *= 0.86; else flash = 0;
+    if (ms > 0.001) ms *= 0.965; else ms = 0;
+    if (milestoneEl) {
+      milestoneEl.style.opacity = ms > 0 ? Math.min(1, ms * 1.6) : 0;
+      milestoneEl.style.transform = 'translateY(' + ((1 - ms) * -14) + 'px) scale(' + (0.9 + ms * 0.18) + ')';
+    }
     acc -= STEP_MS;
   }
 }

@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, wrapAngle, dist2, radius,
   createGame, reset, start, spawnMote,
-  steer, stepHead, hitWall, hitSelf, tryEat, tick, headingToward,
+  steer, stepHead, hitWall, hitSelf, tryEat, tick, headingToward, milestoneAt,
 } from './ink-bloom.core.js';
 
 /** Deterministic RNG (mulberry32) so mote placement is reproducible in tests. */
@@ -226,4 +226,45 @@ test('a scripted run eats a planted mote, then dies into a wall', () => {
   assert.equal(g.phase, 'dead');
   // Dead games ignore further ticks.
   assert.deepEqual(tick(g, { target: 0 }), { died: false, ate: false });
+});
+
+// ── 9. Prism motes & milestones (growth) ─────────────────────────────────────
+test('spawnMote tags each mote as normal or prism, deterministically', () => {
+  const a = createGame(W, H, { rng: seeded(7) });
+  const b = createGame(W, H, { rng: seeded(7) });
+  assert.ok(a.mote.kind === 'normal' || a.mote.kind === 'prism');
+  assert.equal(a.mote.kind, b.mote.kind);
+});
+
+test('eating a prism mote scores PRISM_SCORE; a normal mote scores 1', () => {
+  const g = newGame();
+  start(g);
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'prism' };
+  tryEat(g);
+  assert.equal(g.score, CONFIG.PRISM_SCORE);
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'normal' };
+  tryEat(g);
+  assert.equal(g.score, CONFIG.PRISM_SCORE + 1);
+});
+
+test('REGRESSION: a mote with no kind is treated as normal (1 point)', () => {
+  const g = newGame();
+  start(g);
+  g.mote = { x: g.head.x, y: g.head.y, born: 0 }; // legacy mote, no kind
+  tryEat(g);
+  assert.equal(g.score, 1);
+});
+
+test('both mote kinds appear across many spawns under a seed', () => {
+  const g = createGame(W, H, { rng: seeded(3) });
+  const kinds = new Set();
+  for (let i = 0; i < 200; i++) { spawnMote(g); kinds.add(g.mote.kind); }
+  assert.ok(kinds.has('normal') && kinds.has('prism'), 'sees both kinds');
+});
+
+test('milestoneAt returns labels at thresholds and null otherwise', () => {
+  assert.equal(milestoneAt(10), 'Blooming');
+  assert.equal(milestoneAt(50), 'Radiant');
+  assert.equal(milestoneAt(11), null);
+  assert.equal(milestoneAt(0), null);
 });

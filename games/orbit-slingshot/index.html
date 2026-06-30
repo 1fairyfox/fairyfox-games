@@ -45,6 +45,15 @@
   .final { margin-top:18px; font-size:18px; }
   .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
   .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
+  .tips { margin-top:18px; font-size:13px; line-height:1.6; opacity:.6; max-width:360px; }
+  .tips b { color:#9fb4ff; }
+  .toast { position:absolute; top:24%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    font-size:clamp(24px,5.5vw,40px); font-weight:700; text-align:center;
+    background:linear-gradient(90deg,#7fe9ff,#9fb4ff,#c8a6ff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
+  .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 </style>
 </head>
 <body>
@@ -60,6 +69,7 @@
     <div class="sub">Your probe orbits the planet. Hold the mouse, tap, or press Space to fire a
       prograde thrust — adding energy widens the orbit; let go and gravity reels you back.
       Sweep through the glowing targets. Don't crash, and don't fly off into deep space.</div>
+    <div class="tips">Tip: short taps shape the orbit — don't just hold. Skim close past the planet for a <b>close-pass bonus</b>, but mind the surface.</div>
     <div class="prompt">Hold to thrust — press to begin</div>
   </div>
 
@@ -69,6 +79,8 @@
     <div class="newbest" id="newbest"></div>
     <div class="prompt">Click or press Space to try again</div>
   </div>
+
+  <div class="toast" id="toast"></div>
 </div>
 
 <!-- The game logic core + render shell are external modules; this is the

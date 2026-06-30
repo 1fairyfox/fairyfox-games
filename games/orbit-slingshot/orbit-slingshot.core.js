@@ -41,6 +41,8 @@ export const CONFIG = Object.freeze({
   TARGET_R: 20,       // target pickup radius (px)
   TARGET_MIN_R: 90,   // nearest a target spawns to the planet centre (px)
   TARGET_MAX_R: 240,  // farthest a target spawns from the planet centre (px)
+  CLOSE_BAND: 60,     // skim within this many px of the surface for a close-pass bonus
+  CLOSE_BONUS_MAX: 3, // max bonus points for a dead-on skim
   EPS: 1,             // gravity softening floor to avoid divide-by-zero (px)
 });
 
@@ -60,7 +62,8 @@ export const CONFIG = Object.freeze({
  * @property {Vec} pos                   probe position
  * @property {Vec} vel                   probe velocity
  * @property {Vec} target               active target position
- * @property {number} score              targets collected this run
+ * @property {number} score              score this run (targets + close-pass bonuses)
+ * @property {number} minDist            closest approach to the planet since the last pickup
  * @property {number} t                  ticks elapsed this run
  * @property {boolean} thrusting         whether thrust was applied last tick (view)
  * @property {null|'crash'|'escape'} cause  how the run ended, if dead
@@ -93,7 +96,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 },
     target: { x: 0, y: 0 },
-    score: 0, t: 0, thrusting: false, cause: null,
+    score: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
   };
   reset(g);
   return g;
@@ -111,6 +114,7 @@ export function reset(g) {
   g.pos = { x: p.x + g.cfg.R0, y: p.y };
   g.vel = { x: 0, y: v };                   // perpendicular → counter-clockwise orbit
   g.score = 0;
+  g.minDist = Infinity;
   g.t = 0;
   g.thrusting = false;
   g.cause = null;
@@ -196,7 +200,7 @@ export function outOfBounds(g) {
 
 /**
  * Result of a single {@link tick}.
- * @typedef {{scored:boolean, died:boolean, cause:(null|'crash'|'escape')}} TickResult
+ * @typedef {{scored:boolean, bonus?:number, died:boolean, cause:(null|'crash'|'escape')}} TickResult
  */
 
 /**
@@ -226,14 +230,50 @@ export function tick(g, input = {}) {
   g.vel.x += a.x; g.vel.y += a.y;
   g.pos.x += g.vel.x; g.pos.y += g.vel.y;
 
+  // track the closest skim to the planet since the last pickup (close-pass bonus)
+  const skim = distToPlanet(g);
+  if (skim < g.minDist) g.minDist = skim;
+
   if (hitPlanet(g)) { g.phase = 'dead'; g.cause = 'crash'; return { scored: false, died: true, cause: 'crash' }; }
   if (outOfBounds(g)) { g.phase = 'dead'; g.cause = 'escape'; return { scored: false, died: true, cause: 'escape' }; }
 
-  let scored = false;
+  let scored = false, bonus = 0;
   if (Math.hypot(g.pos.x - g.target.x, g.pos.y - g.target.y) < g.cfg.TARGET_R + g.cfg.PROBE_R) {
-    g.score++;
+    bonus = closePassBonus(g);   // reward a risky skim past the planet
+    g.score += 1 + bonus;
     scored = true;
+    g.minDist = Infinity;        // fresh skim window for the next target
     pickTarget(g);
   }
-  return { scored, died: false, cause: null };
+  return { scored, bonus, died: false, cause: null };
+}
+
+/**
+ * Close-pass bonus for the current `minDist`: 0 when the closest skim stayed
+ * farther than CLOSE_BAND above the surface, rising to CLOSE_BONUS_MAX for a
+ * dead-on skim of the surface. Pure.
+ * @param {GameState} g
+ * @returns {number} integer bonus points
+ */
+export function closePassBonus(g) {
+  const surface = g.cfg.PLANET_R + g.cfg.PROBE_R;
+  const over = g.minDist - surface;  // how far above the surface the closest skim was
+  const closeness = Math.max(0, Math.min(1, (g.cfg.CLOSE_BAND - over) / g.cfg.CLOSE_BAND));
+  return Math.round(closeness * g.cfg.CLOSE_BONUS_MAX);
+}
+
+/**
+ * A celebratory milestone label for a score, or null. Pure — drives the shell's
+ * milestone toasts. Not gameplay-affecting.
+ * @param {number} score
+ * @returns {string|null}
+ */
+export function milestoneAt(score) {
+  switch (score) {
+    case 10: return 'In orbit';
+    case 25: return 'Navigator';
+    case 50: return 'Slingshot ace';
+    case 100: return 'Cosmonaut';
+    default: return null;
+  }
 }

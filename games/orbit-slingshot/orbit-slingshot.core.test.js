@@ -18,7 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONFIG, planet, createGame, reset, start, pickTarget,
-  gravityAt, speed, distToPlanet, hitPlanet, outOfBounds, tick,
+  gravityAt, speed, distToPlanet, hitPlanet, outOfBounds, tick, closePassBonus, milestoneAt,
 } from './orbit-slingshot.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -199,4 +199,35 @@ test('speed and distToPlanet report the expected magnitudes', () => {
   assert.equal(speed(g), 5);
   g.pos = { x: p.x + 30, y: p.y + 40 };
   assert.equal(distToPlanet(g), 50);
+});
+
+// ── 9. Close-pass bonus & milestones (growth) ────────────────────────────────
+test('closePassBonus rewards a near-surface skim and is zero when far', () => {
+  const g = newGame();
+  const surface = CONFIG.PLANET_R + CONFIG.PROBE_R;
+  g.minDist = surface;                              // dead-on skim
+  assert.equal(closePassBonus(g), CONFIG.CLOSE_BONUS_MAX);
+  g.minDist = surface + CONFIG.CLOSE_BAND + 50;     // well clear of the surface
+  assert.equal(closePassBonus(g), 0);
+});
+
+test('collecting a target after a close skim adds the bonus to the score', () => {
+  const g = newGame();
+  start(g);
+  const surface = CONFIG.PLANET_R + CONFIG.PROBE_R;
+  g.pos = { x: planet(g).x + CONFIG.R0, y: planet(g).y };
+  g.vel = { x: 0, y: 0 };
+  g.target = { x: g.pos.x, y: g.pos.y };
+  g.minDist = surface + 5;                          // skimmed close earlier this lap
+  const r = tick(g, { thrust: false });
+  assert.equal(r.scored, true);
+  assert.ok(r.bonus >= 1, 'a close skim earns a bonus');
+  assert.equal(g.score, 1 + r.bonus);
+  assert.equal(g.minDist, Infinity, 'skim window resets after a pickup');
+});
+
+test('milestoneAt returns labels at thresholds and null otherwise', () => {
+  assert.equal(milestoneAt(10), 'In orbit');
+  assert.equal(milestoneAt(100), 'Cosmonaut');
+  assert.equal(milestoneAt(13), null);
 });

@@ -33,6 +33,15 @@ export const CONFIG = Object.freeze({
   SPEED_BASE: 3.2,   // gate approach speed at score 0 (px/tick)
   SPEED_INC: 0.06,   // speed added per point of score (px/tick)
   SPEED_MAX: 9.0,    // speed cap (px/tick)
+  // Progress milestones: a label flashes the instant the score reaches each
+  // threshold. Ordered ascending. Pure feedback — the shell reads these, the
+  // simulation never branches on them.
+  MILESTONES: Object.freeze([
+    Object.freeze({ score: 10, label: 'Warming up' }),
+    Object.freeze({ score: 25, label: 'Locked in' }),
+    Object.freeze({ score: 50, label: 'Untouchable' }),
+    Object.freeze({ score: 100, label: 'Singularity' }),
+  ]),
 });
 
 /**
@@ -131,6 +140,22 @@ export function toggle(g) {
  */
 export function speedOf(g) {
   return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED_BASE + g.score * g.cfg.SPEED_INC);
+}
+
+/**
+ * The milestone label newly reached at exactly this score, or `null`.
+ *
+ * Score climbs one point per gate phased, so an exact-equality check fires each
+ * milestone once, the instant it's crossed — the shell flashes the returned label.
+ * Pure and side-effect free; the simulation never depends on it.
+ * @param {PolarityConfig} cfg tuning constants (carries the milestone table)
+ * @param {number} score current score
+ * @returns {string|null} the milestone label hit at this exact score, else null
+ */
+export function milestoneAt(cfg, score) {
+  const list = cfg.MILESTONES || [];
+  for (const m of list) if (m.score === score) return m.label;
+  return null;
 }
 
 /**

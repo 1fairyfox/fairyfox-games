@@ -37,6 +37,8 @@ export const CONFIG = Object.freeze({
   TOL_MIN: 9,        // catch window never shrinks below this (px)
   TOL_SHRINK: 1.6,   // catch window tightens by this per successful hit (px)
   LIVES: 3,          // missed presses / overruns allowed before game over
+  PERFECT_FRAC: 0.4, // a catch within tol*this of dead-centre is "perfect" (builds combo)
+  MULT_MAX: 3,       // cap on the perfect-catch score multiplier
 });
 
 /**
@@ -52,6 +54,7 @@ export const CONFIG = Object.freeze({
  * @property {number} tol                current catch half-window (px)
  * @property {number} score              successful catches this run
  * @property {number} lives              lives remaining
+ * @property {number} combo              consecutive perfect catches (drives the multiplier)
  * @property {number} t                  ticks elapsed this run
  */
 
@@ -90,7 +93,7 @@ export function createGame(width, height, opts = {}) {
     rng: opts.rng || Math.random,
     phase: 'menu',
     ringR: 0, targetR: 0, tol: cfg.TOL_START,
-    score: 0, lives: cfg.LIVES, t: 0,
+    score: 0, lives: cfg.LIVES, combo: 0, t: 0,
   };
   reset(g);
   return g;
@@ -107,6 +110,7 @@ export function reset(g) {
   g.tol = g.cfg.TOL_START;
   g.score = 0;
   g.lives = g.cfg.LIVES;
+  g.combo = 0;
   g.t = 0;
   pickTarget(g);
   return g;
@@ -159,6 +163,7 @@ export function tick(g) {
   g.ringR += g.cfg.SPEED;
   if (g.ringR >= rim(g)) {
     g.lives--;
+    g.combo = 0;
     if (g.lives <= 0) {
       g.phase = 'dead';
       return { overrun: true, dead: true };
@@ -173,20 +178,43 @@ export function tick(g) {
 /**
  * The player's catch action. A hit when the echo is within `tol` of the target:
  * scores, tightens the window, and starts a fresh echo. A miss costs a life (and
- * can end the game). No-op unless phase is 'play'.
+ * can end the game). A *perfect* catch (within `tol*PERFECT_FRAC` of dead-centre)
+ * earns the current combo multiplier and extends the combo; a plain catch earns 1
+ * and breaks it. No-op unless phase is 'play'.
  * @param {GameState} g
- * @returns {{hit:boolean, dead:boolean}}
+ * @returns {{hit:boolean, perfect:boolean, mult:number, dead:boolean}}
  */
 export function echo(g) {
   if (g.phase !== 'play') return { hit: false, dead: false };
-  if (Math.abs(g.ringR - g.targetR) <= g.tol) {
-    g.score++;
+  const err = Math.abs(g.ringR - g.targetR);
+  if (err <= g.tol) {
+    const perfect = err <= g.tol * g.cfg.PERFECT_FRAC;
+    const mult = Math.min(1 + g.combo, g.cfg.MULT_MAX); // multiplier from the current combo
+    g.score += perfect ? mult : 1;        // perfect catches earn the combo multiplier
+    g.combo = perfect ? g.combo + 1 : 0;  // a plain (non-perfect) catch breaks the combo
     g.tol = Math.max(g.cfg.TOL_MIN, g.tol - g.cfg.TOL_SHRINK);
     g.ringR = 0;
     pickTarget(g);
-    return { hit: true, dead: false };
+    return { hit: true, perfect, mult, dead: false };
   }
+  g.combo = 0;
   g.lives--;
   if (g.lives <= 0) g.phase = 'dead';
-  return { hit: false, dead: g.phase === 'dead' };
+  return { hit: false, perfect: false, mult: 1, dead: g.phase === 'dead' };
+}
+
+/**
+ * A celebratory milestone label for a score, or null. Pure — the shell flashes a
+ * brief toast when one is crossed. Not gameplay-affecting.
+ * @param {number} score
+ * @returns {string|null}
+ */
+export function milestoneAt(score) {
+  switch (score) {
+    case 10: return 'In tune';
+    case 25: return 'Resonant';
+    case 50: return 'Harmonic';
+    case 100: return 'Virtuoso';
+    default: return null;
+  }
 }

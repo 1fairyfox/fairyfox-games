@@ -16,7 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, createGame, reset, start, toggle, speedOf, spawnGate, tick,
+  CONFIG, createGame, reset, start, toggle, speedOf, spawnGate, tick, milestoneAt,
 } from './polarity.core.js';
 
 /** Deterministic RNG (mulberry32) so gate polarities are reproducible. */
@@ -179,6 +179,50 @@ test('matching every gate climbs the score; a deliberate mismatch then kills the
   for (let i = 0; i < 5000 && !died; i++) died = tick(g).died;
   assert.equal(died, true);
   assert.equal(g.phase, 'dead');
+});
+
+// ── 8. Milestones (pure progress feedback) ─────────────────────────────────────────
+test('milestoneAt returns a label only at exact threshold scores', () => {
+  for (const m of CONFIG.MILESTONES) {
+    assert.equal(milestoneAt(CONFIG, m.score), m.label, `label at ${m.score}`);
+    assert.equal(milestoneAt(CONFIG, m.score - 1), null, `nothing just before ${m.score}`);
+    assert.equal(milestoneAt(CONFIG, m.score + 1), null, `nothing just after ${m.score}`);
+  }
+});
+
+test('milestoneAt is null at score 0 and never throws on an empty table', () => {
+  assert.equal(milestoneAt(CONFIG, 0), null);
+  assert.equal(milestoneAt({ MILESTONES: [] }, 50), null);
+  assert.equal(milestoneAt({}, 50), null); // missing table is tolerated
+});
+
+test('milestone thresholds are ascending and well-formed', () => {
+  let prev = -1;
+  for (const m of CONFIG.MILESTONES) {
+    assert.equal(typeof m.label, 'string');
+    assert.ok(m.label.length > 0);
+    assert.ok(m.score > prev, 'thresholds strictly ascending');
+    prev = m.score;
+  }
+});
+
+test('a milestone fires exactly once as the score climbs through it', () => {
+  // Walk a matched run and count how often each label appears — every threshold
+  // the run passes should fire on exactly one tick.
+  const g = newGame();
+  start(g);
+  const seen = {};
+  let safe = 0;
+  for (let i = 0; i < 20000 && safe < 25; i++) {
+    g.pol = g.gates[0].pol;          // always match → guaranteed to climb
+    if (tick(g).passed) {
+      safe = g.score;
+      const label = milestoneAt(g.cfg, g.score);
+      if (label) seen[label] = (seen[label] || 0) + 1;
+    }
+  }
+  assert.equal(seen['Warming up'], 1, 'score-10 milestone fired once');
+  assert.equal(seen['Locked in'], 1, 'score-25 milestone fired once');
 });
 
 test('spawnGate keeps the stream evenly spaced beyond the last gate', () => {

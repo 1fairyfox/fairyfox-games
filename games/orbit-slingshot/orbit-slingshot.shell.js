@@ -34,6 +34,24 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover');
+const toastEl = el('toast');
+
+let toastTimer = 0;
+function showToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+}
+// Show a crossed score milestone; returns true if one was shown.
+function showMilestone(prev, now) {
+  for (let s = prev + 1; s <= now; s++) {
+    const m = Orbit.milestoneAt(s);
+    if (m) { showToast(m); return true; }
+  }
+  return false;
+}
 
 const BEST_KEY = 'orbitslingshot.best';
 let best = 0;
@@ -117,11 +135,17 @@ function update(now) {
   last = now;
   while (acc >= STEP_MS) {
     if (game.phase === 'play') {
+      const prev = game.score;
       const r = Orbit.tick(game, { thrust: holding });
       trail.push({ x: game.pos.x, y: game.pos.y });
       if (trail.length > 90) trail.shift();
       if (holding) spawnFlame();
-      if (r.scored) { shake = Math.min(shake + 4, 10); scoreEl.textContent = game.score; }
+      if (r.scored) {
+        shake = Math.min(shake + 4, 10);
+        scoreEl.textContent = game.score;
+        // a milestone takes the toast; otherwise celebrate a close-pass bonus
+        if (!showMilestone(prev, game.score) && r.bonus > 0) showToast('Close pass +' + r.bonus);
+      }
       if (r.died) onDeath();
     }
     stepFx();

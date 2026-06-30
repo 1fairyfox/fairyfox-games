@@ -6,6 +6,10 @@ control — click, tap, or **Space**. Match a gate's polarity to phase through a
 score; clash and you're destroyed. The stream speeds up as your score climbs. Beat
 your own score.
 
+**Tip:** flip *early* — set your charge while the next gate is still far off, then
+leave it, and read two gates ahead rather than chasing the line. Progress milestones
+flash at **10, 25, 50, and 100**.
+
 ## How it's built
 
 Like every Fairy Fox game, the simulation is a **pure logic core** with no DOM,
@@ -38,5 +42,6 @@ cd games/polarity && node --test     # zero dependencies, Node 18+
 
 Covers the seeded gate buffer, even spacing, the toggle control, score-scaled speed
 with a cap, gate motion, match/mismatch resolution (and the inclusive boundary),
-determinism, a 2000-tick "buffer never empties" check, and the frame-one safety
-regression.
+determinism, a 2000-tick "buffer never empties" check, the milestone feedback
+(`milestoneAt` fires once per threshold, exact-equality, tolerates a missing table),
+and the frame-one safety regression.

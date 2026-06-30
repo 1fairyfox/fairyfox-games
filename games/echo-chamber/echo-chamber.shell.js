@@ -36,6 +36,27 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const livesEl = el('lives'), newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover');
+const toastEl = el('toast'), comboEl = el('combo');
+
+let toastTimer = 0;
+function showToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+}
+function checkMilestone(prev, now) {
+  for (let s = prev + 1; s <= now; s++) {
+    const m = Echo.milestoneAt(s);
+    if (m) { showToast(m); break; }
+  }
+}
+function renderCombo() {
+  if (!comboEl) return;
+  const mult = Math.min(1 + game.combo, game.cfg.MULT_MAX);
+  comboEl.textContent = (game.combo > 0 && mult > 1) ? 'Combo ×' + mult : '';
+}
 
 const BEST_KEY = 'echochamber.best';
 let best = 0;
@@ -60,14 +81,21 @@ renderLives();
 
 // ── Input — one discrete "act" bound to click / space / touch ─────────────────
 function act() {
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); Echo.start(game); return; }
-  if (game.phase === 'dead') { overPanel.classList.add('hide'); Echo.start(game); renderLives(); return; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); Echo.start(game); renderCombo(); return; }
+  if (game.phase === 'dead') { overPanel.classList.add('hide'); Echo.start(game); renderLives(); renderCombo(); return; }
   // playing → try to catch the echo
-  const cx = W / 2, cy = H / 2;
+  const prev = game.score;
   const res = Echo.echo(game);
   ringFlash(res.hit);
-  if (res.hit) { scoreEl.textContent = game.score; }
-  else { renderLives(); if (res.dead) onDeath(); }
+  if (res.hit) {
+    scoreEl.textContent = game.score;
+    renderCombo();
+    checkMilestone(prev, game.score);
+  } else {
+    renderCombo();
+    renderLives();
+    if (res.dead) onDeath();
+  }
 }
 window.addEventListener('mousedown', e => { e.preventDefault(); act(); });
 window.addEventListener('touchstart', e => { e.preventDefault(); act(); }, { passive: false });
@@ -122,9 +150,8 @@ function update(now) {
   last = now;
   while (acc >= STEP_MS) {
     if (game.phase === 'play') {
-      const before = game.lives;
       const res = Echo.tick(game);
-      if (res.overrun) { ringFlash(false); renderLives(); }
+      if (res.overrun) { ringFlash(false); renderLives(); renderCombo(); }
       if (res.dead) onDeath();
     }
     stepFx();

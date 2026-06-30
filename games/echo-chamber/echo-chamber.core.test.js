@@ -17,7 +17,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, rim, maxTarget, createGame, reset, start, pickTarget, offset, tick, echo,
+  CONFIG, rim, maxTarget, createGame, reset, start, pickTarget, offset, tick, echo, milestoneAt,
 } from './echo-chamber.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -202,9 +202,53 @@ test('a scripted perfect streak climbs the score with no life loss', () => {
     const res = echo(g);
     assert.equal(res.hit, true, `caught echo ${i}`);
   }
-  assert.equal(g.score, 8);
+  assert.ok(g.score >= 8, 'score climbs at least one per catch');
+  assert.ok(g.combo >= 1, 'a clean streak builds a combo');
   assert.equal(g.lives, CONFIG.LIVES);
   assert.equal(g.phase, 'play');
+});
+
+// ── 9. Combo / multiplier & milestones (growth) ──────────────────────────────
+test('a dead-on catch is perfect and extends the combo; an edge catch resets it', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR;                 // dead-on → perfect
+  let r = echo(g);
+  assert.equal(r.perfect, true);
+  assert.equal(g.combo, 1);
+  g.ringR = g.targetR + g.tol * 0.8;   // inside the window, but past the perfect band
+  r = echo(g);
+  assert.equal(r.hit, true);
+  assert.equal(r.perfect, false);
+  assert.equal(g.combo, 0);
+});
+
+test('perfect catches build a score multiplier capped at MULT_MAX', () => {
+  const g = newGame(); start(g);
+  const gains = [];
+  for (let i = 0; i < 4; i++) {
+    const before = g.score;
+    g.ringR = g.targetR;
+    echo(g);
+    gains.push(g.score - before);
+  }
+  assert.deepEqual(gains, [1, 2, 3, 3]); // x1, x2, x3, then capped at x3
+});
+
+test('a miss and an overrun each reset the combo', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR; echo(g); assert.equal(g.combo, 1);
+  g.ringR = g.targetR + g.tol + 50; echo(g); // miss
+  assert.equal(g.combo, 0);
+  start(g);
+  g.ringR = g.targetR; echo(g); assert.equal(g.combo, 1);
+  for (let i = 0; i < 10000; i++) { if (tick(g).overrun) break; }
+  assert.equal(g.combo, 0);
+});
+
+test('milestoneAt returns labels at thresholds and null otherwise', () => {
+  assert.equal(milestoneAt(10), 'In tune');
+  assert.equal(milestoneAt(100), 'Virtuoso');
+  assert.equal(milestoneAt(7), null);
 });
 
 test('three deliberate misses end the run', () => {

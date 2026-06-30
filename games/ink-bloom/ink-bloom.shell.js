@@ -37,6 +37,25 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover');
+const toastEl = el('toast');
+
+// Milestone toasts — a brief celebratory flash at score thresholds (pure logic in
+// the core's milestoneAt). Scans the crossed range so a multi-point prism jump
+// can't skip a threshold.
+let toastTimer = 0;
+function showToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1400);
+}
+function checkMilestone(prev, now) {
+  for (let s = prev + 1; s <= now; s++) {
+    const m = Ink.milestoneAt(s);
+    if (m) { showToast(m); break; }
+  }
+}
 
 const BEST_KEY = 'inkbloom.best';
 let best = 0;
@@ -123,10 +142,12 @@ function update(now) {
   while (acc >= STEP_MS) {
     if (game.phase === 'play') {
       const target = pointer.has ? Ink.headingToward(game, pointer) : null;
+      const prev = game.score;
       const r = Ink.tick(game, { target });
       if (r.ate) { burst(game.mote.x, game.mote.y, game.hue); shake = Math.min(shake + 5, 12); }
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
+      if (game.score !== prev) checkMilestone(prev, game.score);
     }
     stepParticles();
     acc -= STEP_MS;
@@ -145,16 +166,25 @@ function draw() {
   if (game.phase !== 'menu') {
     const g = game, t = g.t, r = Ink.radius(g);
 
-    // mote
-    const pulse = 1 + Math.sin(t * 0.12) * 0.18, mr = g.cfg.MOTE_R * 3 * pulse;
+    // mote — prism motes glow larger and cycle through a rainbow
+    const prism = g.mote.kind === 'prism';
+    const pulse = 1 + Math.sin(t * 0.12) * 0.18;
+    const mr = g.cfg.MOTE_R * (prism ? 4.2 : 3) * pulse;
     ctx.globalCompositeOperation = 'lighter';
     const mg = ctx.createRadialGradient(g.mote.x, g.mote.y, 0, g.mote.x, g.mote.y, mr);
-    mg.addColorStop(0, `hsla(${(g.hue + 40) % 360},100%,72%,0.95)`);
-    mg.addColorStop(1, `hsla(${(g.hue + 40) % 360},100%,60%,0)`);
+    if (prism) {
+      const ph = (t * 4) % 360;
+      mg.addColorStop(0, `hsla(${ph},100%,82%,0.98)`);
+      mg.addColorStop(0.5, `hsla(${(ph + 120) % 360},100%,68%,0.5)`);
+      mg.addColorStop(1, `hsla(${(ph + 240) % 360},100%,60%,0)`);
+    } else {
+      mg.addColorStop(0, `hsla(${(g.hue + 40) % 360},100%,72%,0.95)`);
+      mg.addColorStop(1, `hsla(${(g.hue + 40) % 360},100%,60%,0)`);
+    }
     ctx.fillStyle = mg;
     ctx.beginPath(); ctx.arc(g.mote.x, g.mote.y, mr, 0, 7); ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(g.mote.x, g.mote.y, g.cfg.MOTE_R * 0.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(g.mote.x, g.mote.y, g.cfg.MOTE_R * (prism ? 0.7 : 0.5), 0, 7); ctx.fill();
 
     // ink trail (two passes: soft glow + bright core), hue shifting along the body
     if (g.trail.length > 1) {

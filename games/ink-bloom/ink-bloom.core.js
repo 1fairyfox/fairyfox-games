@@ -44,6 +44,8 @@ export const CONFIG = Object.freeze({
   MOTE_TRIES: 20,      // attempts to satisfy MOTE_MIN_DIST before giving up
   HUE_START: 165,      // starting ink hue (deg)
   HUE_STEP: 24,        // hue rotation per mote (deg)
+  PRISM_CHANCE: 0.16,  // chance a freshly spawned mote is a rare "prism" mote
+  PRISM_SCORE: 3,      // points a prism mote is worth (a normal mote is 1)
 });
 
 /**
@@ -66,7 +68,7 @@ export const CONFIG = Object.freeze({
  * @property {number} score             motes eaten
  * @property {number} hue               current ink hue (deg)
  * @property {number} t                 ticks elapsed this run
- * @property {Point & {born:number}} mote  active mote
+ * @property {Point & {born:number, kind:('normal'|'prism')}} mote  active mote
  */
 
 /**
@@ -179,7 +181,8 @@ export function spawnMote(g) {
     tries++;
   } while (tries < cfg.MOTE_TRIES &&
            Math.hypot(x - g.head.x, y - g.head.y) < cfg.MOTE_MIN_DIST);
-  g.mote = { x, y, born: g.t };
+  const kind = g.rng() < cfg.PRISM_CHANCE ? 'prism' : 'normal';
+  g.mote = { x, y, born: g.t, kind };
   return g.mote;
 }
 
@@ -248,13 +251,31 @@ export function hitSelf(g) {
 export function tryEat(g) {
   const reach = g.cfg.MOTE_R + radius(g);
   if (dist2(g.mote, g.head) < reach * reach) {
-    g.score++;
+    const prism = g.mote.kind === 'prism';
+    g.score += prism ? g.cfg.PRISM_SCORE : 1;
     g.maxLen += g.cfg.GROW_PER_MOTE;
-    g.hue = (g.hue + g.cfg.HUE_STEP) % 360;
+    g.hue = (g.hue + g.cfg.HUE_STEP * (prism ? 3 : 1)) % 360;
     spawnMote(g);
     return true;
   }
   return false;
+}
+
+/**
+ * A celebratory milestone label for a score, or null for scores that aren't a
+ * milestone. Pure — the shell uses it to flash a brief toast. Markers along the
+ * "calm then panic" curve, not gameplay-affecting.
+ * @param {number} score
+ * @returns {string|null}
+ */
+export function milestoneAt(score) {
+  switch (score) {
+    case 10: return 'Blooming';
+    case 25: return 'Luminous';
+    case 50: return 'Radiant';
+    case 100: return 'Transcendent';
+    default: return null;
+  }
 }
 
 /**
