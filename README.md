@@ -1,5 +1,7 @@
 # Fairy Fox Games
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/418513bf-eb19-4773-9283-b741091b337e/deploy-status)](https://app.netlify.com/projects/fairyfox-games/deploys)
+
 A collection of small, self-contained **canvas games** — the one-mechanic,
 *beat-your-own-score* kind. The aim is a fresh, polished little experiment most
 days: easy to pick up, hard to put down, and honest about quality even when the
