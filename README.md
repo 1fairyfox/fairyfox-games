@@ -70,6 +70,7 @@ CI runs the full suite on every push and pull request.
 | Game | What you do | Folder |
 |------|-------------|--------|
 | **Ink Bloom** | Steer a growing line, eat motes, don't cross your own trail. | [`games/ink-bloom/`](games/ink-bloom/) |
+| **Echo Chamber** | Catch the expanding echo as it crosses the target band; the window keeps tightening. | [`games/echo-chamber/`](games/echo-chamber/) |
 
 _(A new one joins most days.)_
 

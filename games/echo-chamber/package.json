@@ -1,0 +1,11 @@
+{
+  "name": "echo-chamber",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Echo Chamber — a one-mechanic, beat-your-own-score timing game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
