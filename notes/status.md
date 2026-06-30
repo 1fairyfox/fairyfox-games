@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.1.1` (single source of truth: repo-root `VERSION`).
+**Version:** `0.1.2` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -24,20 +24,21 @@ the fairyfox.io mesh.
 
 ## In flight / awaiting
 
-- **Daily cadence not yet automated.** The intent is ≥1 fresh, standards-built game
-  per day (logic + docs + tests), added via PR/commit, with the existing games given
-  first-class maintenance. The 3am schedule that drives this is set up on the
-  fairyfox.io side and operates against this repo — not yet wired.
-- **Themed docs site.** The `new-project-setup` runbook wants a fairyfox-themed docs
-  site at `fairyfox.io/fairyfox-games/`. The landing `index.html` is a first pass with
-  the required "← Back to Fairy Fox" way-home link; a fuller themed pass is pending, so
-  the hub registry lists `adopts_hub: false` until it lands.
+- **Netlify deploy — owner action pending.** The site now has a second home at
+  `games.fairyfox.io` (Netlify project `fairyfox-games`), wired via
+  `.github/workflows/netlify.yml`. Before it goes live the owner must: (1) set the
+  `NETLIFY_AUTH_TOKEN` repo secret, (2) add `games.fairyfox.io` as a custom domain on
+  the Netlify project, (3) add the DNS CNAME `games.fairyfox.io` → Netlify.
+- **`adopts_hub` flip.** The themed docs site has landed, so the hub registry can move
+  `adopts_hub: false → true` (a hub-side commit). Pending.
+- **Daily cadence — automated.** The 1am `fairyfox-games-daily` scheduled task now
+  ships ≥1 standards-built game/day + maintains existing ones. A sibling 1am
+  `fairyfox-system-update-check-fairyfox-games` runs the standards check-for-updates.
 
 ## Next
 
-- Wire the daily generation schedule (≥1 game/day, built to standards).
-- Flesh out the themed docs/landing site to the docs-site standard; flip
-  `adopts_hub: true` in the hub registry once done.
+- Flip `adopts_hub: true` in the hub registry (+ bump the registry version).
+- Finish owner-only Netlify steps so `games.fairyfox.io` goes live.
 - Add more games (Echo Chamber, Orbit Slingshot, Polarity were the pitched concepts).
 
 ## Health
@@ -48,5 +49,7 @@ the fairyfox.io mesh.
 | Ink Bloom (logic/docs/tests) | ✅ 20/20 tests green |
 | CI (node --test) | ✅ Workflow in place |
 | Pages deploy | ⏳ Workflow in place; enable + first deploy |
+| Netlify deploy (games.fairyfox.io) | ⏳ Site + workflow ready; owner secret + domain/DNS pending |
 | Mesh registration (hub) | ✅ registry.yml + _data/projects.yml |
-| Themed docs site | ⏳ Landing page first pass; full theme pending |
+| Themed docs site | ✅ Full fairyfox theme (vendored tokens + shell + way-home) |
+| `adopts_hub` flag | ⏳ Ready to flip true (docs site themed) |

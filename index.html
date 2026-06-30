@@ -4,79 +4,141 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fairy Fox Games</title>
-<meta name="description" content="A collection of small, self-contained canvas games — one mechanic, beat your own score. A fresh experiment most days.">
+<meta name="description" content="A collection of small, self-contained canvas games — one mechanic, beat your own score. A fresh experiment most days. Each game splits tested logic from rendering.">
+<meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="https://fairyfox.io/favicon.ico">
+
+<!-- Shared mesh typography — Fraunces / Inter / JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Shared fairyfox.io theme (vendored from the hub docs-site design system) -->
+<link rel="stylesheet" href="./assets/styles.css">
 <style>
-  :root{
-    --bg:#0a0a12; --panel:#141420; --ink:#e8e8f0; --muted:#9a9ab0;
-    --accent:#8b7bff; --accent2:#7af9d0;
+  /* Per-project accent — the one place a project differs in colour. */
+  :root{ --violet:#8b7bff; --violet-deep:#6f5fe6; --coral:#8b7bff; }
+  @media (prefers-color-scheme: light){
+    :root{ --violet:#6f5fe6; --violet-deep:#5a48d6; --coral:#6f5fe6; }
   }
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg); color:var(--ink); line-height:1.6;
-    min-height:100vh; padding:0 20px 80px;
-  }
-  a{color:inherit}
-  .wrap{max-width:920px;margin:0 auto}
-  .home{display:inline-flex;align-items:center;gap:6px;margin:22px 0 0;
-    font-size:14px;color:var(--muted);text-decoration:none;transition:color .2s}
-  .home:hover{color:var(--ink)}
-  header.hero{padding:48px 0 28px;border-bottom:1px solid #ffffff14;margin-bottom:36px}
-  .hero h1{font-size:clamp(34px,7vw,52px);font-weight:700;letter-spacing:-.02em;
-    background:linear-gradient(90deg,var(--accent2),var(--accent),#d98aff);
-    -webkit-background-clip:text;background-clip:text;color:transparent}
-  .hero p{margin-top:14px;color:var(--muted);max-width:60ch;font-size:17px}
-  .meta{margin-top:18px;display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
-  .meta a{color:var(--accent2);text-decoration:none}
-  .meta a:hover{text-decoration:underline}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
-  .card{display:block;background:var(--panel);border:1px solid #ffffff12;border-radius:16px;
-    padding:22px;text-decoration:none;transition:transform .15s,border-color .2s,box-shadow .2s}
-  .card:hover{transform:translateY(-3px);border-color:var(--accent);
-    box-shadow:0 12px 36px -12px #8b7bff66}
-  .card h3{font-size:20px;font-weight:600}
-  .card .tag{display:inline-block;margin-top:10px;font-size:11px;letter-spacing:.12em;
-    text-transform:uppercase;color:var(--accent);opacity:.85}
-  .card p{margin-top:10px;color:var(--muted);font-size:14.5px}
-  .card .play{margin-top:16px;font-size:14px;color:var(--accent2)}
-  footer{margin-top:54px;padding-top:22px;border-top:1px solid #ffffff14;
-    color:var(--muted);font-size:13.5px}
-  footer a{color:var(--accent2);text-decoration:none}
+  /* Game cards carry the project accent rail, like project cards on the hub. */
+  .game-card{--pc:var(--violet)}
+  .game-card .play{margin-top:auto;padding-top:.4rem;font-weight:650;color:var(--accent)}
+  .mast-tag a{color:var(--accent-ink)}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <a class="home" href="https://fairyfox.io/">← Back to Fairy Fox</a>
 
-  <header class="hero">
-    <h1>Fairy Fox Games</h1>
-    <p>Small, self-contained canvas games — one mechanic, one screen, beat your own
-       score. A fresh, polished little experiment most days. Each one splits tested
-       logic from rendering, so it's honest about quality even when the idea is simple.</p>
-    <div class="meta">
-      <span>Play embedded on the <a href="https://fairyfox.io/fun/">Fun page</a></span>
-      <span><a href="https://github.com/junebug12851/fairyfox-games">Source &amp; contributing ↗</a></span>
-    </div>
-  </header>
-
-  <main class="grid" id="games">
-    <!-- One card per game. Keep in step with the games/ folder + the site's _data/games.yml. -->
-    <a class="card" href="./games/ink-bloom/">
-      <h3>Ink Bloom</h3>
-      <span class="tag">Steer · grow · survive</span>
-      <p>Steer a growing line, drink glowing motes to grow, and don't cross your own
-         trail. The longer you live, the less room you leave yourself.</p>
-      <span class="play">▶ Play</span>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="https://fairyfox.io/">
+      <span class="brand-name">Fairy&nbsp;Fox Games</span>
     </a>
-  </main>
+    <nav class="nav">
+      <a href="#games">Games</a>
+      <a href="https://fairyfox.io/fun/">Fun&nbsp;page</a>
+      <a class="ext" href="https://github.com/junebug12851/fairyfox-games">GitHub ↗</a>
+      <a href="https://fairyfox.io/">← Back to Fairy Fox</a>
+    </nav>
+  </div>
+</header>
 
-  <footer>
-    Part of the <a href="https://fairyfox.io">Fairy Fox</a> project mesh ·
-    <a href="https://github.com/junebug12851/fairyfox-games">GitHub</a> ·
-    Contributions welcome — see the
-    <a href="https://github.com/junebug12851/fairyfox-games/blob/main/CONTRIBUTING.md">contributing guide</a>.
-    MIT licensed.
-  </footer>
-</div>
+<main>
+  <section class="masthead">
+    <div class="wrap">
+      <div class="mast-id">
+        <div>
+          <div class="mast-name">Fairy Fox Games</div>
+          <p class="mast-tag">Small, self-contained canvas games — one mechanic, one screen,
+            beat your own score. A fresh, polished experiment most days, each splitting
+            <strong>tested logic</strong> from rendering. Play them embedded on the
+            <a href="https://fairyfox.io/fun/">Fun page</a>.</p>
+        </div>
+      </div>
+      <div class="mast-meta">
+        <span class="mchip"><span class="pulse-dot"></span> Active</span>
+        <span class="mchip">Games <b>1</b></span>
+        <span class="mchip">New <b>most days</b></span>
+        <span class="mchip"><b>MIT</b> · contributions welcome</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="games">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="label">
+          <h2>The collection</h2>
+          <p class="sub">One folder, one mechanic, one pure-logic core with a real test suite.
+            Click to play in your browser.</p>
+        </div>
+        <a class="more ext" href="https://github.com/junebug12851/fairyfox-games">Source &amp; how it's built ↗</a>
+      </div>
+
+      <!-- One card per game. Keep in step with games/ and the site's _data/games.yml. -->
+      <div class="grid cols-3" id="game-grid">
+        <a class="card game-card proj-card" href="./games/ink-bloom/">
+          <h3>Ink Bloom</h3>
+          <div class="tags"><span class="tag accent">Steer · grow · survive</span></div>
+          <p class="blurb">Steer a growing line, drink glowing motes to grow, and don't cross
+            your own trail. The longer you live, the less room you leave yourself.</p>
+          <span class="play">▶ Play</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band-alt">
+    <div class="wrap">
+      <div class="cta-strip">
+        <div>
+          <h3>Built in the open — come add a game</h3>
+          <p>Every game is a self-contained folder with a pure logic core, a zero-dependency
+            <code>node --test</code> suite, and a thin rendering shell. Issues and pull
+            requests are open and first-class.</p>
+        </div>
+        <div class="dl-extlinks">
+          <a class="btn primary" href="https://github.com/junebug12851/fairyfox-games">Open on GitHub</a>
+          <a class="btn" href="https://github.com/junebug12851/fairyfox-games/blob/main/CONTRIBUTING.md">Contributing guide</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-brand">
+      <a class="brand" href="https://fairyfox.io/"><span class="brand-name">Fairy Fox Games</span></a>
+      <p>A node in the Fairy Fox project mesh. Tiny canvas games, honestly built —
+        tested logic, separated from rendering.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Project</h4>
+      <a href="#games">Games</a>
+      <a href="https://github.com/junebug12851/fairyfox-games">Source</a>
+      <a href="https://github.com/junebug12851/fairyfox-games/tree/main/notes">Notes</a>
+    </div>
+    <div class="footer-col">
+      <h4>Play</h4>
+      <a href="./games/ink-bloom/">Ink Bloom</a>
+      <a href="https://fairyfox.io/fun/">Fun page</a>
+    </div>
+    <div class="footer-col">
+      <h4>Mesh</h4>
+      <a href="https://fairyfox.io/">Fairy Fox</a>
+      <a href="https://fairyfox.io/projects/fairyfox-games/">Node page</a>
+    </div>
+  </div>
+  <div class="footer-bar">
+    <div class="wrap">
+      <span>Part of the <a href="https://fairyfox.io/">Fairy Fox</a> mesh · MIT licensed.</span>
+      <span class="spacer"></span>
+      <a href="https://fairyfox.io/">← Back to Fairy Fox</a>
+    </div>
+  </div>
+</footer>
+
 </body>
 </html>
