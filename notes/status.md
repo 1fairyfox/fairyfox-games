@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.5.1` (single source of truth: repo-root `VERSION`).
+**Version:** `0.6.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -17,7 +17,7 @@ that grows a little deeper every day** (standing rules in `CLAUDE.md`).
 and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 `…/games/<game>/`.
 
-**Games so far (5):**
+**Games so far (6):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. Rare **prism motes** (×3) + milestone toasts (now to **Cosmic bloom**).
@@ -29,12 +29,17 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   sweep targets. **Close-pass skim bonus** + **skim tally / best-bonus** + a **Skim!**
   toast + milestones. Pure core (symplectic Euler) + 21 tests.
 - **Polarity** (`games/polarity/`) — flip cyan/magenta to match each gate; it speeds
-  up. **Milestones to 150/200** + a live **New best!** flash. Pure core + 20 tests.
+  up. **Milestones to 150/200**, a live **New best!** flash, and **clutch saves** —
+  last-moment flips tallied on game over (`isClutch`). Pure core + 25 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
   sweeping up targets in its path; **chain-bank toasts** (Double…**RICOCHET!**); three
   misses end it. Pure core (`computeShot`) + 21 tests.
+- **Skyline** (`games/skyline/`) — drop a sliding slab onto your tower; the overhang is
+  sliced off so only precision keeps it climbing. **Flush drops** keep full width + pay
+  double; **perfects/best-streak** on game over; milestones to 150. Pure core (no
+  timer-driven death) + 18 tests.
 
-**Tests:** 110/110 green across the collection.
+**Tests:** 133/133 green across the collection.
 
 ## In flight / awaiting
 
@@ -53,7 +58,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 110/110 across 5 games |
+| Tests (`node --test`) | ✅ 133/133 across 6 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

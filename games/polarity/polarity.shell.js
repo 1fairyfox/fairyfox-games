@@ -38,6 +38,7 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), milestoneEl = el('milestone');
+const clutchEl = el('clutch');
 
 const BEST_KEY = 'polarity.best';
 let best = 0;
@@ -82,6 +83,13 @@ function onDeath() {
   shake = 18; ms = 0;
   if (milestoneEl) milestoneEl.style.opacity = 0;
   finalEl.textContent = game.score;
+  // Clutch saves — last-moment flips that landed a match (pure tally in the core).
+  // Only shown when earned, so the game-over card stays clean on ordinary runs.
+  if (clutchEl) {
+    clutchEl.textContent = game.clutch > 0
+      ? (game.clutch + (game.clutch === 1 ? ' clutch save' : ' clutch saves'))
+      : '';
+  }
   const record = game.score > best;
   if (record) {
     best = game.score;

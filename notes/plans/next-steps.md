@@ -2,18 +2,10 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
-1. **Finish landing-page + README registration for `ricochet`** (deferred this run —
-   see the concurrency blocker below). The new **Ricochet** game is built, green
-   (20/20), and committed to `dev`, but it is NOT yet listed in the root
-   `index.html` collection grid / footer, the root `README.md` "The games" table, or
-   the masthead "Games" count — because those shared files were being edited by a
-   concurrent run when this run finished. Once the tree is uncontended: add the
-   Ricochet card (tags **Aim**, **Geometry**), bump the masthead count, add the
-   README row, then **release** (a MINOR — new game — via a `release/X.Y.0` branch)
-   and **bump `VERSION`** (0.4.2 → 0.5.0).
-2. **Reconcile the concurrent run's in-flight work.** When this run ended, the working
-   tree had uncommitted changes from another daily-maintainer instance: ink-bloom
-   "prism motes", echo-chamber milestones+combo (its `*.core.test.js` was RED — "a
-   dead-on catch is perfect…"), and a root-`index.html` masthead restructure, plus an
-   `update-check` report. A later run must verify those land green (fix the failing
-   echo-chamber test) before any `dev → main` release.
+1. **Keep growing each game a little deeper daily** — content + light, on-mechanic
+   depth (a tip, a milestone, a meaningful stat/feedback), staying simple and clean.
+   Never let a game become convoluted (the hard constraint).
+2. **Keep inventing fresh, mechanically-distinct experiments.** Verbs used so far:
+   steer (Ink Bloom), time-a-catch (Echo Chamber), thrust/physics (Orbit Slingshot),
+   flip-match (Polarity), aim-and-bounce (Ricochet), precision-stack (Skyline). Reach
+   for a genuinely new verb next — e.g. balance, route/connect, sort, grow-and-release.

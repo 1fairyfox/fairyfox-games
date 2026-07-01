@@ -7,8 +7,10 @@ score; clash and you're destroyed. The stream speeds up as your score climbs. Be
 your own score.
 
 **Tip:** flip *early* — set your charge while the next gate is still far off, then
-leave it, and read two gates ahead rather than chasing the line. Progress milestones
-flash at **10, 25, 50, and 100**.
+leave it, and read two gates ahead rather than chasing the line. A flip landed in the
+last instant before a gate resolves counts as a **clutch save**, tallied on game over
+— a measure of how much you played on the edge. Progress milestones flash at **10, 25,
+50, 100, 150, and 200**.
 
 ## How it's built
 
@@ -44,4 +46,5 @@ Covers the seeded gate buffer, even spacing, the toggle control, score-scaled sp
 with a cap, gate motion, match/mismatch resolution (and the inclusive boundary),
 determinism, a 2000-tick "buffer never empties" check, the milestone feedback
 (`milestoneAt` fires once per threshold, exact-equality, tolerates a missing table),
-and the frame-one safety regression.
+the clutch-save tally (`isClutch` window, last-moment flips counted, ancient flips
+ignored, cleared on reset), and the frame-one safety regression.

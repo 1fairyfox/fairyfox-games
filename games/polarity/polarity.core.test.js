@@ -16,7 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, createGame, reset, start, toggle, speedOf, spawnGate, tick, milestoneAt,
+  CONFIG, createGame, reset, start, toggle, speedOf, spawnGate, tick, milestoneAt, isClutch,
 } from './polarity.core.js';
 
 /** Deterministic RNG (mulberry32) so gate polarities are reproducible. */
@@ -93,9 +93,9 @@ test('tick moves every gate left by the current speed', () => {
 
 test('tick is a no-op before start and after death', () => {
   const g = newGame(); // menu
-  assert.deepEqual(tick(g), { passed: false, died: false });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false });
   g.phase = 'dead';
-  assert.deepEqual(tick(g), { passed: false, died: false });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false });
 });
 
 // ── 5. Resolution ──────────────────────────────────────────────────────────────────
@@ -237,4 +237,57 @@ test('milestoneAt covers the deeper tiers (150, 200) for long runs', () => {
   assert.equal(milestoneAt(CONFIG, 150), 'Event horizon');
   assert.equal(milestoneAt(CONFIG, 200), 'Absolute zero');
   assert.equal(milestoneAt(CONFIG, 175), null);
+});
+
+// ── 9. Clutch saves (last-moment flips) ─────────────────────────────────────────
+test('a fresh run starts with zero clutch saves and no recent flip', () => {
+  const g = newGame();
+  start(g);
+  assert.equal(g.clutch, 0);
+  assert.equal(isClutch(g), false, 'frame-one is never clutch — flipT seeded far back');
+});
+
+test('isClutch is true right after a flip and false once CLOSE_TICKS elapse', () => {
+  const g = newGame();
+  start(g);
+  toggle(g);                         // flip at t = g.t
+  assert.equal(isClutch(g), true);
+  g.t += CONFIG.CLOSE_TICKS;          // exactly at the edge — still counts
+  assert.equal(isClutch(g), true);
+  g.t += 1;                           // one tick past the window
+  assert.equal(isClutch(g), false);
+});
+
+test('a match landed by a last-moment flip is tallied as a clutch save', () => {
+  const g = newGame();
+  start(g);
+  g.gates[0].pol = 1;
+  g.gates[0].x = CONFIG.PLAYER_X + 1;  // about to reach the line this tick
+  toggle(g);                            // flip to match at the last instant
+  assert.equal(g.pol, 1);
+  const res = tick(g);
+  assert.equal(res.passed, true);
+  assert.equal(res.clutch, true);
+  assert.equal(g.clutch, 1);
+});
+
+test('a match with no recent flip does not count as a clutch save', () => {
+  const g = newGame();
+  start(g);
+  g.pol = 1; g.gates[0].pol = 1;        // already matched, no flip needed
+  g.flipT = -9999;                      // ensure the last flip is ancient
+  g.gates[0].x = CONFIG.PLAYER_X + 1;
+  const res = tick(g);
+  assert.equal(res.passed, true);
+  assert.equal(res.clutch, false);
+  assert.equal(g.clutch, 0);
+});
+
+test('start()/reset() clears the clutch tally and the flip timestamp', () => {
+  const g = newGame();
+  start(g);
+  toggle(g); g.clutch = 5;
+  start(g);
+  assert.equal(g.clutch, 0);
+  assert.equal(isClutch(g), false);
 });
