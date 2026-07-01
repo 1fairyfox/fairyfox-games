@@ -76,6 +76,7 @@ CI runs the full suite on every push and pull request.
 | **Orbit Slingshot** | Hold to thrust your probe around a planet's gravity; sweep the targets, don't crash or escape. | [`games/orbit-slingshot/`](games/orbit-slingshot/) |
 | **Polarity** | Flip your charge to match each incoming gate; clash and you're destroyed. It speeds up. | [`games/polarity/`](games/polarity/) |
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. | [`games/ricochet/`](games/ricochet/) |
+| **Skyline** | Drop a sliding slab onto your tower — the overhang is sliced off, so only precision keeps it climbing. | [`games/skyline/`](games/skyline/) |
 
 _(A new one joins most days.)_
 

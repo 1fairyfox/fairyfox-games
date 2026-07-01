@@ -33,6 +33,8 @@ export const CONFIG = Object.freeze({
   SPEED_BASE: 3.2,   // gate approach speed at score 0 (px/tick)
   SPEED_INC: 0.06,   // speed added per point of score (px/tick)
   SPEED_MAX: 9.0,    // speed cap (px/tick)
+  CLOSE_TICKS: 10,   // a match counts as a "clutch save" if you flipped within
+                     // this many ticks before the gate resolved (last-moment flip)
   // Progress milestones: a label flashes the instant the score reaches each
   // threshold. Ordered ascending. Pure feedback — the shell reads these, the
   // simulation never branches on them.
@@ -62,6 +64,9 @@ export const CONFIG = Object.freeze({
  * @property {0|1} pol                   the player's current polarity
  * @property {Gate[]} gates              upcoming gates, nearest (smallest x) first
  * @property {number} score              gates phased through this run
+ * @property {number} clutch             clutch saves this run (matches landed by a
+ *                                       last-moment flip; see CLOSE_TICKS)
+ * @property {number} flipT              tick of the most recent polarity flip
  * @property {number} t                  ticks elapsed this run
  */
 
@@ -81,7 +86,7 @@ export function createGame(width, height, opts = {}) {
     w: width, h: height, cfg,
     rng: opts.rng || Math.random,
     phase: 'menu',
-    pol: 0, gates: [], score: 0, t: 0,
+    pol: 0, gates: [], score: 0, clutch: 0, flipT: -9999, t: 0,
   };
   reset(g);
   return g;
@@ -106,6 +111,8 @@ export function randPol(g) {
 export function reset(g) {
   g.pol = 0;
   g.score = 0;
+  g.clutch = 0;
+  g.flipT = -9999;  // "no recent flip" — far enough back that frame-one is never clutch
   g.t = 0;
   g.gates = [];
   for (let i = 0; i < g.cfg.BUFFER; i++) {
@@ -132,7 +139,18 @@ export function start(g) {
  */
 export function toggle(g) {
   g.pol = g.pol ? 0 : 1;
+  g.flipT = g.t;   // remember when — a match soon after this is a "clutch save"
   return g.pol;
+}
+
+/**
+ * Was the player's most recent flip a last-moment one (within CLOSE_TICKS)? Pure;
+ * the tick logic uses it to tally clutch saves when a gate resolves as a match.
+ * @param {GameState} g
+ * @returns {boolean}
+ */
+export function isClutch(g) {
+  return g.t - g.flipT <= g.cfg.CLOSE_TICKS;
 }
 
 /**
@@ -175,7 +193,8 @@ export function spawnGate(g) {
 
 /**
  * Result of a single {@link tick}.
- * @typedef {{passed:boolean, died:boolean}} TickResult
+ * @typedef {{passed:boolean, died:boolean, clutch:boolean}} TickResult
+ * @property {boolean} clutch true when a gate passed this tick via a last-moment flip
  */
 
 /**
@@ -187,24 +206,25 @@ export function spawnGate(g) {
  * @returns {TickResult}
  */
 export function tick(g) {
-  if (g.phase !== 'play') return { passed: false, died: false };
+  if (g.phase !== 'play') return { passed: false, died: false, clutch: false };
   g.t++;
   const speed = speedOf(g);
   for (const gate of g.gates) gate.x -= speed;
 
-  let passed = false;
+  let passed = false, clutch = false;
   // Gates are ordered nearest-first; resolve any that have reached the line.
   while (g.gates.length && g.gates[0].x <= g.cfg.PLAYER_X) {
     const gate = g.gates[0];
     if (gate.pol === g.pol) {
       g.score++;
       passed = true;
+      if (isClutch(g)) { g.clutch++; clutch = true; }
       g.gates.shift();
       spawnGate(g);          // keep the buffer full
     } else {
       g.phase = 'dead';
-      return { passed, died: true };
+      return { passed, died: true, clutch };
     }
   }
-  return { passed, died: false };
+  return { passed, died: false, clutch };
 }
