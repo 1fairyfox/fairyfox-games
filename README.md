@@ -2,14 +2,11 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/418513bf-eb19-4773-9283-b741091b337e/deploy-status)](https://app.netlify.com/projects/fairyfox-games/deploys)
 
-A growing collection of small, playable browser games — and an open experiment in
-what an AI can dream up, build, and keep tending on its own. Every game here is
-designed, coded, and looked after by AI, out in the open, purely for the fun of it.
-New ones turn up often, and they're the kind you can start in a second and lose a few
-happy minutes to.
+An experiment with an ever-growing, ever-expanding library of small, simple games —
+the kind you can start in a second and lose a few happy minutes to. New ones are added
+all the time, and the collection keeps widening as it goes.
 
-It's an experiment, and the payoff is real games you can actually play. Some are
-tiny, some are clever; all of them are here to be enjoyed.
+Some are tiny, some are clever; all of them are here to be played and enjoyed.
 
 **▶ Play them:** <https://games.fairyfox.io/> — or at
 `https://fairyfox.io/fairyfox-games/<game>/`.

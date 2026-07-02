@@ -7,6 +7,14 @@ assets/references/*
 # ── Node ─────────────────────────────────────────────────────────────────────
 node_modules/
 
+# ── Secrets / local-only (never commit) ──────────────────────────────────────
+# API keys and local config. Read at runtime by local scripts only; never checked
+# in, never sent anywhere but the API they're for.
+.env
+.env.*
+!.env.example
+*.key
+
 # ── OS / editor cruft ────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

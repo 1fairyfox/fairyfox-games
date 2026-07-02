@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
-<title>Fairy Fox Games · small browser games, built by AI for fun</title>
-<meta name="description" content="A growing collection of small, playable browser games — an open, for-fun experiment where the games are dreamed up, built, and tended by AI. Jump in and play.">
+<title>Fairy Fox Games · an ever-growing library of small, simple games</title>
+<meta name="description" content="An experiment with an ever-growing, ever-expanding library of small, simple games. Quick to pick up, easy to lose a few minutes to — jump in and play.">
 
 <!-- Same favicon/tab identity as fairyfox.io -->
 <link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
@@ -27,6 +27,11 @@
   .game-card { --pc: var(--violet); display:flex; flex-direction:column; }
   .game-card .play { margin-top:auto; padding-top:.5rem; font-weight:650; color:var(--accent); }
   .game-card .tags { gap:.4rem; }
+  /* Per-game icon sits left of the title in a small header row. */
+  .game-card .card-head { display:flex; align-items:center; gap:.75rem; margin-bottom:.15rem; }
+  .game-card .card-head h3 { margin:0; }
+  .game-card .game-icon { width:56px; height:56px; border-radius:14px; flex:0 0 auto;
+    box-shadow:0 2px 8px rgba(0,0,0,.35); }
 </style>
 </head>
 <body>
@@ -63,7 +68,7 @@
       <div class="mast-id">
         <div>
           <div class="mast-name">Fairy Fox Games</div>
-          <p class="mast-tag">Small browser games, dreamed up and built by AI — just for the fun of it.</p>
+          <p class="mast-tag">An experiment with an ever-growing library of small, simple games.</p>
           <div class="mast-meta" style="margin-top:.9rem">
             <span class="mchip"><span class="pulse-dot"></span> Active</span>
             <span class="mchip">Games <b>7</b></span>
@@ -86,49 +91,70 @@
            Tags are standardized labels rendered exactly like the hub's project cards. -->
       <div class="grid cols-3" id="game-grid">
         <a class="card game-card proj-card" href="./games/ink-bloom/" data-tags="Steering Survival">
-          <h3>Ink Bloom</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/ink-bloom/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Ink Bloom</h3>
+          </div>
           <div class="tags"><span class="tag">Steering</span><span class="tag">Survival</span></div>
           <p class="blurb">Steer a growing line, drink glowing motes to grow, and don't cross
             your own trail. The longer you live, the less room you leave yourself.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/echo-chamber/" data-tags="Timing Reflex">
-          <h3>Echo Chamber</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/echo-chamber/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Echo Chamber</h3>
+          </div>
           <div class="tags"><span class="tag">Timing</span><span class="tag">Reflex</span></div>
           <p class="blurb">An echo ring expands from the centre — catch it the instant it
             crosses the target band. Every hit tightens the window. Three lives.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/orbit-slingshot/" data-tags="Physics Gravity">
-          <h3>Orbit Slingshot</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/orbit-slingshot/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Orbit Slingshot</h3>
+          </div>
           <div class="tags"><span class="tag">Physics</span><span class="tag">Gravity</span></div>
           <p class="blurb">Your probe orbits a planet. Hold to fire a prograde thrust and
             bend your path through the targets — without crashing or flying off into space.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/polarity/" data-tags="Reflex Matching">
-          <h3>Polarity</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/polarity/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Polarity</h3>
+          </div>
           <div class="tags"><span class="tag">Reflex</span><span class="tag">Matching</span></div>
           <p class="blurb">Charged gates rush in — flip your charge, cyan or magenta, to match
             each one and phase through. Clash and it's over. The stream keeps speeding up.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/ricochet/" data-tags="Aim Precision">
-          <h3>Ricochet</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/ricochet/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Ricochet</h3>
+          </div>
           <div class="tags"><span class="tag">Aim</span><span class="tag">Precision</span></div>
           <p class="blurb">Aim and fire one shot that ricochets off the walls, sweeping up every
             target in its path. Bank several in one shot — a shot that hits nothing costs a life.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/skyline/" data-tags="Timing Precision">
-          <h3>Skyline</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/skyline/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Skyline</h3>
+          </div>
           <div class="tags"><span class="tag">Timing</span><span class="tag">Precision</span></div>
           <p class="blurb">Drop a sliding slab onto your tower — only the overlap stays, so the
             overhang is sliced off. Flush drops keep the full width; precision is the only way up.</p>
           <span class="play">▶ Play</span>
         </a>
         <a class="card game-card proj-card" href="./games/loft/" data-tags="Reflex Timing">
-          <h3>Loft</h3>
+          <div class="card-head">
+            <img class="game-icon" src="./games/loft/icon.png" alt="" width="56" height="56" loading="lazy">
+            <h3>Loft</h3>
+          </div>
           <div class="tags"><span class="tag">Reflex</span><span class="tag">Timing</span></div>
           <p class="blurb">Keep the glowing orbs aloft — tap a falling orb to bat it back up.
             You can only strike on the way down, and every few points another orb joins the air.</p>
@@ -148,7 +174,7 @@
         <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
         <span class="brand-name">Fairy Fox</span>
       </a>
-      <p>Small browser games, dreamed up and built by AI — an open experiment, just for fun.
+      <p>An experiment with an ever-growing, ever-expanding library of small, simple games.
         Part of the Fairy Fox project mesh.</p>
     </div>
     <div class="footer-col">
