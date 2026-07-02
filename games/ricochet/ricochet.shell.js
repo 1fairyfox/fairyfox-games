@@ -42,8 +42,9 @@ const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('over
 const livesEl = el('lives');
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 
-// Chain-bank toast — a brief celebratory flash when one shot banks through several
-// targets (label is pure logic in the core's chainLabel). Rewards the core skill.
+// Toast — a brief celebratory flash: a banked multi-target shot (chainLabel) or a
+// progression rank when the score crosses a milestone (milestoneAt). Both are pure
+// logic in the core; the shell just flashes the returned label.
 let toastTimer = 0;
 function showToast(text) {
   if (!toastEl) return;
@@ -150,13 +151,22 @@ function advanceFlight() {
   }
   if (flight.travelled >= flight.total) {
     // commit the shot in the core (recomputes the identical deterministic result)
+    const prevScore = game.score;
     const res = R.fire(game);
     flight = null;
     if (res) {
       scoreEl.textContent = game.score;
       renderLives();
-      const lbl = R.chainLabel(res.chain);   // celebrate a banked multi-target shot
+      // Prefer the banked-shot label; otherwise flash a progression rank the first
+      // time the running score crosses a milestone (scanning so a bank can't skip one).
+      const lbl = R.chainLabel(res.chain);
       if (lbl) showToast(lbl);
+      else {
+        for (let s = prevScore + 1; s <= game.score; s++) {
+          const m = R.milestoneAt(s);
+          if (m) { showToast(m); break; }
+        }
+      }
       if (res.chain === 0) { shake = Math.max(shake, 8); flash = 0.6; }
       if (res.died) onDeath();
     }

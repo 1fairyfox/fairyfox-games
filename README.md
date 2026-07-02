@@ -77,6 +77,7 @@ CI runs the full suite on every push and pull request.
 | **Polarity** | Flip your charge to match each incoming gate; clash and you're destroyed. It speeds up. | [`games/polarity/`](games/polarity/) |
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. | [`games/ricochet/`](games/ricochet/) |
 | **Skyline** | Drop a sliding slab onto your tower — the overhang is sliced off, so only precision keeps it climbing. | [`games/skyline/`](games/skyline/) |
+| **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it up; you can only strike on the way down, and more orbs keep joining. | [`games/loft/`](games/loft/) |
 
 _(A new one joins most days.)_
 

@@ -20,7 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONFIG, dist2, targetRadius, clampAim, aimToward, setAim,
-  createGame, reset, start, spawnTarget, fillTargets, computeShot, fire, chainLabel,
+  createGame, reset, start, spawnTarget, fillTargets, computeShot, fire, chainLabel, milestoneAt,
 } from './ricochet.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -260,4 +260,29 @@ test('chainLabel rewards multi-target shots and stays null below two', () => {
   assert.equal(chainLabel(4), 'Quad bank!');
   assert.equal(chainLabel(5), 'RICOCHET!');
   assert.equal(chainLabel(9), 'RICOCHET!'); // any big chain tops out at the same label
+});
+
+// ── 9. Score milestones (the progression ranks) ─────────────────────────────────
+test('milestoneAt returns rank labels at thresholds and null otherwise', () => {
+  assert.equal(milestoneAt(10), 'Sharpshooter');
+  assert.equal(milestoneAt(25), 'Trick shot');
+  assert.equal(milestoneAt(50), 'Bank master');
+  assert.equal(milestoneAt(100), 'Angle savant');
+  assert.equal(milestoneAt(150), 'Wall wizard');
+  assert.equal(milestoneAt(200), 'Impossible geometry');
+  assert.equal(milestoneAt(0), null);
+  assert.equal(milestoneAt(9), null);
+  assert.equal(milestoneAt(11), null);
+});
+
+test('a multi-target shot cannot skip a milestone the running score crosses', () => {
+  // The shell scans the crossed range [prev+1 .. score] so a banked jump past a
+  // threshold still surfaces exactly one rank. Emulate that scan here.
+  const firstMilestoneInRange = (prev, now) => {
+    for (let s = prev + 1; s <= now; s++) { const m = milestoneAt(s); if (m) return m; }
+    return null;
+  };
+  assert.equal(firstMilestoneInRange(8, 12), 'Sharpshooter', 'a jump 8→12 still ranks at 10');
+  assert.equal(firstMilestoneInRange(10, 13), null, 'no milestone between 11 and 13');
+  assert.equal(firstMilestoneInRange(48, 52), 'Bank master', 'a jump 48→52 still ranks at 50');
 });

@@ -376,3 +376,24 @@ export function chainLabel(chain) {
   if (chain === 4) return 'Quad bank!';
   return 'RICOCHET!';   // 5+ in one shot
 }
+
+/**
+ * A celebratory rank label for reaching a cumulative score, or `null` for scores
+ * that aren't a milestone. Pure — the shell flashes the returned rank as a toast
+ * the first time the running score crosses a threshold, giving a long run a sense
+ * of progression (distinct from {@link chainLabel}, which rewards a single banked
+ * shot). Markers along the calm-then-panic curve; not gameplay-affecting.
+ * @param {number} score cumulative targets collected this run
+ * @returns {string|null} the rank label, or null when the score isn't a milestone
+ */
+export function milestoneAt(score) {
+  switch (score) {
+    case 10: return 'Sharpshooter';
+    case 25: return 'Trick shot';
+    case 50: return 'Bank master';
+    case 100: return 'Angle savant';
+    case 150: return 'Wall wizard';
+    case 200: return 'Impossible geometry';
+    default: return null;
+  }
+}

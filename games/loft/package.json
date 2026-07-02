@@ -1,0 +1,11 @@
+{
+  "name": "loft",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Loft — a one-mechanic, beat-your-own-score canvas game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
