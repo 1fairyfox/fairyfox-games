@@ -18,6 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONFIG, rim, maxTarget, createGame, reset, start, pickTarget, offset, tick, echo, milestoneAt,
+  speedOf, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
 } from './echo-chamber.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -225,13 +226,13 @@ test('a dead-on catch is perfect and extends the combo; an edge catch resets it'
 test('perfect catches build a score multiplier capped at MULT_MAX', () => {
   const g = newGame(); start(g);
   const gains = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const before = g.score;
     g.ringR = g.targetR;
     echo(g);
     gains.push(g.score - before);
   }
-  assert.deepEqual(gains, [1, 2, 3, 3]); // x1, x2, x3, then capped at x3
+  assert.deepEqual(gains, [1, 2, 3, 4, 5, 5]); // x1..x5, then capped at MULT_MAX (5)
 });
 
 test('a miss and an overrun each reset the combo', () => {
@@ -289,4 +290,95 @@ test('perfect catches accumulate and bestCombo tracks the longest streak', () =>
   reset(g);
   assert.equal(g.perfects, 0);
   assert.equal(g.bestCombo, 0);
+});
+
+// ── 10. Escalation: speed ramps with score ────────────────────────────────────
+test('speedOf starts at the base and ramps with score, capped at SPEED_MAX', () => {
+  const g = newGame();
+  assert.equal(speedOf(g), CONFIG.SPEED);
+  g.score = 10;
+  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED + 10 * CONFIG.SPEED_INC)) < 1e-9);
+  g.score = 1e6;
+  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+});
+
+test('a catch counter accumulates on hits (for lifetime meta)', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < 5; i++) { g.ringR = g.targetR; echo(g); }
+  assert.equal(g.catches, 5);
+});
+
+// ── 11. Stages (in-run arc) ───────────────────────────────────────────────────
+test('STAGES is well-formed and stageIndexAt steps at each boundary + clamps', () => {
+  assert.ok(CONFIG.STAGES.length >= 4);
+  assert.equal(CONFIG.STAGES[0].at, 0);
+  assert.equal(stageIndexAt(CONFIG, 0), 0);
+  for (let i = 1; i < CONFIG.STAGES.length; i++) {
+    const at = CONFIG.STAGES[i].at;
+    assert.equal(stageIndexAt(CONFIG, at - 1), i - 1);
+    assert.equal(stageIndexAt(CONFIG, at), i);
+  }
+  assert.equal(stageIndexAt(CONFIG, 1e9), CONFIG.STAGES.length - 1);
+  assert.equal(stageAt(CONFIG, 0).name, CONFIG.STAGES[0].name);
+});
+
+test('stageProgress: frac 0 at a boundary, rises toward the next, isLast at the top', () => {
+  const p0 = stageProgress(CONFIG, 0);
+  assert.equal(p0.frac, 0); assert.equal(p0.isLast, false); assert.equal(p0.next, CONFIG.STAGES[1].name);
+  const mid = Math.floor(CONFIG.STAGES[1].at / 2);
+  assert.ok(stageProgress(CONFIG, mid).frac > 0 && stageProgress(CONFIG, mid).frac < 1);
+  const top = stageProgress(CONFIG, 1e9);
+  assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
+});
+
+// ── 12. Meta-progression ──────────────────────────────────────────────────────
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, catches: 0, perfects: 0, bestCombo: 0, ...o });
+
+test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
+  const m = normalizeMeta(undefined, 40);
+  assert.equal(m.v, 1);
+  assert.equal(m.best, 40);
+  assert.deepEqual(m.totals, { catches: 0, perfects: 0, points: 0 });
+  assert.deepEqual(m.achieved, {});
+});
+
+test('applyRun accumulates totals and raises bests monotonically; pure', () => {
+  let m = normalizeMeta();
+  const m1 = applyRun(m, summary({ score: 70, stageIndex: 2, catches: 40, perfects: 12, bestCombo: 12 }));
+  assert.equal(m.plays, 0, 'input untouched');
+  assert.equal(m1.plays, 1);
+  assert.equal(m1.totals.catches, 40);
+  assert.equal(m1.best, 70);
+  assert.equal(m1.bestStage, 2);
+  assert.equal(m1.bestCombo, 12);
+  const m2 = applyRun(m1, summary({ score: 10, stageIndex: 0, catches: 6, bestCombo: 1 }));
+  assert.equal(m2.best, 70, 'best never drops');
+  assert.equal(m2.bestCombo, 12, 'bestCombo never drops');
+  assert.equal(m2.totals.catches, 46);
+});
+
+test('achievements fire when earned, are idempotent, and cumulative ones wait to cross', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 100, stageIndex: 3, catches: 60, perfects: 25, bestCombo: 10 }));
+  assert.equal(m.achieved['first-run'], true);
+  assert.equal(m.achieved['reach-overtone'], true);
+  assert.equal(m.achieved['combo-10'], true);
+  assert.equal(m.achieved['flawless-25'], true);
+  assert.equal(m.achieved['century'], true);
+  assert.equal(m.achieved['lifetime-1k'], undefined, 'still under 1,000 all-time');
+  const snap = JSON.stringify(m.achieved);
+  m = applyRun(m, summary({ score: 5, catches: 3 }));
+  assert.equal(JSON.stringify(m.achieved), snap, 'nothing lost/duplicated');
+});
+
+test('newlyEarned reports only ids gained between two metas, in table order', () => {
+  const prev = normalizeMeta();
+  const next = applyRun(prev, summary({ score: 100, stageIndex: 2, catches: 60, perfects: 25, bestCombo: 10 }));
+  const gained = newlyEarned(prev, next).map(a => a.id);
+  assert.ok(gained.includes('first-run'));
+  assert.ok(gained.includes('reach-harmonic'));
+  assert.ok(gained.includes('century'));
+  const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
+  assert.deepEqual(gained, order);
+  assert.deepEqual(newlyEarned(next, next), []);
 });

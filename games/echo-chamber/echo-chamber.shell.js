@@ -37,6 +37,12 @@ const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const livesEl = el('lives'), newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
 const toastEl = el('toast'), comboEl = el('combo');
+const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
+const badgesEl = el('badges'), metaLineEl = el('metaLine');
+
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.b | 0) + ',' + a + ')'; }
 
 let toastTimer = 0;
 function showToast(text) {
@@ -58,14 +64,47 @@ function renderCombo() {
   comboEl.textContent = (game.combo > 0 && mult > 1) ? 'Combo ×' + mult : '';
 }
 
+// Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
 const BEST_KEY = 'echochamber.best';
-let best = 0;
-try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+const META_KEY = 'echochamber.meta';
+function loadMeta() {
+  let legacy = 0;
+  try { legacy = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
+  return Echo.normalizeMeta(raw, legacy);
+}
+function saveMeta(m) {
+  try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
+  try { localStorage.setItem(BEST_KEY, String(m.best)); } catch (e) {}
+}
+let meta = loadMeta();
+let best = meta.best;
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
 let flashes = [];      // expanding hit/miss rings (view-only)
 let shake = 0, flash = 0, flashHit = true;
+// Stage feel state (Growth Layer 1)
+let stageIdx = 0, stagePulse = 0;
+let tintCur = hexToRgb('#35e0ff'), tintTarget = { ...tintCur };
+
+/** Refresh the quiet HUD stage chip from the pure core. */
+function updateStageChip() {
+  if (!stageChip) return;
+  const p = Echo.stageProgress(game.cfg, game.score);
+  if (stageNameEl) stageNameEl.textContent = p.name;
+  if (stageFill) stageFill.style.width = Math.round(p.frac * 100) + '%';
+  stageChip.style.color = p.tint;
+}
+/** Enter a new stage: ease the chamber tint over, pop the chip, kick a soft beat. */
+function enterStage(i) {
+  stageIdx = i;
+  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
+  if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  updateStageChip();
+}
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -80,9 +119,17 @@ game = Echo.createGame(W, H);   // phase 'menu' until first press
 renderLives();
 
 // ── Input — one discrete "act" bound to click / space / touch ─────────────────
+function beginRun() {
+  Echo.start(game);
+  stageIdx = 0; stagePulse = 0;
+  tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
+  if (stageChip) stageChip.classList.remove('hide');
+  scoreEl.textContent = '0';
+  renderLives(); renderCombo(); updateStageChip();
+}
 function act() {
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); Echo.start(game); renderCombo(); return; }
-  if (game.phase === 'dead') { overPanel.classList.add('hide'); Echo.start(game); renderLives(); renderCombo(); return; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); beginRun(); return; }
+  if (game.phase === 'dead') { overPanel.classList.add('hide'); beginRun(); return; }
   // playing → try to catch the echo
   const prev = game.score;
   const res = Echo.echo(game);
@@ -91,6 +138,9 @@ function act() {
     scoreEl.textContent = game.score;
     renderCombo();
     checkMilestone(prev, game.score);
+    const si = Echo.stageIndexAt(game.cfg, game.score);
+    if (si !== stageIdx) enterStage(si);
+    updateStageChip();
   } else {
     renderCombo();
     renderLives();
@@ -114,6 +164,10 @@ function stepFx() {
   flashes = flashes.filter(f => f.life > 0);
   if (shake > 0.3) shake *= 0.84; else shake = 0;
   if (flash > 0.01) flash *= 0.88; else flash = 0;
+  if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+  tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
+  tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
+  tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
 }
 
 function renderLives() {
@@ -125,16 +179,45 @@ function renderLives() {
 
 function onDeath() {
   shake = 16;
+  if (stageChip) stageChip.classList.add('hide');
   finalEl.textContent = game.score;
-  // a second thing to chase beyond the streak: how clean were the catches?
+
+  // Fold the run into the persistent meta (all logic is pure in the core).
+  const stageIndex = Echo.stageIndexAt(game.cfg, game.score);
+  const summary = {
+    score: game.score, stageIndex,
+    catches: game.catches, perfects: game.perfects, bestCombo: game.bestCombo,
+  };
+  const prev = meta;
+  meta = Echo.applyRun(prev, summary, game.cfg);
+  saveMeta(meta);
+
+  // Run report: stage reached + how clean the catches were.
   if (overSubEl) {
-    const streak = game.bestCombo > 1 ? ` · best streak ${game.bestCombo} in a row` : '';
-    overSubEl.textContent = game.perfects > 0 ? `${game.perfects} perfect catches${streak}` : '';
+    const streak = game.bestCombo > 1 ? ` · best streak ${game.bestCombo}` : '';
+    const perf = game.perfects > 0 ? ` · ${game.perfects} perfect` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + perf + streak;
   }
+  // Freshly-earned badges.
+  if (badgesEl) {
+    badgesEl.innerHTML = '';
+    for (const a of Echo.newlyEarned(prev, meta)) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.innerHTML = '<b>' + a.label + '</b><span>' + a.desc + '</span>';
+      badgesEl.appendChild(b);
+    }
+  }
+  // Account line.
+  if (metaLineEl) {
+    const earned = Object.keys(meta.achieved).length;
+    metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.catches
+      + ' catches all-time · ' + earned + '/' + Echo.ACHIEVEMENTS.length + ' badges';
+  }
+
   const record = game.score > best;
   if (record) {
-    best = game.score;
-    try { localStorage.setItem(BEST_KEY, best); } catch (e) {}
+    best = meta.best;
     bestEl.textContent = best;
     newbestEl.textContent = 'New best!';
     overTitle.textContent = 'New record echo';
@@ -176,10 +259,17 @@ function draw() {
 
   const g = game, R = Echo.rim(g);
 
-  // chamber rim
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  // chamber rim — tinted by the current stage
+  ctx.strokeStyle = rgbStr(tintCur, 0.34);
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+
+  // stage-change shockwave from the rim inward
+  if (stagePulse > 0.01) {
+    ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
+    ctx.lineWidth = 3 * stagePulse + 0.5;
+    ctx.beginPath(); ctx.arc(cx, cy, R * (0.7 + 0.3 * (1 - stagePulse)), 0, 7); ctx.stroke();
+  }
 
   // centre node
   ctx.fillStyle = 'rgba(255,255,255,0.5)';

@@ -22,9 +22,12 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. Rare **prism motes** (×3) + milestone toasts (now to **Cosmic bloom**).
   Pure core + 25 tests.
-- **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band; the
-  window tightens. **Perfect-catch ×2–×3 combo** + **perfect/best-streak stats** on
-  game over + milestones. Pure core + 23 tests.
+- **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band. **On
+  the Growth Architecture**: the echo now **speeds up with score** (no late plateau),
+  perfect-combo to **×5**, a **stage arc** (Whisper → Resonance → Harmonic → Overtone)
+  with HUD chip + chamber tint, and **meta-progression** (`echochamber.meta`: lifetime
+  catches/perfects/best-combo + 8 badges, run-report) — legacy best preserved. Pure core
+  + 31 tests.
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
   sweep targets. **Close-pass skim bonus** + **skim tally / best-bonus** + a **Skim!**
   toast + milestones. Pure core (symplectic Euler) + 21 tests.
@@ -49,7 +52,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
   a **self-play winnability** test. Pure core + 24 tests.
 
-**Tests:** 170/170 green across the collection.
+**Tests:** 178/178 green across the collection.
 
 ## In flight / awaiting
 
@@ -78,7 +81,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 170/170 across 7 games |
+| Tests (`node --test`) | ✅ 178/178 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |
