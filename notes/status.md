@@ -47,9 +47,11 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   runs/gates/furthest stage/best-mult + 9 skill-safe badges, run-report card) — legacy
   `polarity.best` preserved. Pure core + 36 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
-  sweeping up targets in its path; **chain-bank toasts** (Double…**RICOCHET!**) plus
-  **progression ranks** as your score climbs; three misses end it. Pure core
-  (`computeShot`) + 23 tests.
+  sweeping up targets. **On the Growth Architecture**: a **bank bonus** (`shotScore` —
+  a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
+  Marksman → Trick shot → Bank master) with HUD chip + tinted floor line, and
+  **meta-progression** (`ricochet.meta`: lifetime hits/biggest bank + 8 badges,
+  run-report) — legacy best preserved. Pure core (`computeShot`) + 30 tests.
 - **Skyline** (`games/skyline/`) — drop a sliding slab onto your tower; the overhang is
   sliced off so only precision keeps it climbing. **Flush drops** keep full width + pay
   double; **perfects/best-streak** on game over; milestones to 150. Pure core (no
@@ -59,7 +61,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
   a **self-play winnability** test. Pure core + 24 tests.
 
-**Tests:** 196/196 green across the collection.
+**Tests:** 203/203 green across the collection.
 
 ## In flight / awaiting
 
@@ -88,7 +90,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 196/196 across 7 games |
+| Tests (`node --test`) | ✅ 203/203 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

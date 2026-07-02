@@ -50,7 +50,51 @@ export const CONFIG = Object.freeze({
   SPAWN_CLEAR: 130,    // try to keep new targets this far from the launcher (px)
   SPAWN_TRIES: 30,     // attempts to satisfy spacing before accepting anyway
   MIN_UP: 0.18,        // minimum upward component of the aim (so it always fires up)
+  // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
+  STAGES: Object.freeze([
+    Object.freeze({ at: 0,   name: 'Rookie',      tint: '#ffd86a' }),
+    Object.freeze({ at: 20,  name: 'Marksman',    tint: '#ffb26a' }),
+    Object.freeze({ at: 60,  name: 'Trick shot',  tint: '#ff8f6a' }),
+    Object.freeze({ at: 140, name: 'Bank master', tint: '#ff6ad0' }),
+  ]),
 });
+
+/**
+ * Score for a shot that collected `chain` targets — the core-fun **bank bonus**: banking
+ * several targets in one shot is worth far more than the same targets picked off singly
+ * (a 3-bank is worth 6, not 3), so the tempting-but-risky play pays. `chain + C(chain,2)`.
+ * Pure.
+ * @param {number} chain targets collected in a single shot
+ * @returns {number} points awarded
+ */
+export function shotScore(chain) {
+  if (chain <= 0) return 0;
+  return chain + (chain * (chain - 1)) / 2;
+}
+
+/**
+ * Achievement definitions — plain data (Growth Architecture Layer 2). Pure predicates.
+ * @typedef {{id:string,label:string,desc:string,test:(s:RunSummary,m:Meta)=>boolean}} Achievement
+ * @type {ReadonlyArray<Achievement>}
+ */
+export const ACHIEVEMENTS = Object.freeze([
+  Object.freeze({ id: 'first-run',   label: 'First shot',   desc: 'Finish a run.',
+    test: (s, m) => m.plays >= 1 }),
+  Object.freeze({ id: 'reach-trick', label: 'Trick shot',   desc: 'Reach the Trick shot stage.',
+    test: (s) => s.stageIndex >= 2 }),
+  Object.freeze({ id: 'reach-bank',  label: 'Bank master',  desc: 'Reach the Bank master stage.',
+    test: (s) => s.stageIndex >= 3 }),
+  Object.freeze({ id: 'triple',      label: 'Triple bank',  desc: 'Bank 3 targets in one shot.',
+    test: (s) => s.bestChain >= 3 }),
+  Object.freeze({ id: 'ricochet',    label: 'RICOCHET',     desc: 'Bank 5 in a single shot.',
+    test: (s) => s.bestChain >= 5 }),
+  Object.freeze({ id: 'century',     label: 'Angle savant', desc: 'Score 100 in a run.',
+    test: (s) => s.score >= 100 }),
+  Object.freeze({ id: 'lifetime-1k', label: 'Thousand hit', desc: 'Collect 1,000 targets all-time.',
+    test: (s, m) => m.totals.hits >= 1000 }),
+  Object.freeze({ id: 'regular',     label: 'Regular',      desc: 'Finish 25 runs.',
+    test: (s, m) => m.plays >= 25 }),
+]);
 
 /**
  * A 2D point.
@@ -200,7 +244,7 @@ export function createGame(width, height, opts = {}) {
     launcher: { x: width / 2, y: height - cfg.LAUNCH_PAD },
     aim: -Math.PI / 2,
     targets: [],
-    score: 0, lives: cfg.LIVES, shots: 0, bestChain: 0,
+    score: 0, lives: cfg.LIVES, shots: 0, bestChain: 0, hits: 0,
   };
   reset(g);
   return g;
@@ -220,6 +264,7 @@ export function reset(g) {
   g.lives = g.cfg.LIVES;
   g.shots = 0;
   g.bestChain = 0;
+  g.hits = 0;
   fillTargets(g);
   return g;
 }
@@ -347,7 +392,8 @@ export function fire(g) {
     // remove collected targets by descending index so earlier indices stay valid
     const idx = shot.hits.map(h => h.index).sort((a, b) => b - a);
     for (const i of idx) g.targets.splice(i, 1);
-    g.score += chain;
+    g.score += shotScore(chain);   // bank bonus — a big chain is worth far more
+    g.hits += chain;               // raw targets collected (distinct from bonus score)
     if (chain > g.bestChain) g.bestChain = chain;
     fillTargets(g);
   } else {
@@ -396,4 +442,129 @@ export function milestoneAt(score) {
     case 200: return 'Impossible geometry';
     default: return null;
   }
+}
+
+// ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────
+
+/**
+ * Index of the current stage for a score — the highest STAGES entry reached. Clamps to
+ * the last stage. Pure.
+ * @param {RicochetConfig} cfg
+ * @param {number} score
+ * @returns {number}
+ */
+export function stageIndexAt(cfg, score) {
+  const s = (cfg && cfg.STAGES) || [];
+  let i = 0;
+  for (let k = 0; k < s.length; k++) if (score >= s[k].at) i = k;
+  return i;
+}
+
+/**
+ * The current stage object for a score. Pure.
+ * @param {RicochetConfig} cfg
+ * @param {number} score
+ * @returns {{at:number,name:string,tint:string}}
+ */
+export function stageAt(cfg, score) {
+  return cfg.STAGES[stageIndexAt(cfg, score)];
+}
+
+/**
+ * Progress through the current stage toward the next — drives the HUD stage chip. Pure.
+ * @param {RicochetConfig} cfg
+ * @param {number} score
+ * @returns {{index:number,name:string,tint:string,next:?string,nextAt:?number,into:number,span:number,frac:number,isLast:boolean}}
+ */
+export function stageProgress(cfg, score) {
+  const list = cfg.STAGES;
+  const index = stageIndexAt(cfg, score);
+  const cur = list[index];
+  const next = list[index + 1] || null;
+  const into = score - cur.at;
+  const span = next ? next.at - cur.at : 0;
+  const frac = next ? Math.max(0, Math.min(1, into / span)) : 1;
+  return {
+    index, name: cur.name, tint: cur.tint,
+    next: next ? next.name : null, nextAt: next ? next.at : null,
+    into, span, frac, isLast: !next,
+  };
+}
+
+// ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
+
+/**
+ * A finished run distilled to plain data for the meta layer.
+ * @typedef {{score:number, stageIndex:number, hits:number, shots:number, bestChain:number}} RunSummary
+ */
+
+/**
+ * Persistent cross-run save. Plain JSON.
+ * @typedef {Object} Meta
+ * @property {number} v
+ * @property {number} plays
+ * @property {number} best       best single-run score (mirrors `ricochet.best`)
+ * @property {number} bestStage
+ * @property {number} bestChain  biggest single-shot bank ever
+ * @property {{hits:number, shots:number, points:number}} totals
+ * @property {Object<string,boolean>} achieved
+ */
+
+/**
+ * Normalise any prior meta (legacy best-only, or nothing) into a complete Meta. Pure.
+ * @param {Partial<Meta>} [m]
+ * @param {number} [legacyBest=0]
+ * @returns {Meta}
+ */
+export function normalizeMeta(m, legacyBest = 0) {
+  const src = m && typeof m === 'object' ? m : {};
+  const t = src.totals && typeof src.totals === 'object' ? src.totals : {};
+  return {
+    v: 1,
+    plays: src.plays | 0,
+    best: Math.max(src.best | 0, legacyBest | 0),
+    bestStage: src.bestStage | 0,
+    bestChain: src.bestChain | 0,
+    totals: { hits: t.hits | 0, shots: t.shots | 0, points: t.points | 0 },
+    achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
+  };
+}
+
+/**
+ * Pure reducer: fold a finished run into the meta. Returns a NEW Meta. No IO.
+ * @param {Partial<Meta>} meta
+ * @param {RunSummary} summary
+ * @param {RicochetConfig} [cfg=CONFIG]
+ * @returns {Meta}
+ */
+export function applyRun(meta, summary, cfg = CONFIG) {
+  const next = normalizeMeta(meta);
+  next.plays += 1;
+  next.totals.hits += summary.hits | 0;
+  next.totals.shots += summary.shots | 0;
+  next.totals.points += summary.score | 0;
+  next.best = Math.max(next.best, summary.score | 0);
+  next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
+  next.bestChain = Math.max(next.bestChain, summary.bestChain | 0);
+  for (const a of ACHIEVEMENTS) {
+    if (!next.achieved[a.id] && a.test(summary, next, cfg)) next.achieved[a.id] = true;
+  }
+  return next;
+}
+
+/**
+ * Achievement ids present in `nextMeta` but not `prevMeta` — freshly earned, in table
+ * order, as {id,label,desc}. Pure.
+ * @param {Partial<Meta>} prevMeta
+ * @param {Partial<Meta>} nextMeta
+ * @returns {Array<{id:string,label:string,desc:string}>}
+ */
+export function newlyEarned(prevMeta, nextMeta) {
+  const before = (prevMeta && prevMeta.achieved) || {};
+  const after = (nextMeta && nextMeta.achieved) || {};
+  const out = [];
+  for (const a of ACHIEVEMENTS) {
+    if (after[a.id] && !before[a.id]) out.push({ id: a.id, label: a.label, desc: a.desc });
+  }
+  return out;
 }

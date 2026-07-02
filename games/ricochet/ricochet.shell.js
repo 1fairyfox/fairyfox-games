@@ -41,6 +41,12 @@ const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('overSub');
 const livesEl = el('lives');
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
+const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
+const badgesEl = el('badges'), metaLineEl = el('metaLine');
+
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.b | 0) + ',' + a + ')'; }
 
 // Toast — a brief celebratory flash: a banked multi-target shot (chainLabel) or a
 // progression rank when the score crosses a milestone (milestoneAt). Both are pure
@@ -54,15 +60,56 @@ function showToast(text) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
 }
 
+// Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
 const BEST_KEY = 'ricochet.best';
-let best = 0;
-try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+const META_KEY = 'ricochet.meta';
+function loadMeta() {
+  let legacy = 0;
+  try { legacy = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
+  return R.normalizeMeta(raw, legacy);
+}
+function saveMeta(m) {
+  try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
+  try { localStorage.setItem(BEST_KEY, String(m.best)); } catch (e) {}
+}
+let meta = loadMeta();
+let best = meta.best;
 bestEl.textContent = best;
 
 const SHOT_SPEED = 26;      // px the flying dot covers per tick
 let W = 0, H = 0, DPR = 1, game = null;
 const pointer = { x: 0, y: 0, has: false };
 let particles = [], shake = 0, flash = 0;
+// Stage feel state (Growth Layer 1)
+let stageIdx = 0, stagePulse = 0;
+let tintCur = hexToRgb('#ffd86a'), tintTarget = { ...tintCur };
+
+/** Refresh the quiet HUD stage chip from the pure core. */
+function updateStageChip() {
+  if (!stageChip) return;
+  const pr = R.stageProgress(game.cfg, game.score);
+  if (stageNameEl) stageNameEl.textContent = pr.name;
+  if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
+  stageChip.style.color = pr.tint;
+}
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+function enterStage(i) {
+  stageIdx = i;
+  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
+  if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  updateStageChip();
+}
+function beginRun() {
+  R.start(game);
+  stageIdx = 0; stagePulse = 0;
+  tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
+  if (stageChip) stageChip.classList.remove('hide');
+  scoreEl.textContent = '0';
+  renderLives(); updateStageChip();
+}
 
 // Flight animation state (null when aiming).
 let flight = null; // { points, cum, total, travelled, hits, popped:Set, comboShown }
@@ -97,8 +144,8 @@ window.addEventListener('touchmove', e => { aimAt(e); }, { passive: true });
 
 function press(e) {
   if (e) e.preventDefault();
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); R.start(game); renderLives(); return; }
-  if (game.phase === 'dead') { overPanel.classList.add('hide'); R.start(game); renderLives(); return; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); beginRun(); return; }
+  if (game.phase === 'dead') { overPanel.classList.add('hide'); beginRun(); return; }
   if (game.phase === 'play' && !flight) beginFlight();
 }
 window.addEventListener('mousedown', press);
@@ -168,6 +215,10 @@ function advanceFlight() {
         }
       }
       if (res.chain === 0) { shake = Math.max(shake, 8); flash = 0.6; }
+      // Stage transition — the readable arc of the run (Growth Layer 1).
+      const si = R.stageIndexAt(game.cfg, game.score);
+      if (si !== stageIdx) enterStage(si);
+      updateStageChip();
       if (res.died) onDeath();
     }
   }
@@ -187,6 +238,10 @@ function stepParticles() {
   particles = particles.filter(p => p.life > 0);
   if (shake > 0.3) shake *= 0.85; else shake = 0;
   if (flash > 0.01) flash *= 0.88; else flash = 0;
+  if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+  tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
+  tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
+  tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
 }
 
 function renderLives() {
@@ -199,12 +254,41 @@ function renderLives() {
 
 function onDeath() {
   shake = 18; flash = 0.7;
+  if (stageChip) stageChip.classList.add('hide');
   finalEl.textContent = game.score;
-  if (overSub) overSub.textContent = game.bestChain > 1 ? `Best single shot: ${game.bestChain} in one` : '';
+
+  // Fold the run into the persistent meta (all logic pure in the core).
+  const stageIndex = R.stageIndexAt(game.cfg, game.score);
+  const summary = {
+    score: game.score, stageIndex,
+    hits: game.hits, shots: game.shots, bestChain: game.bestChain,
+  };
+  const prev = meta;
+  meta = R.applyRun(prev, summary, game.cfg);
+  saveMeta(meta);
+
+  if (overSub) {
+    const bc = game.bestChain > 1 ? ` · best shot ${game.bestChain} in one` : '';
+    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + bc;
+  }
+  if (badgesEl) {
+    badgesEl.innerHTML = '';
+    for (const a of R.newlyEarned(prev, meta)) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.innerHTML = '<b>' + a.label + '</b><span>' + a.desc + '</span>';
+      badgesEl.appendChild(b);
+    }
+  }
+  if (metaLineEl) {
+    const earned = Object.keys(meta.achieved).length;
+    metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.hits
+      + ' hits all-time · ' + earned + '/' + R.ACHIEVEMENTS.length + ' badges';
+  }
+
   const record = game.score > best;
   if (record) {
-    best = game.score;
-    try { localStorage.setItem(BEST_KEY, best); } catch (e) {}
+    best = meta.best;
     bestEl.textContent = best;
     newbestEl.textContent = 'New best!';
     overTitle.textContent = 'New record';
@@ -235,6 +319,21 @@ function draw() {
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = 'rgba(8,9,16,0.34)';   // motion-blur fade
   ctx.fillRect(0, 0, W, H);
+
+  // stage-tinted floor line + a shockwave on stage change (Growth Layer 1 feel)
+  if (game.phase !== 'menu') {
+    const ly = game.launcher.y + 10;
+    ctx.strokeStyle = rgbStr(tintCur, 0.3);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W, ly); ctx.stroke();
+    if (stagePulse > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
+      ctx.lineWidth = 3 * stagePulse + 0.5;
+      ctx.beginPath(); ctx.arc(game.launcher.x, game.launcher.y, (1 - stagePulse) * 220 + 10, 0, 7); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
 
   ctx.save();
   if (shake > 0.4) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);

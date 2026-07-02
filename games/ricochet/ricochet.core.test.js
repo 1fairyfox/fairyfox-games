@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, dist2, targetRadius, clampAim, aimToward, setAim,
   createGame, reset, start, spawnTarget, fillTargets, computeShot, fire, chainLabel, milestoneAt,
+  shotScore, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
 } from './ricochet.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -199,7 +200,8 @@ test('a collecting shot scores the chain, records bestChain, and refills the fie
   const res = fire(g);
   assert.equal(res.died, false);
   assert.equal(res.chain, 2, 'both stacked targets collected in one shot');
-  assert.equal(g.score, 2);
+  assert.equal(g.score, shotScore(2), 'a 2-bank scores with the bank bonus (3)');
+  assert.equal(g.hits, 2, 'raw targets collected');
   assert.equal(g.bestChain, 2);
   assert.equal(g.lives, CONFIG.LIVES, 'no life lost on a hit');
   assert.equal(g.targets.length, CONFIG.FIELD_TARGETS, 'field refilled');
@@ -285,4 +287,87 @@ test('a multi-target shot cannot skip a milestone the running score crosses', ()
   assert.equal(firstMilestoneInRange(8, 12), 'Sharpshooter', 'a jump 8→12 still ranks at 10');
   assert.equal(firstMilestoneInRange(10, 13), null, 'no milestone between 11 and 13');
   assert.equal(firstMilestoneInRange(48, 52), 'Bank master', 'a jump 48→52 still ranks at 50');
+});
+
+// ── 10. Bank bonus (core-fun) ──────────────────────────────────────────────────
+test('shotScore rewards banking super-linearly (a big chain beats singles)', () => {
+  assert.equal(shotScore(0), 0);
+  assert.equal(shotScore(1), 1);
+  assert.equal(shotScore(2), 3);   // 2 + 1
+  assert.equal(shotScore(3), 6);   // 3 + 3  → far more than three singles (3)
+  assert.equal(shotScore(4), 10);
+  assert.ok(shotScore(3) > 3 * shotScore(1), 'a 3-bank beats three separate singles');
+});
+
+// ── 11. Stages ─────────────────────────────────────────────────────────────────
+test('STAGES is well-formed and stageIndexAt steps at each boundary + clamps', () => {
+  assert.ok(CONFIG.STAGES.length >= 4);
+  assert.equal(CONFIG.STAGES[0].at, 0);
+  assert.equal(stageIndexAt(CONFIG, 0), 0);
+  for (let i = 1; i < CONFIG.STAGES.length; i++) {
+    const at = CONFIG.STAGES[i].at;
+    assert.equal(stageIndexAt(CONFIG, at - 1), i - 1);
+    assert.equal(stageIndexAt(CONFIG, at), i);
+  }
+  assert.equal(stageIndexAt(CONFIG, 1e9), CONFIG.STAGES.length - 1);
+  assert.equal(stageAt(CONFIG, 0).name, CONFIG.STAGES[0].name);
+});
+
+test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
+  const p0 = stageProgress(CONFIG, 0);
+  assert.equal(p0.frac, 0); assert.equal(p0.isLast, false); assert.equal(p0.next, CONFIG.STAGES[1].name);
+  const top = stageProgress(CONFIG, 1e9);
+  assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
+});
+
+// ── 12. Meta-progression ──────────────────────────────────────────────────────
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, hits: 0, shots: 0, bestChain: 0, ...o });
+
+test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
+  const m = normalizeMeta(undefined, 44);
+  assert.equal(m.v, 1);
+  assert.equal(m.best, 44);
+  assert.deepEqual(m.totals, { hits: 0, shots: 0, points: 0 });
+});
+
+test('applyRun accumulates totals and raises bests monotonically; pure', () => {
+  const m0 = normalizeMeta();
+  const m1 = applyRun(m0, summary({ score: 90, stageIndex: 2, hits: 40, shots: 30, bestChain: 4 }));
+  assert.equal(m0.plays, 0, 'input untouched');
+  assert.equal(m1.plays, 1);
+  assert.equal(m1.totals.hits, 40);
+  assert.equal(m1.best, 90);
+  assert.equal(m1.bestStage, 2);
+  assert.equal(m1.bestChain, 4);
+  const m2 = applyRun(m1, summary({ score: 10, stageIndex: 0, hits: 5, bestChain: 1 }));
+  assert.equal(m2.best, 90, 'best never drops');
+  assert.equal(m2.bestChain, 4, 'bestChain never drops');
+  assert.equal(m2.totals.hits, 45);
+});
+
+test('achievements fire when earned, idempotent, cumulative waits to cross', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 100, stageIndex: 3, hits: 60, bestChain: 5 }));
+  assert.equal(m.achieved['first-run'], true);
+  assert.equal(m.achieved['reach-bank'], true);
+  assert.equal(m.achieved['triple'], true);
+  assert.equal(m.achieved['ricochet'], true);
+  assert.equal(m.achieved['century'], true);
+  assert.equal(m.achieved['lifetime-1k'], undefined);
+  const snap = JSON.stringify(m.achieved);
+  m = applyRun(m, summary({ score: 3, hits: 2 }));
+  assert.equal(JSON.stringify(m.achieved), snap, 'nothing lost/duplicated');
+});
+
+test('newlyEarned reports only ids gained between two metas, in table order', () => {
+  const prev = normalizeMeta();
+  const next = applyRun(prev, summary({ score: 100, stageIndex: 2, hits: 60, bestChain: 3 }));
+  const gained = newlyEarned(prev, next).map(a => a.id);
+  assert.ok(gained.includes('first-run'));
+  assert.ok(gained.includes('reach-trick'));
+  assert.ok(gained.includes('triple'));
+  assert.ok(gained.includes('century'));
+  const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
+  assert.deepEqual(gained, order);
+  assert.deepEqual(newlyEarned(next, next), []);
 });

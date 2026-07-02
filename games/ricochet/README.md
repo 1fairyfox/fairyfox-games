@@ -8,6 +8,24 @@ collects **nothing** costs a life; three misses end the run. As your score climb
 targets **shrink**, so the easy straight-line shots dry up and reading the ricochet
 becomes the whole game. Beat your own score.
 
+## How it grows
+
+Ricochet follows the shared **Growth Architecture**
+(`notes/reference/growth-architecture.md`):
+
+- **Core-fun (the bank bonus).** Banking is now *super-linearly* rewarded (`shotScore`):
+  a chain of `n` scores `n + n(n−1)/2`, so a 3-bank is worth **6**, not 3. The tempting,
+  risky bank pays far more than safe singles — the greed decision has real teeth. (The
+  targets still shrink with score, so late-game angles stay mean.)
+- **Stages (the run's arc).** Rookie → Marksman → Trick shot → Bank master — a quiet HUD
+  chip + progress bar, a stage-tinted floor line, and a shockwave on stage change
+  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+- **Meta-progression (across runs).** A persistent `ricochet.meta` blob tracks lifetime
+  targets hit, shots, furthest stage, biggest bank, and **badges** (first run,
+  Trick shot/Bank master, a triple, a full RICOCHET, a century, 1,000 all-time hits, 25
+  runs). Game-over run report + account line. Skill-safe: badges, never power. Legacy
+  `ricochet.best` preserved.
+
 **Controls:** move the mouse (or finger) to aim — a dashed guide shows the first leg
 of the shot. Click, tap, or press **Space** to fire. Your best score is saved locally
 in `localStorage`.
