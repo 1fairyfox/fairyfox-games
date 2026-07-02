@@ -1,0 +1,37 @@
+# Line-ending normalization — see the fairyfox agent-tooling standard (line-ending
+# hygiene). Kills Windows CRLF working-tree noise at the source: git stores LF, the
+# working tree checks out LF on every platform regardless of each machine's
+# core.autocrlf, so LF-expecting formatters stop flagging phantom "modified" files.
+
+# Default: auto-detect text vs binary; force LF in the working tree everywhere.
+* text=auto eol=lf
+
+# Windows scripts must stay CRLF or they break.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# SVG is text (diff/merge it), but keep it explicit.
+*.svg text
+
+# Binary assets — never touch EOLs (belt-and-suspenders; text=auto already detects most).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.icns binary
+*.woff  binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.gz  binary
+*.mp4  binary
+*.webm binary
+*.mov  binary
+*.mp3  binary
+*.wav  binary

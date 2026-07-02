@@ -1,0 +1,35 @@
+# branch-sync — guard that `dev` never drifts behind `main`.
+#
+# The git-workflow release flow requires "after any release, dev must contain main"
+# (hub/standards/git-workflow.md). This CI guard catches a skipped back-merge within a
+# day instead of at the next release: it fails whenever `main` has any commit not in `dev`.
+
+name: branch-sync
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily; catches drift within a day
+  workflow_dispatch: {}
+  push:
+    branches: [main]      # re-check right after a release
+
+permissions:
+  contents: read
+
+jobs:
+  dev-contains-main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: dev must contain every commit on main
+        run: |
+          git fetch origin main dev
+          behind="$(git rev-list --count origin/dev..origin/main)"
+          if [ "$behind" -ne 0 ]; then
+            echo "::error::dev is missing $behind commit(s) that are on main — the release back-merge was skipped."
+            git log --oneline origin/dev..origin/main
+            exit 1
+          fi
+          echo "dev contains main (0 commits behind). OK."

@@ -1,6 +1,28 @@
 # Fairy Fox Games
 
+<!-- Project / community -->
+[![Contributors](https://img.shields.io/github/contributors/junebug12851/fairyfox-games?style=flat-square&logo=github)](https://github.com/junebug12851/fairyfox-games/graphs/contributors)
+[![Stars](https://img.shields.io/github/stars/junebug12851/fairyfox-games?style=flat-square&logo=github)](https://github.com/junebug12851/fairyfox-games/stargazers)
+[![Forks](https://img.shields.io/github/forks/junebug12851/fairyfox-games?style=flat-square&logo=github)](https://github.com/junebug12851/fairyfox-games/network/members)
+
+<!-- Activity / release -->
+[![Last commit](https://img.shields.io/github/last-commit/junebug12851/fairyfox-games?style=flat-square)](https://github.com/junebug12851/fairyfox-games/commits)
+[![Version](https://img.shields.io/github/v/tag/junebug12851/fairyfox-games?style=flat-square&label=version)](https://github.com/junebug12851/fairyfox-games/releases)
+
+<!-- Build / quality -->
+[![CI](https://img.shields.io/github/actions/workflow/status/junebug12851/fairyfox-games/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/junebug12851/fairyfox-games/actions/workflows/ci.yml)
+
+<!-- Security -->
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/junebug12851/fairyfox-games?style=flat-square&label=scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/junebug12851/fairyfox-games)
+
+<!-- Docs / deploy -->
+[![Docs](https://img.shields.io/badge/docs-fairyfox.io-4c9?style=flat-square&logo=readthedocs&logoColor=white)](https://fairyfox.io/fairyfox-games/)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/418513bf-eb19-4773-9283-b741091b337e/deploy-status)](https://app.netlify.com/projects/fairyfox-games/deploys)
+
+<!-- Issues / PRs / license -->
+[![Open issues](https://img.shields.io/github/issues/junebug12851/fairyfox-games?style=flat-square)](https://github.com/junebug12851/fairyfox-games/issues)
+[![Open PRs](https://img.shields.io/github/issues-pr/junebug12851/fairyfox-games?style=flat-square)](https://github.com/junebug12851/fairyfox-games/pulls)
+[![License](https://img.shields.io/github/license/junebug12851/fairyfox-games?style=flat-square)](LICENSE)
 
 An experiment with an ever-growing, ever-expanding library of small, simple games —
 the kind you can start in a second and lose a few happy minutes to. New ones are added
