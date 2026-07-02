@@ -22,7 +22,7 @@
  */
 import {
   createGame, start as startGame, toggle, tick, milestoneAt,
-  stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, ACHIEVEMENTS,
 } from './polarity.core.js';
 
 window.__polarityBooted = true;
@@ -54,7 +54,11 @@ const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), milestoneEl = el('milestone');
 const clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
+const multEl = el('mult');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+
+// Multiplier readout colours — ramp from calm to hot as the combo climbs (×1 … ×MAX).
+const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
 
 // ── Persistence (IO — the only place localStorage is touched) ─────────────────────
 const BEST_KEY = 'polarity.best';   // legacy: a bare best score
@@ -80,9 +84,11 @@ let W = 0, H = 0, DPR = 1, game = null;
 let flash = 0, shake = 0, ms = 0;   // ms: milestone-banner life, 1 → 0
 let beatBest = false;               // fired the one-time "New best!" flash this run?
 
-// Stage feel state
+// Stage + combo feel state
 let stageIdx = 0;                   // current stage index this run
 let stagePulse = 0;                 // stage-change shockwave life, 1 → 0
+let multPulse = 0;                  // precise-hit pop, 1 → 0
+let breakPulse = 0;                 // combo-break flinch, 1 → 0
 let tintCur = hexToRgb(COL[0]);     // ambient field tint, eased toward the stage tint
 let tintTarget = { ...tintCur };
 
@@ -102,10 +108,23 @@ function showMilestone(label) {
 /** Refresh the quiet HUD stage chip (name + progress bar) from the pure core. */
 function updateStageChip() {
   if (!stageChip) return;
-  const p = stageProgress(game.cfg, game.score);
+  const p = stageProgress(game.cfg, game.cleared);
   if (stageNameEl) stageNameEl.textContent = p.name;
   if (stageFill) stageFill.style.width = Math.round(p.frac * 100) + '%';
   stageChip.style.color = p.tint;
+}
+
+/** The multiplier readout — the star of the loop. Big + hot when the combo is high,
+ *  dim at ×1; pops on a precise hit, flinches red on a break. */
+function updateMult() {
+  if (!multEl) return;
+  const m = game.mult;
+  multEl.textContent = '×' + m;
+  const active = m > 1;
+  const pop = 1 + multPulse * 0.55 + (active ? (m - 1) * 0.03 : 0);
+  multEl.style.opacity = active ? Math.min(1, 0.85 + multPulse * 0.3) : 0.22;
+  multEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
+  multEl.style.color = breakPulse > 0.3 ? '#ff5b5b' : MULT_COLS[Math.min(MULT_COLS.length - 1, Math.max(0, m - 1))];
 }
 
 /** Enter a new stage: ease the field tint over, pop the chip, kick a soft shockwave. */
@@ -140,9 +159,12 @@ function beginRun() {
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
   tintTarget = { ...tintCur };
-  stagePulse = 0;
+  stagePulse = 0; multPulse = 0; breakPulse = 0;
   if (stageChip) stageChip.classList.remove('hide');
+  if (multEl) multEl.classList.remove('hide');
+  scoreEl.textContent = '0';
   updateStageChip();
+  updateMult();
 }
 
 // ── Input — one control: flip polarity (also starts / restarts) ───────────────
@@ -161,17 +183,26 @@ function onDeath() {
   shake = 18; ms = 0;
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
+  if (multEl) multEl.classList.add('hide');
   finalEl.textContent = game.score;
 
   // Distil the run and fold it into the persistent meta (all logic is in the core).
-  const summary = { score: game.score, stageIndex: stageIndexAt(game.cfg, game.score), clutch: game.clutch };
+  const summary = {
+    score: game.score,
+    cleared: game.cleared,
+    stageIndex: stageIndexAt(game.cfg, game.cleared),
+    clutch: game.clutch,
+    bestMult: game.bestMult,
+  };
   const prev = meta;
   meta = applyRun(prev, summary, game.cfg);
   saveMeta(meta);
 
-  // Stage reached this run.
+  // Stage reached + best multiplier this run.
   if (stageReachedEl) {
-    stageReachedEl.textContent = 'Reached ' + game.cfg.STAGES[summary.stageIndex].name;
+    let line = 'Reached ' + game.cfg.STAGES[summary.stageIndex].name + ' · ' + summary.cleared + ' gates';
+    if (summary.bestMult > 1) line += ' · best ×' + summary.bestMult;
+    stageReachedEl.textContent = line;
   }
 
   // Clutch saves — last-moment flips that landed a match (pure tally in the core).
@@ -197,7 +228,7 @@ function onDeath() {
   if (metaLineEl) {
     const earned = Object.keys(meta.achieved).length;
     metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.gates
-      + ' gates all-time · ' + earned + '/8 badges';
+      + ' gates all-time · ' + earned + '/' + ACHIEVEMENTS.length + ' badges';
   }
 
   const record = game.score > best;
@@ -225,15 +256,19 @@ function update(now) {
     if (game.phase === 'play') {
       const r = tick(game);
       if (r.passed) {
-        flash = 1; scoreEl.textContent = game.score;
-        const label = milestoneAt(game.cfg, game.score);
+        flash = r.precise ? 1.5 : 1;
+        scoreEl.textContent = game.score;
+        if (r.precise) { multPulse = 1; if (!reduceMotion) shake = Math.max(shake, 3); }
+        if (r.broke) breakPulse = 1;
+        const label = milestoneAt(game.cfg, game.cleared);
         if (label) showMilestone(label);
         else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
         if (best > 0 && game.score > best) beatBest = true;
         // Stage transition — the readable arc of the run (Growth Layer 1).
-        const si = stageIndexAt(game.cfg, game.score);
+        const si = stageIndexAt(game.cfg, game.cleared);
         if (si !== stageIdx) enterStage(si);
         updateStageChip();
+        updateMult();
       }
       if (r.died) { shake = 18; onDeath(); }
     }
@@ -242,6 +277,11 @@ function update(now) {
     if (flash > 0.01) flash *= 0.86; else flash = 0;
     if (ms > 0.001) ms *= 0.965; else ms = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+    if (multPulse > 0.01 || breakPulse > 0.01) {
+      if (multPulse > 0.01) multPulse *= 0.9; else multPulse = 0;
+      if (breakPulse > 0.01) breakPulse *= 0.9; else breakPulse = 0;
+      updateMult();
+    }
     // ease the ambient tint toward the current stage's colour
     tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
     tintCur.g += (tintTarget.g - tintCur.g) * 0.08;

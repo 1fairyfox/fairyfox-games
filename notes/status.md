@@ -28,13 +28,14 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
   sweep targets. **Close-pass skim bonus** + **skim tally / best-bonus** + a **Skim!**
   toast + milestones. Pure core (symplectic Euler) + 21 tests.
-- **Polarity** (`games/polarity/`) — flip cyan/magenta to match each gate; it speeds
-  up. **First game on the Growth Architecture**: a readable **stage arc** (Drift →
-  Current → Riptide → Event horizon → Singularity) with a HUD stage chip + ambient
-  field tint + stage-change beat, and **meta-progression** (`polarity.meta`: lifetime
-  runs/gates/furthest stage + 8 skill-safe badges, run-report card) — legacy
-  `polarity.best` preserved. Live **New best!** flash + **clutch saves** kept. Pure core
-  + 34 tests.
+- **Polarity** (`games/polarity/`) — a **precision-combo** runner: flip cyan/magenta to
+  match each gate, but land the flip at the *last instant* to grow a **multiplier**
+  (×2…×9) — flip early/safe and it breaks to ×1. **Reference build for the Growth
+  Architecture**: readable **stage arc** (Drift → … → Singularity) that also patterns
+  the gates (more forced flips, tighter spacing, bursts), HUD stage chip + multiplier
+  readout + ambient tint, and **meta-progression** (`polarity.meta`: lifetime
+  runs/gates/furthest stage/best-mult + 9 skill-safe badges, run-report card) — legacy
+  `polarity.best` preserved. Pure core + 36 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
   sweeping up targets in its path; **chain-bank toasts** (Double…**RICOCHET!**) plus
   **progression ranks** as your score climbs; three misses end it. Pure core
@@ -48,7 +49,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
   a **self-play winnability** test. Pure core + 24 tests.
 
-**Tests:** 168/168 green across the collection.
+**Tests:** 170/170 green across the collection.
 
 ## In flight / awaiting
 
@@ -77,7 +78,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 168/168 across 7 games |
+| Tests (`node --test`) | ✅ 170/170 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

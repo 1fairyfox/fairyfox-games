@@ -2,6 +2,13 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
+> **Hard lesson from v0.10.1 (Polarity playtest): meta-progression can't rescue a dull
+> core.** Stages/badges are a scoreboard *around* the loop; if the second-to-second
+> decision isn't tense, the game is still boring. So Wave 1 for each game now leads with a
+> **core-fun pass** — make the moment-to-moment choice have teeth (risk/reward, variety,
+> density, real reads) — *before* wrapping it in stages/meta. Polarity's precision-combo
+> (late-flip multiplier) is the worked example.
+
 1. **Roll out Growth Architecture Wave 1 to all 7 games** — the current focus. Promote
    each game's milestones → **stages** (pure core + tests), add the **meta save blob**
    (`<slug>.meta`, backward-compatible with legacy `<slug>.best`), a **stage HUD chip**,
