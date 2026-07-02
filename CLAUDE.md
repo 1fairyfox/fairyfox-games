@@ -114,7 +114,9 @@ After making changes, run this loop **without being asked**:
    `--no-ff`, **tagged** merge, never a fast-forward or a direct commit. **`main` is
    branch-protected** (supply-chain-hardening), so the release goes through a **PR**:
    `gh pr create --base main --head dev` → `gh pr checks --watch` → `gh pr merge --merge`,
-   then **tag** `vX.Y.Z` (no `release.yml` owns tagging here, so tag by hand) and push it.
+   then **tag** `vX.Y.Z` by hand and push it. `release.yml` **reacts** to the tag (packages
+   the site, attests SLSA provenance, publishes the GitHub Release) but does **not** create
+   the tag — so hand-tagging is still correct.
    A **MINOR/MAJOR** milestone bakes on a `release/*` branch first — see the
    `git-workflow` standard.
 4. **Back-merge invariant — `dev` must contain `main`.** After every release,

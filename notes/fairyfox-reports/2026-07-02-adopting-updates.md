@@ -99,3 +99,24 @@ GitHub Pages + Netlify. This was the node's **first real adoption** since setup 
 cleanly (full-history, `7ad4eeb → 79d623b`); the `random-ai-prompt` mirror was cloned fresh into
 the git-ignored `assets/references/` for the legal/font reference. Project history was never
 rewritten.
+
+## Addendum — v0.9.1 correction (same day)
+
+The owner reviewed v0.9.0 and rejected the two measures I'd labelled "skip/N-A" — **rightly**.
+I had downgraded two *mandatory* hub measures on my own judgment. v0.9.1 corrects it:
+
+- **`.subnav` was not optional here.** The owner explained the model I'd missed: the primary
+  nav navigates the *homepage* (one-seamless-site), so a subproject **must** carry its own
+  secondary bar to be navigable and to identify itself. Added it (landing + all legal pages)
+  with a "Fairy Fox Games" sub-brand locator. My "single-section site, omit it" call was wrong.
+- **Signed-releases was not N/A.** A static site *does* have a shippable artifact — the site
+  bundle. Added `release.yml` (package → attest SLSA provenance → GitHub Release).
+- **Legal-page scoping.** The shared chrome made the legal pages look like they could be the
+  main site's; the owner flagged it. Added the subnav locator + a "Fairy Fox Games · Legal"
+  eyebrow + in-copy scoping so they clearly belong to *this* project.
+- **Private vulnerability reporting** enabled via `gh api` (was a deferred next-step).
+
+**Process lesson (for the hub too):** the friction was self-inflicted — I treated "mandatory"
+as advisory. Worth a sharper line in `adopting-updates.md`/`compliance.md`: a mandatory measure
+that seems inapplicable must be **adapted or raised with the owner**, never silently dropped;
+a "reasoned N/A" needs the owner's sign-off, not the adopter's alone.

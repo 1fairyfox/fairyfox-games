@@ -10,14 +10,16 @@ Ordered, current. Remove as done; history lives in `../sessions/`.
    flip-match (Polarity), aim-and-bounce (Ricochet), precision-stack (Skyline). Reach
    for a genuinely new verb next — e.g. balance, route/connect, sort, grow-and-release.
 
-## From the hub-standards adoption (v0.9.0) — optional follow-ups
+## From the hub-standards adoption (v0.9.0/0.9.1) — optional follow-ups
 
-3. **Confirm branch protection end-to-end.** `main` is now protected (solo config); the
-   v0.9.0 release was the first PR-based one. Make sure the daily maintainer + system-update
-   tasks release via `gh pr` (per updated `CLAUDE.md`), not a direct push.
-4. **Turn on GitHub private vulnerability reporting** (Settings → Code security) so the
-   `SECURITY.md` reporting path is live.
-5. **Optional: add an OpenSSF Scorecard workflow** (`scorecard.yml`) if the badge should
-   auto-refresh; the API computes on demand for now.
-6. **Fonts are latin-only.** If any game ever needs extended Latin/other glyphs, add the
+3. **Confirm branch protection end-to-end.** `main` is protected (solo config); releases are
+   PR-based. Make sure the daily maintainer + system-update tasks release via `gh pr` (per
+   updated `CLAUDE.md`), not a direct push.
+4. **Optional: add an OpenSSF Scorecard workflow** (`scorecard.yml`) if the badge should
+   auto-refresh; the API computes on demand for now. (Signed-Releases and Security-Policy
+   checks are already satisfied by `release.yml` + private vuln reporting + `SECURITY.md`.)
+5. **Fonts are latin-only.** If any game ever needs extended Latin/other glyphs, add the
    `latin-ext` woff2 subset alongside (kept out for now to stay lean).
+
+_Done in v0.9.1: private vulnerability reporting enabled; signed-release workflow added;
+subproject `.subnav` added; legal pages scoped to the project._
