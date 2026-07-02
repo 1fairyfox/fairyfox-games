@@ -32,6 +32,10 @@
   .game-card .card-head h3 { margin:0; }
   .game-card .game-icon { width:56px; height:56px; border-radius:14px; flex:0 0 auto;
     box-shadow:0 2px 8px rgba(0,0,0,.35); }
+  /* "Updated <date>" line — quiet, sits just above the Play affordance. Rendered by the
+     script below from each card's data-updated, which also orders the grid newest-first. */
+  .game-card .card-updated { margin-top:.6rem; font-size:.72rem; letter-spacing:.02em;
+    opacity:.5; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -103,7 +107,7 @@
       <!-- One card per game. Keep in step with games/ and the root README.
            Tags are standardized labels rendered exactly like the hub's project cards. -->
       <div class="grid cols-3" id="game-grid">
-        <a class="card game-card proj-card" href="./games/ink-bloom/" data-tags="Steering Survival">
+        <a class="card game-card proj-card" href="./games/ink-bloom/" data-updated="2026-06-30" data-tags="Steering Survival">
           <div class="card-head">
             <img class="game-icon" src="./games/ink-bloom/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Ink Bloom</h3>
@@ -113,7 +117,7 @@
             your own trail. The longer you live, the less room you leave yourself.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/echo-chamber/" data-tags="Timing Reflex">
+        <a class="card game-card proj-card" href="./games/echo-chamber/" data-updated="2026-07-02" data-tags="Timing Reflex">
           <div class="card-head">
             <img class="game-icon" src="./games/echo-chamber/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Echo Chamber</h3>
@@ -123,7 +127,7 @@
             crosses the target band. Every hit tightens the window. Three lives.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/orbit-slingshot/" data-tags="Physics Gravity">
+        <a class="card game-card proj-card" href="./games/orbit-slingshot/" data-updated="2026-06-30" data-tags="Physics Gravity">
           <div class="card-head">
             <img class="game-icon" src="./games/orbit-slingshot/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Orbit Slingshot</h3>
@@ -133,7 +137,7 @@
             bend your path through the targets — without crashing or flying off into space.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/polarity/" data-tags="Reflex Matching">
+        <a class="card game-card proj-card" href="./games/polarity/" data-updated="2026-07-02" data-tags="Reflex Matching">
           <div class="card-head">
             <img class="game-icon" src="./games/polarity/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Polarity</h3>
@@ -143,7 +147,7 @@
             each one and phase through. Clash and it's over. The stream keeps speeding up.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/ricochet/" data-tags="Aim Precision">
+        <a class="card game-card proj-card" href="./games/ricochet/" data-updated="2026-07-02" data-tags="Aim Precision">
           <div class="card-head">
             <img class="game-icon" src="./games/ricochet/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Ricochet</h3>
@@ -153,7 +157,7 @@
             target in its path. Bank several in one shot — a shot that hits nothing costs a life.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/skyline/" data-tags="Timing Precision">
+        <a class="card game-card proj-card" href="./games/skyline/" data-updated="2026-07-01" data-tags="Timing Precision">
           <div class="card-head">
             <img class="game-icon" src="./games/skyline/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Skyline</h3>
@@ -163,7 +167,7 @@
             overhang is sliced off. Flush drops keep the full width; precision is the only way up.</p>
           <span class="play">▶ Play</span>
         </a>
-        <a class="card game-card proj-card" href="./games/loft/" data-tags="Reflex Timing">
+        <a class="card game-card proj-card" href="./games/loft/" data-updated="2026-07-02" data-tags="Reflex Timing">
           <div class="card-head">
             <img class="game-icon" src="./games/loft/icon.png" alt="" width="56" height="56" loading="lazy">
             <h3>Loft</h3>
@@ -241,6 +245,38 @@
         if (toggle) toggle.setAttribute("aria-expanded", "false");
       }
     });
+  })();
+</script>
+
+<!-- Game grid: render a quiet "Updated <date>" on each card from its data-updated, and
+     order the grid most-recently-updated first. Static + progressive: with JS off the
+     cards still show (just in source order, without the date line). -->
+<script>
+  (function () {
+    "use strict";
+    var grid = document.getElementById("game-grid");
+    if (!grid) return;
+    var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    function fmt(iso) {
+      var p = (iso || "").split("-");
+      if (p.length !== 3) return "";
+      return MON[(+p[1]) - 1] + " " + (+p[2]) + ", " + p[0];
+    }
+    var cards = Array.prototype.slice.call(grid.querySelectorAll(".game-card"));
+    cards.forEach(function (c) {
+      var iso = c.getAttribute("data-updated");
+      if (!iso) return;
+      var line = document.createElement("div");
+      line.className = "card-updated";
+      line.textContent = "Updated " + fmt(iso);
+      var play = c.querySelector(".play");
+      if (play) c.insertBefore(line, play); else c.appendChild(line);
+    });
+    // Stable sort: newest data-updated first; equal dates keep their source order.
+    cards.slice().sort(function (a, b) {
+      var av = a.getAttribute("data-updated") || "", bv = b.getAttribute("data-updated") || "";
+      return av < bv ? 1 : (av > bv ? -1 : 0);
+    }).forEach(function (c) { grid.appendChild(c); });
   })();
 </script>
 </body>
