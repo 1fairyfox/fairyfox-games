@@ -2,42 +2,36 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/418513bf-eb19-4773-9283-b741091b337e/deploy-status)](https://app.netlify.com/projects/fairyfox-games/deploys)
 
-A collection of small, self-contained **canvas games** — the one-mechanic,
-*beat-your-own-score* kind. The aim is a fresh, polished little experiment most
-days: easy to pick up, hard to put down, and honest about quality even when the
-idea is simple.
+A growing collection of small, playable browser games — and an open experiment in
+what an AI can dream up, build, and keep tending on its own. Every game here is
+designed, coded, and looked after by AI, out in the open, purely for the fun of it.
+New ones turn up often, and they're the kind you can start in a second and lose a few
+happy minutes to.
+
+It's an experiment, and the payoff is real games you can actually play. Some are
+tiny, some are clever; all of them are here to be enjoyed.
 
 **▶ Play them:** <https://games.fairyfox.io/> — or at
 `https://fairyfox.io/fairyfox-games/<game>/`.
 
-This is part of the [Fairy Fox](https://fairyfox.io) project mesh. It is **not** a
-silent side project: it has tests, docs, and an open door. **Contributions are
-welcome** — see [CONTRIBUTING.md](CONTRIBUTING.md). File an issue, suggest a game,
-fix a bug, or submit a whole new one.
+Part of the [Fairy Fox](https://fairyfox.io) project mesh, with the door open:
+**contributions are welcome** — see [CONTRIBUTING.md](CONTRIBUTING.md). File an issue,
+suggest a game, fix a bug, or send a whole new one.
 
 ## What's here
 
-Each game is a self-contained folder under [`games/`](games/). Every game is built
-the same disciplined way, however simple it is:
-
-- **A pure logic core** (`*.core.js`) — the whole simulation as plain data and pure
-  functions, with **no DOM, canvas, or timers**. Fully documented with JSDoc.
-- **A test suite** (`*.core.test.js`) — real, multi-layer unit tests run with Node's
-  built-in test runner. No dependencies.
-- **A player shell** (`index.html`) — canvas rendering, input, and the game loop,
-  wired onto the tested core. Persists your best score in `localStorage`.
-
-Splitting logic from rendering is what makes the games testable headlessly and keeps
-"it looks great but doesn't work" from happening — the core is provable, the shell is
-thin.
+Each game lives in its own self-contained folder under [`games/`](games/) — its own
+little world, with everything it needs and nothing reaching across to another game.
+Open a game's folder and you'll find the game itself plus a short README on how it
+works.
 
 ```
 fairyfox-games/
 ├── games/
-│   └── ink-bloom/          # one folder per game (self-contained, liftable)
-│       ├── index.html      #   player shell (canvas, input, loop)
-│       ├── ink-bloom.core.js       # pure logic — no DOM
-│       ├── ink-bloom.core.test.js  # node --test
+│   └── ink-bloom/          # one folder per game (self-contained)
+│       ├── index.html      #   the game — open it and play
+│       ├── ink-bloom.core.js
+│       ├── ink-bloom.core.test.js
 │       └── README.md       #   how this game works
 ├── index.html              # landing page listing the games
 ├── notes/                  # living project notes (status, sessions, decisions)
@@ -83,9 +77,8 @@ _(A new one joins most days.)_
 
 ## Contributing
 
-Yes please — see **[CONTRIBUTING.md](CONTRIBUTING.md)**. The short version: a new game
-is a new folder under `games/` with a documented `*.core.js`, a real `*.core.test.js`,
-and an `index.html` shell. Open an issue first if you want to talk it through, or just
+Yes please — see **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to add a game and the
+few things it asks of one. Open an issue first if you want to talk it through, or just
 send a PR. Bug reports and "I'd love a game that does X" ideas are equally welcome via
 the [issue templates](.github/ISSUE_TEMPLATE/).
 
