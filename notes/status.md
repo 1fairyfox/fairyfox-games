@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.10.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.11.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -60,31 +60,35 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   lifetime floors/perfects/best-streak + 8 badges, run-report) — legacy best preserved.
   Pure core (no timer-driven death) + 25 tests.
 - **Loft** (`games/loft/`) — keep the glowing orbs aloft; tap a **falling** orb to bat
-  it up (only descending orbs can be struck — a rhythm, not a mash). Every few points
-  another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
-  a **self-play winnability** test. Pure core + 24 tests.
+  it up (a rhythm, not a mash). **On the Growth Architecture**: a **cluster bonus**
+  (`tapScore` — a 3-catch scores 6, so reading a bunch pays), a **stage arc** (Solo →
+  Cascade → Flock → Zero-G) with HUD chip + tinted wash, and **meta-progression**
+  (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report) —
+  legacy best preserved. Pure core + 31 tests.
 
-**Tests:** 210/210 green across the collection.
+**Tests:** 217/217 green across the collection.
 
 ## In flight / awaiting
 
-- **Growth Architecture rollout (v0.10.0).** A planning-first design pass landed the
-  reusable three-layer growth model (`notes/reference/game-design.md` +
-  `growth-architecture.md` + `plans/growth-roadmap.md`) and proved it on **Polarity**
-  (the reference build). **Wave 1 is queued for the other six games** — promote
-  milestones → stages, add the `<slug>.meta` blob + stage HUD + stage beat — replicating
-  Polarity's shape. Lowest-wave-first.
-- **Daily cadence — automated.** The 1am `fairyfox-games-daily` task ships a new
-  unique game **and** grows an existing one each run; a sibling 1am
+- **Growth Architecture — rolled out to all 7 games (v0.11.0).** Every game now has a
+  **core-fun pass** (its own tension hook) **plus** the full three layers: readable
+  **stages** (HUD chip + field tint + stage beat), persistent **meta-progression**
+  (`<slug>.meta`, skill-safe **badges**, run-report + account line, legacy `<slug>.best`
+  preserved), and **feel/HUD** depth. All logic pure + tested; each previewed in Chrome.
+  **On `dev` — awaiting Fairy Fox's release call to `main`.**
+- **Landing page** orders game cards by most-recently-updated with an "Updated <date>"
+  line on each (v0.10.3).
+- **Daily cadence — automated.** The 1am `fairyfox-games-daily` task ships a new unique
+  game **and** grows an existing one each run; a sibling 1am
   `fairyfox-system-update-check-fairyfox-games` runs the standards check-for-updates.
-  The daily grow-step should now follow the roadmap, not random polish.
+  The daily grow-step now follows the roadmap (deepen a game along its waves), not random
+  polish — and leads with the **core-fun question** before layering meta.
 
 ## Next
 
-- **Roll Growth Architecture Wave 1 to the other six games** (echo-chamber,
-  orbit-slingshot, ink-bloom, ricochet, skyline, loft) against the Polarity pattern.
-- Then Wave 2 (achievements + cosmetics + run-report) and Wave 3 (a skill-safe mode
-  each) per `plans/growth-roadmap.md` — one game per few daily runs.
+- **Release `dev → main` once Fairy Fox approves** (the whole v0.10.x/0.11.0 arc is
+  queued on `dev`). Then keep deepening per `plans/growth-roadmap.md` — Wave 2/3 ideas
+  (cosmetic unlocks, skill-safe modes, daily seeds) one game per few daily runs.
 - Keep each addition through the simple-but-deep checklist — never convoluted (the hard
   constraint). Keep inventing fresh, mechanically-distinct experiments.
 
@@ -93,7 +97,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 210/210 across 7 games |
+| Tests (`node --test`) | ✅ 217/217 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

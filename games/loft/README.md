@@ -6,6 +6,24 @@ point — and every few points a new orb joins the air (up to six), so a calm on
 warm-up steadily becomes a busy juggle. Let a single orb touch the floor and the run
 ends. Calm, then panic.
 
+## How it grows
+
+Loft follows the shared **Growth Architecture**
+(`notes/reference/growth-architecture.md`):
+
+- **Core-fun (cluster bonus).** On top of the natural escalation (orbs join the air as
+  you score, up to six), a **multi-orb catch is now worth extra** (`tapScore`): a
+  3-catch scores **6**, not 3. Reading a cluster and letting orbs bunch up (a real risk)
+  pays — the placement skill is super-linearly rewarded.
+- **Stages (the run's arc).** Solo → Cascade → Flock → Zero-G — a quiet HUD chip +
+  progress bar, a stage-tinted top wash, and a shockwave sweep on stage change
+  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+- **Meta-progression (across runs).** A persistent `loft.meta` blob tracks lifetime
+  catches, furthest stage, most orbs kept aloft at once, biggest cluster, and **badges**
+  (first run, Flock/Zero-G, a full flock of six, a 3-orb cluster, a century, 1,000
+  all-time catches, 25 runs). Game-over run report + account line. Skill-safe: badges,
+  never power. Legacy `loft.best` preserved.
+
 **Controls:** tap / click / touch anywhere to strike — every *descending* orb within
 reach is knocked upward, and one tap can rescue a whole cluster. You can only hit an
 orb while it's falling, so the game is a rhythm: let it rise and fall, then catch it

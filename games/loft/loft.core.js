@@ -46,7 +46,51 @@ export const CONFIG = Object.freeze({
   MAX_ORBS: 6,         // hard cap on orbs in the air (keeps it fair, not chaos)
   SPAWN_VX: 3,         // |horizontal| launch speed spread for a new orb (px/tick)
   SPAWN_SPREAD: 0.34,  // fraction of width a new orb can appear off-centre
+  // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
+  STAGES: Object.freeze([
+    Object.freeze({ at: 0,   name: 'Solo',    tint: '#7af9d0' }),
+    Object.freeze({ at: 20,  name: 'Cascade', tint: '#6ad0ff' }),
+    Object.freeze({ at: 55,  name: 'Flock',   tint: '#a98cff' }),
+    Object.freeze({ at: 110, name: 'Zero-G',  tint: '#ff8f6a' }),
+  ]),
 });
+
+/**
+ * Points scored for a single tap that struck `struck` orbs — the core-fun **cluster
+ * bonus**: catching several orbs in one well-read tap is worth more than picking them
+ * off one at a time (a 3-catch is worth 6, not 3), so reading a cluster (and the risk of
+ * letting orbs bunch up) pays. `struck + C(struck,2)`. Pure.
+ * @param {number} struck orbs caught in a single tap
+ * @returns {number} points awarded
+ */
+export function tapScore(struck) {
+  if (struck <= 0) return 0;
+  return struck + (struck * (struck - 1)) / 2;
+}
+
+/**
+ * Achievement definitions — plain data (Growth Architecture Layer 2). Pure predicates.
+ * @typedef {{id:string,label:string,desc:string,test:(s:RunSummary,m:Meta)=>boolean}} Achievement
+ * @type {ReadonlyArray<Achievement>}
+ */
+export const ACHIEVEMENTS = Object.freeze([
+  Object.freeze({ id: 'first-run',    label: 'First lift',   desc: 'Finish a run.',
+    test: (s, m) => m.plays >= 1 }),
+  Object.freeze({ id: 'reach-flock',  label: 'Flock',        desc: 'Reach the Flock stage.',
+    test: (s) => s.stageIndex >= 2 }),
+  Object.freeze({ id: 'reach-zerog',  label: 'Zero-G',       desc: 'Reach the Zero-G stage.',
+    test: (s) => s.stageIndex >= 3 }),
+  Object.freeze({ id: 'full-flock',   label: 'Full flock',   desc: 'Keep six orbs aloft at once.',
+    test: (s, m, cfg) => s.bestOrbs >= (cfg ? cfg.MAX_ORBS : 6) }),
+  Object.freeze({ id: 'cluster-3',    label: 'Cluster catch',desc: 'Catch 3 orbs in one tap.',
+    test: (s) => s.bestCluster >= 3 }),
+  Object.freeze({ id: 'century',      label: 'Featherhand',  desc: 'Score 100 in a run.',
+    test: (s) => s.score >= 100 }),
+  Object.freeze({ id: 'lifetime-1k',  label: 'Thousand catches',desc: 'Catch 1,000 orbs all-time.',
+    test: (s, m) => m.totals.catches >= 1000 }),
+  Object.freeze({ id: 'regular',      label: 'Regular',      desc: 'Finish 25 runs.',
+    test: (s, m) => m.plays >= 25 }),
+]);
 
 /** A rotating palette of orb hues (deg), assigned per orb by spawn order. */
 export const ORB_HUES = Object.freeze([165, 205, 285, 330, 45, 120]);
@@ -153,7 +197,7 @@ export function createGame(width, height, opts = {}) {
     w: width, h: height, cfg,
     rng: opts.rng || Math.random,
     phase: 'menu',
-    orbs: [], score: 0, spawned: 0, best: 0, t: 0,
+    orbs: [], score: 0, spawned: 0, best: 0, catches: 0, bestCluster: 0, t: 0,
   };
   reset(g);
   return g;
@@ -170,6 +214,8 @@ export function reset(g) {
   g.score = 0;
   g.spawned = 0;
   g.best = g.cfg.START_ORBS;
+  g.catches = 0;
+  g.bestCluster = 0;
   g.t = 0;
   for (let i = 0; i < g.cfg.START_ORBS; i++) spawnOrb(g);
   return g;
@@ -208,7 +254,9 @@ export function applyTap(g, tap) {
     o.vx = clamp(o.vx + dir * cfg.BAT_PUSH, -cfg.MAX_VX, cfg.MAX_VX);
     struck++;
   }
-  g.score += struck;
+  g.score += tapScore(struck);           // cluster bonus — a multi-catch is worth extra
+  g.catches += struck;                   // raw orbs caught (distinct from bonus points)
+  if (struck > g.bestCluster) g.bestCluster = struck;
   return struck;
 }
 
@@ -318,4 +366,131 @@ export function milestoneAt(score) {
     case 200: return 'Zero gravity';
     default: return null;
   }
+}
+
+// ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────
+
+/**
+ * Index of the current stage for a score — the highest STAGES entry reached. Clamps to
+ * the last stage. Pure.
+ * @param {LoftConfig} cfg
+ * @param {number} score
+ * @returns {number}
+ */
+export function stageIndexAt(cfg, score) {
+  const s = (cfg && cfg.STAGES) || [];
+  let i = 0;
+  for (let k = 0; k < s.length; k++) if (score >= s[k].at) i = k;
+  return i;
+}
+
+/**
+ * The current stage object for a score. Pure.
+ * @param {LoftConfig} cfg
+ * @param {number} score
+ * @returns {{at:number,name:string,tint:string}}
+ */
+export function stageAt(cfg, score) {
+  return cfg.STAGES[stageIndexAt(cfg, score)];
+}
+
+/**
+ * Progress through the current stage toward the next — drives the HUD stage chip. Pure.
+ * @param {LoftConfig} cfg
+ * @param {number} score
+ * @returns {{index:number,name:string,tint:string,next:?string,nextAt:?number,into:number,span:number,frac:number,isLast:boolean}}
+ */
+export function stageProgress(cfg, score) {
+  const list = cfg.STAGES;
+  const index = stageIndexAt(cfg, score);
+  const cur = list[index];
+  const next = list[index + 1] || null;
+  const into = score - cur.at;
+  const span = next ? next.at - cur.at : 0;
+  const frac = next ? Math.max(0, Math.min(1, into / span)) : 1;
+  return {
+    index, name: cur.name, tint: cur.tint,
+    next: next ? next.name : null, nextAt: next ? next.at : null,
+    into, span, frac, isLast: !next,
+  };
+}
+
+// ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
+
+/**
+ * A finished run distilled to plain data for the meta layer.
+ * @typedef {{score:number, stageIndex:number, catches:number, bestOrbs:number, bestCluster:number}} RunSummary
+ */
+
+/**
+ * Persistent cross-run save. Plain JSON.
+ * @typedef {Object} Meta
+ * @property {number} v
+ * @property {number} plays
+ * @property {number} best        best single-run score (mirrors `loft.best`)
+ * @property {number} bestStage
+ * @property {number} bestOrbs    most orbs kept aloft at once, ever
+ * @property {number} bestCluster biggest single-tap catch, ever
+ * @property {{catches:number, points:number}} totals
+ * @property {Object<string,boolean>} achieved
+ */
+
+/**
+ * Normalise any prior meta (legacy best-only, or nothing) into a complete Meta. Pure.
+ * @param {Partial<Meta>} [m]
+ * @param {number} [legacyBest=0]
+ * @returns {Meta}
+ */
+export function normalizeMeta(m, legacyBest = 0) {
+  const src = m && typeof m === 'object' ? m : {};
+  const t = src.totals && typeof src.totals === 'object' ? src.totals : {};
+  return {
+    v: 1,
+    plays: src.plays | 0,
+    best: Math.max(src.best | 0, legacyBest | 0),
+    bestStage: src.bestStage | 0,
+    bestOrbs: src.bestOrbs | 0,
+    bestCluster: src.bestCluster | 0,
+    totals: { catches: t.catches | 0, points: t.points | 0 },
+    achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
+  };
+}
+
+/**
+ * Pure reducer: fold a finished run into the meta. Returns a NEW Meta. No IO.
+ * @param {Partial<Meta>} meta
+ * @param {RunSummary} summary
+ * @param {LoftConfig} [cfg=CONFIG]
+ * @returns {Meta}
+ */
+export function applyRun(meta, summary, cfg = CONFIG) {
+  const next = normalizeMeta(meta);
+  next.plays += 1;
+  next.totals.catches += summary.catches | 0;
+  next.totals.points += summary.score | 0;
+  next.best = Math.max(next.best, summary.score | 0);
+  next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
+  next.bestOrbs = Math.max(next.bestOrbs, summary.bestOrbs | 0);
+  next.bestCluster = Math.max(next.bestCluster, summary.bestCluster | 0);
+  for (const a of ACHIEVEMENTS) {
+    if (!next.achieved[a.id] && a.test(summary, next, cfg)) next.achieved[a.id] = true;
+  }
+  return next;
+}
+
+/**
+ * Achievement ids present in `nextMeta` but not `prevMeta` — freshly earned, in table
+ * order, as {id,label,desc}. Pure.
+ * @param {Partial<Meta>} prevMeta
+ * @param {Partial<Meta>} nextMeta
+ * @returns {Array<{id:string,label:string,desc:string}>}
+ */
+export function newlyEarned(prevMeta, nextMeta) {
+  const before = (prevMeta && prevMeta.achieved) || {};
+  const after = (nextMeta && nextMeta.achieved) || {};
+  const out = [];
+  for (const a of ACHIEVEMENTS) {
+    if (after[a.id] && !before[a.id]) out.push({ id: a.id, label: a.label, desc: a.desc });
+  }
+  return out;
 }

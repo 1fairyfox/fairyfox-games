@@ -20,6 +20,7 @@ import {
   CONFIG, ORB_HUES, dist2, clamp, targetOrbCount,
   createGame, reset, start, spawnOrb, applyTap, stepOrb, orbGrounded, topUpOrbs,
   tick, lowestFalling, milestoneAt,
+  tapScore, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
 } from './loft.core.js';
 
 /** Deterministic RNG (mulberry32) so orb spawns are reproducible in tests. */
@@ -190,7 +191,9 @@ test('one tap can catch several falling orbs in a cluster', () => {
   ];
   const scored = applyTap(g, { x: 415, y: 310 });
   assert.equal(scored, 2, 'both nearby orbs caught, the distant one missed');
-  assert.equal(g.score, 2);
+  assert.equal(g.score, tapScore(2), 'a 2-catch scores with the cluster bonus (3)');
+  assert.equal(g.catches, 2, 'raw orbs caught');
+  assert.equal(g.bestCluster, 2, 'biggest single-tap catch tracked');
 });
 
 // ── 6. tick() ────────────────────────────────────────────────────────────────
@@ -265,4 +268,87 @@ test('WINNABILITY: a simple self-play policy keeps the orbs aloft and scores', (
   assert.equal(g.phase, 'play', 'still alive after a long run');
   assert.ok(g.score > 20, `scored a healthy amount (got ${g.score})`);
   assert.ok(g.orbs.length >= 2, 'the air filled up as the score climbed');
+});
+
+// ── 7. Cluster bonus (core-fun) ────────────────────────────────────────────────
+test('tapScore rewards catching a cluster super-linearly', () => {
+  assert.equal(tapScore(0), 0);
+  assert.equal(tapScore(1), 1);
+  assert.equal(tapScore(2), 3);   // 2 + 1
+  assert.equal(tapScore(3), 6);   // 3 + 3 → beats three separate single catches (3)
+  assert.equal(tapScore(4), 10);
+  assert.ok(tapScore(3) > 3 * tapScore(1), 'a 3-catch beats three singles');
+});
+
+// ── 8. Stages ──────────────────────────────────────────────────────────────────
+test('STAGES is well-formed and stageIndexAt steps at each boundary + clamps', () => {
+  assert.ok(CONFIG.STAGES.length >= 4);
+  assert.equal(CONFIG.STAGES[0].at, 0);
+  assert.equal(stageIndexAt(CONFIG, 0), 0);
+  for (let i = 1; i < CONFIG.STAGES.length; i++) {
+    const at = CONFIG.STAGES[i].at;
+    assert.equal(stageIndexAt(CONFIG, at - 1), i - 1);
+    assert.equal(stageIndexAt(CONFIG, at), i);
+  }
+  assert.equal(stageIndexAt(CONFIG, 1e9), CONFIG.STAGES.length - 1);
+  assert.equal(stageAt(CONFIG, 0).name, CONFIG.STAGES[0].name);
+});
+
+test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
+  const p0 = stageProgress(CONFIG, 0);
+  assert.equal(p0.frac, 0); assert.equal(p0.isLast, false); assert.equal(p0.next, CONFIG.STAGES[1].name);
+  const top = stageProgress(CONFIG, 1e9);
+  assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
+});
+
+// ── 9. Meta-progression ────────────────────────────────────────────────────────
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, catches: 0, bestOrbs: 0, bestCluster: 0, ...o });
+
+test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
+  const m = normalizeMeta(undefined, 31);
+  assert.equal(m.v, 1);
+  assert.equal(m.best, 31);
+  assert.deepEqual(m.totals, { catches: 0, points: 0 });
+});
+
+test('applyRun accumulates totals and raises bests monotonically; pure', () => {
+  const m0 = normalizeMeta();
+  const m1 = applyRun(m0, summary({ score: 80, stageIndex: 2, catches: 50, bestOrbs: 5, bestCluster: 3 }));
+  assert.equal(m0.plays, 0, 'input untouched');
+  assert.equal(m1.plays, 1);
+  assert.equal(m1.totals.catches, 50);
+  assert.equal(m1.best, 80);
+  assert.equal(m1.bestStage, 2);
+  assert.equal(m1.bestOrbs, 5);
+  assert.equal(m1.bestCluster, 3);
+  const m2 = applyRun(m1, summary({ score: 10, stageIndex: 0, catches: 5, bestOrbs: 2 }));
+  assert.equal(m2.best, 80, 'best never drops');
+  assert.equal(m2.bestOrbs, 5, 'bestOrbs never drops');
+  assert.equal(m2.totals.catches, 55);
+});
+
+test('achievements fire when earned, cfg-aware, idempotent, cumulative waits to cross', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 100, stageIndex: 3, catches: 60, bestOrbs: CONFIG.MAX_ORBS, bestCluster: 3 }), CONFIG);
+  assert.equal(m.achieved['first-run'], true);
+  assert.equal(m.achieved['reach-zerog'], true);
+  assert.equal(m.achieved['full-flock'], true);
+  assert.equal(m.achieved['cluster-3'], true);
+  assert.equal(m.achieved['century'], true);
+  assert.equal(m.achieved['lifetime-1k'], undefined);
+  const snap = JSON.stringify(m.achieved);
+  m = applyRun(m, summary({ score: 3, catches: 2 }));
+  assert.equal(JSON.stringify(m.achieved), snap, 'nothing lost/duplicated');
+});
+
+test('newlyEarned reports only ids gained between two metas, in table order', () => {
+  const prev = normalizeMeta();
+  const next = applyRun(prev, summary({ score: 100, stageIndex: 2, catches: 60, bestOrbs: 6, bestCluster: 3 }), CONFIG);
+  const gained = newlyEarned(prev, next).map(a => a.id);
+  assert.ok(gained.includes('first-run'));
+  assert.ok(gained.includes('reach-flock'));
+  assert.ok(gained.includes('century'));
+  const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
+  assert.deepEqual(gained, order);
+  assert.deepEqual(newlyEarned(next, next), []);
 });

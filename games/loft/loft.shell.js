@@ -37,6 +37,12 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('overSub');
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
+const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
+const badgesEl = el('badges'), metaLineEl = el('metaLine');
+
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.b | 0) + ',' + a + ')'; }
 
 // Milestone toast — a brief celebratory flash at score thresholds (pure logic in
 // the core's milestoneAt). Scans the crossed range so a multi-catch tick can't skip
@@ -56,15 +62,56 @@ function checkMilestone(prev, now) {
   }
 }
 
+// Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
 const BEST_KEY = 'loft.best';
-let best = 0;
-try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+const META_KEY = 'loft.meta';
+function loadMeta() {
+  let legacy = 0;
+  try { legacy = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
+  return Loft.normalizeMeta(raw, legacy);
+}
+function saveMeta(m) {
+  try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
+  try { localStorage.setItem(BEST_KEY, String(m.best)); } catch (e) {}
+}
+let meta = loadMeta();
+let best = meta.best;
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
 let particles = [], rings = [], shake = 0, flash = 0;
 let pendingTap = null;      // a tap awaiting the next fixed step
 let lastTap = null, tapPulse = 0; // for drawing the strike ring under the cursor
+// Stage feel state (Growth Layer 1)
+let stageIdx = 0, stagePulse = 0;
+let tintCur = hexToRgb('#7af9d0'), tintTarget = { ...tintCur };
+
+/** Refresh the quiet HUD stage chip from the pure core. */
+function updateStageChip() {
+  if (!stageChip) return;
+  const pr = Loft.stageProgress(game.cfg, game.score);
+  if (stageNameEl) stageNameEl.textContent = pr.name;
+  if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
+  stageChip.style.color = pr.tint;
+}
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+function enterStage(i) {
+  stageIdx = i;
+  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
+  if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  updateStageChip();
+}
+function beginRun() {
+  Loft.start(game);
+  stageIdx = 0; stagePulse = 0;
+  tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
+  if (stageChip) stageChip.classList.remove('hide');
+  scoreEl.textContent = '0';
+  updateStageChip();
+}
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -85,8 +132,8 @@ function pointOf(e) {
 }
 function press(e) {
   if (e) e.preventDefault();
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); Loft.start(game); return; }
-  if (game.phase === 'dead') { overPanel.classList.add('hide'); Loft.start(game); return; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); beginRun(); return; }
+  if (game.phase === 'dead') { overPanel.classList.add('hide'); beginRun(); return; }
   if (game.phase === 'play') {
     const p = pointOf(e);
     pendingTap = p; lastTap = p; tapPulse = 1;   // strike on the next step
@@ -114,16 +161,49 @@ function stepFx() {
   if (shake > 0.3) shake *= 0.85; else shake = 0;
   if (flash > 0.01) flash *= 0.88; else flash = 0;
   if (tapPulse > 0.01) tapPulse *= 0.82; else tapPulse = 0;
+  if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+  tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
+  tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
+  tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
 }
 
 function onDeath() {
   shake = 18; flash = 0.7;
+  if (stageChip) stageChip.classList.add('hide');
   finalEl.textContent = game.score;
-  if (overSub) overSub.textContent = game.best > 1 ? `Most orbs juggled at once: ${game.best}` : '';
+
+  // Fold the run into the persistent meta (all logic pure in the core).
+  const stageIndex = Loft.stageIndexAt(game.cfg, game.score);
+  const summary = {
+    score: game.score, stageIndex,
+    catches: game.catches, bestOrbs: game.best, bestCluster: game.bestCluster,
+  };
+  const prev = meta;
+  meta = Loft.applyRun(prev, summary, game.cfg);
+  saveMeta(meta);
+
+  if (overSub) {
+    const orbs = game.best > 1 ? ` · ${game.best} orbs at once` : '';
+    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + orbs;
+  }
+  if (badgesEl) {
+    badgesEl.innerHTML = '';
+    for (const a of Loft.newlyEarned(prev, meta)) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.innerHTML = '<b>' + a.label + '</b><span>' + a.desc + '</span>';
+      badgesEl.appendChild(b);
+    }
+  }
+  if (metaLineEl) {
+    const earned = Object.keys(meta.achieved).length;
+    metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.catches
+      + ' catches all-time · ' + earned + '/' + Loft.ACHIEVEMENTS.length + ' badges';
+  }
+
   const record = game.score > best;
   if (record) {
-    best = game.score;
-    try { localStorage.setItem(BEST_KEY, best); } catch (e) {}
+    best = meta.best;
     bestEl.textContent = best;
     newbestEl.textContent = 'New best!';
     overTitle.textContent = 'New best';
@@ -156,7 +236,12 @@ function update(now) {
         pendingTap = null;
       }
       scoreEl.textContent = game.score;
-      if (game.score !== prev) checkMilestone(prev, game.score);
+      if (game.score !== prev) {
+        checkMilestone(prev, game.score);
+        const si = Loft.stageIndexAt(game.cfg, game.score);
+        if (si !== stageIdx) enterStage(si);
+        updateStageChip();
+      }
       if (r.died) onDeath();
     }
     stepFx();
@@ -176,6 +261,23 @@ function draw() {
   fg.addColorStop(1, 'rgba(255,110,110,0.16)');
   ctx.fillStyle = fg;
   ctx.fillRect(0, H - 60, W, 60);
+
+  // stage-tinted top wash + a shockwave sweep on stage change (Growth Layer 1 feel)
+  if (game.phase !== 'menu') {
+    const sky = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+    sky.addColorStop(0, rgbStr(tintCur, 0.1));
+    sky.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H * 0.5);
+    if (stagePulse > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      const ly = H * (1 - stagePulse) * 0.9;
+      ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
+      ctx.lineWidth = 3 * stagePulse + 0.5;
+      ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W, ly); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
 
   ctx.save();
   if (shake > 0.4) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
