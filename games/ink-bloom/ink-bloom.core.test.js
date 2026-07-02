@@ -17,9 +17,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, wrapAngle, dist2, radius,
+  CONFIG, wrapAngle, dist2, radius, speedOf,
   createGame, reset, start, spawnMote,
   steer, stepHead, hitWall, hitSelf, tryEat, tick, headingToward, milestoneAt,
+  ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
 } from './ink-bloom.core.js';
 
 /** Deterministic RNG (mulberry32) so mote placement is reproducible in tests. */
@@ -270,4 +271,106 @@ test('milestoneAt returns labels at thresholds and null otherwise', () => {
   assert.equal(milestoneAt(200), 'Cosmic bloom');
   assert.equal(milestoneAt(11), null);
   assert.equal(milestoneAt(0), null);
+});
+
+// ── 10. Escalation + prism greed ──────────────────────────────────────────────
+test('speedOf starts at the base and ramps with score, capped at SPEED_MAX', () => {
+  const g = newGame();
+  assert.equal(speedOf(g), CONFIG.SPEED);
+  g.score = 10;
+  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED + 10 * CONFIG.SPEED_INC)) < 1e-9);
+  g.score = 1e6;
+  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+});
+
+test('a prism grows the trail PRISM_GROW× as much as a normal mote (the greed cost)', () => {
+  const g = newGame(); start(g);
+  let len = g.maxLen;
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'normal' };
+  tryEat(g);
+  const normalGrow = g.maxLen - len;
+  assert.equal(normalGrow, CONFIG.GROW_PER_MOTE);
+  len = g.maxLen;
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'prism' };
+  tryEat(g);
+  assert.equal(g.maxLen - len, CONFIG.GROW_PER_MOTE * CONFIG.PRISM_GROW);
+});
+
+test('mote + prism counters accumulate for the meta layer', () => {
+  const g = newGame(); start(g);
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'prism' }; tryEat(g);
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'normal' }; tryEat(g);
+  assert.equal(g.motesEaten, 2);
+  assert.equal(g.prisms, 1);
+});
+
+// ── 11. Stages ─────────────────────────────────────────────────────────────────
+test('STAGES is well-formed and stageIndexAt steps at each boundary + clamps', () => {
+  assert.ok(CONFIG.STAGES.length >= 4);
+  assert.equal(CONFIG.STAGES[0].at, 0);
+  assert.equal(stageIndexAt(CONFIG, 0), 0);
+  for (let i = 1; i < CONFIG.STAGES.length; i++) {
+    const at = CONFIG.STAGES[i].at;
+    assert.equal(stageIndexAt(CONFIG, at - 1), i - 1);
+    assert.equal(stageIndexAt(CONFIG, at), i);
+  }
+  assert.equal(stageIndexAt(CONFIG, 1e9), CONFIG.STAGES.length - 1);
+  assert.equal(stageAt(CONFIG, 0).name, CONFIG.STAGES[0].name);
+});
+
+test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
+  const p0 = stageProgress(CONFIG, 0);
+  assert.equal(p0.frac, 0); assert.equal(p0.isLast, false); assert.equal(p0.next, CONFIG.STAGES[1].name);
+  const top = stageProgress(CONFIG, 1e9);
+  assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
+});
+
+// ── 12. Meta-progression ──────────────────────────────────────────────────────
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, motes: 0, prisms: 0, ...o });
+
+test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
+  const m = normalizeMeta(undefined, 55);
+  assert.equal(m.v, 1);
+  assert.equal(m.best, 55);
+  assert.deepEqual(m.totals, { motes: 0, prisms: 0, points: 0 });
+});
+
+test('applyRun accumulates totals and raises bests monotonically; pure', () => {
+  const m0 = normalizeMeta();
+  const m1 = applyRun(m0, summary({ score: 70, stageIndex: 2, motes: 40, prisms: 5 }));
+  assert.equal(m0.plays, 0, 'input untouched');
+  assert.equal(m1.plays, 1);
+  assert.equal(m1.totals.motes, 40);
+  assert.equal(m1.best, 70);
+  assert.equal(m1.bestStage, 2);
+  const m2 = applyRun(m1, summary({ score: 10, stageIndex: 0, motes: 6 }));
+  assert.equal(m2.best, 70, 'best never drops');
+  assert.equal(m2.totals.motes, 46);
+});
+
+test('achievements fire when earned, idempotent, cumulative waits to cross', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 100, stageIndex: 3, motes: 60, prisms: 10 }));
+  assert.equal(m.achieved['first-run'], true);
+  assert.equal(m.achieved['reach-bloom'], true);
+  assert.equal(m.achieved['prismatic'], true);
+  assert.equal(m.achieved['prism-10'], true);
+  assert.equal(m.achieved['century'], true);
+  assert.equal(m.achieved['lifetime-1k'], undefined);
+  const snap = JSON.stringify(m.achieved);
+  m = applyRun(m, summary({ score: 3, motes: 2 }));
+  assert.equal(JSON.stringify(m.achieved), snap, 'nothing lost/duplicated');
+});
+
+test('newlyEarned reports only ids gained between two metas, in table order', () => {
+  const prev = normalizeMeta();
+  const next = applyRun(prev, summary({ score: 100, stageIndex: 2, motes: 60, prisms: 1 }));
+  const gained = newlyEarned(prev, next).map(a => a.id);
+  assert.ok(gained.includes('first-run'));
+  assert.ok(gained.includes('reach-tendril'));
+  assert.ok(gained.includes('prismatic'));
+  assert.ok(gained.includes('century'));
+  const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
+  assert.deepEqual(gained, order);
+  assert.deepEqual(newlyEarned(next, next), []);
 });

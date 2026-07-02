@@ -9,6 +9,24 @@ space. Calm, then panic.
 pointer at a capped rate, so it flows in curves rather than snapping. Click or press
 **Space** to restart. Your best score is saved locally in `localStorage`.
 
+## How it grows
+
+Ink Bloom follows the shared **Growth Architecture**
+(`notes/reference/growth-architecture.md`):
+
+- **Escalation (the core-fun fix).** On top of the naturally shrinking safe space, the
+  ink now **speeds up with your score** (`speedOf`, capped) — the "panic" half of the
+  curve gets a real edge. And **prism motes are a genuine greed call**: triple the
+  points, but they grow your trail **3× as fast** (`PRISM_GROW`), eating your room that
+  much quicker.
+- **Stages (the run's arc).** Seed → Sprout → Tendril → Bloom → Cosmic bloom — a quiet
+  HUD chip + progress bar, a wall frame tinted by stage, and a shockwave on stage change
+  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+- **Meta-progression (across runs).** A persistent `inkbloom.meta` blob tracks lifetime
+  motes, prisms, furthest stage, and **badges** (first run, Tendril/Bloom, eat a prism,
+  10 prisms in a run, a century, 1,000 all-time motes, 25 runs). Game-over run report +
+  account line. Skill-safe: badges, never power. Legacy `inkbloom.best` preserved.
+
 ## How it's built
 
 ```

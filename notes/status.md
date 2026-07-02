@@ -20,8 +20,11 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 **Games so far (7):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
-  your trail. Rare **prism motes** (×3) + milestone toasts (now to **Cosmic bloom**).
-  Pure core + 25 tests.
+  your trail. **On the Growth Architecture**: escalation (ink speeds up with score) +
+  **prism motes as a greed call** (×3 points but ×3 growth), a **stage arc** (Seed →
+  Sprout → Tendril → Bloom → Cosmic bloom) with HUD chip + tinted wall frame, and
+  **meta-progression** (`inkbloom.meta`: lifetime motes/prisms + 8 badges, run-report) —
+  legacy best preserved. Pure core + 34 tests.
 - **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band. **On
   the Growth Architecture**: the echo now **speeds up with score** (no late plateau),
   perfect-combo to **×5**, a **stage arc** (Whisper → Resonance → Harmonic → Overtone)
@@ -56,7 +59,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
   a **self-play winnability** test. Pure core + 24 tests.
 
-**Tests:** 187/187 green across the collection.
+**Tests:** 196/196 green across the collection.
 
 ## In flight / awaiting
 
@@ -85,7 +88,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 187/187 across 7 games |
+| Tests (`node --test`) | ✅ 196/196 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |

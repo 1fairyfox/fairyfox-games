@@ -55,6 +55,29 @@
     opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
+
+  /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
+  #stageChip {
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    pointer-events:none; transition:opacity .3s ease; color:#6ad;
+  }
+  #stageChip.hide { opacity:0; }
+  #stageName { font-size:11px; letter-spacing:.2em; text-transform:uppercase; opacity:.9; }
+  #stageBar { width:120px; height:3px; border-radius:3px; background:rgba(255,255,255,.1); overflow:hidden; }
+  #stageFill { height:100%; width:0%; background:currentColor; border-radius:3px; transition:width .25s ease; }
+  #stageChip.pop #stageName { animation:chipPop .5s ease; }
+  @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
+  @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
+
+  /* Game-over run report (Growth L2). */
+  .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
+  .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
+  .badge { display:flex; flex-direction:column; gap:1px; padding:6px 14px; border-radius:10px;
+    background:rgba(122,249,208,.08); border:1px solid rgba(122,249,208,.22); max-width:280px; }
+  .badge b { font-size:13px; color:#7af9d0; letter-spacing:.04em; }
+  .badge span { font-size:11.5px; opacity:.6; }
+  .metaLine { margin-top:16px; font-size:12px; letter-spacing:.06em; opacity:.45; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -65,18 +88,26 @@
     <div class="stat" id="best"><div class="label">Best</div><div class="val" id="bestVal">0</div></div>
   </div>
 
+  <div id="stageChip" class="hide">
+    <div id="stageName">Seed</div>
+    <div id="stageBar"><div id="stageFill"></div></div>
+  </div>
+
   <div class="panel" id="start">
     <div class="title">Ink Bloom</div>
     <div class="sub">Steer the bloom with your mouse (or finger). Drink the glowing motes to grow.
       Your own trail is solid — don't touch it. The longer you live, the less room you leave yourself.</div>
-    <div class="tips">Tip: bank space along the walls early, and aim for the gaps in your bloom — never the body. Rare <b>prism</b> motes are worth triple. Keep blooming for milestones all the way to a <b>Cosmic bloom</b>.</div>
+    <div class="tips">Tip: bank space along the walls early, and aim for the gaps in your bloom — never the body. Rare <b>prism</b> motes are worth triple — but grow you three times as fast, so they're a real greed call. It speeds up through the <b>stages</b> (Seed → Sprout → Tendril → Bloom → Cosmic bloom); feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Move to begin</div>
   </div>
 
   <div class="panel hide" id="gameover">
     <div class="title" id="overTitle">Bloom collapsed</div>
     <div class="final">Score<b id="finalScore">0</b></div>
+    <div class="oversub" id="overSub"></div>
     <div class="newbest" id="newbest"></div>
+    <div class="badges" id="badges"></div>
+    <div class="metaLine" id="metaLine"></div>
     <div class="prompt">Click or press Space to bloom again</div>
   </div>
 

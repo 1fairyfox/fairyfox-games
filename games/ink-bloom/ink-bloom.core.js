@@ -29,7 +29,10 @@
  * @typedef {Object} InkBloomConfig
  */
 export const CONFIG = Object.freeze({
-  SPEED: 3.0,          // forward travel per tick (px)
+  SPEED: 3.0,          // forward travel per tick at score 0 (px) — the base speed
+  SPEED_INC: 0.012,    // travel added per point of score — the run ESCALATES (calm→panic
+                       // gets a real speed edge on top of the shrinking safe space)
+  SPEED_MAX: 4.4,      // forward-travel cap (px/tick)
   TURN: 0.085,         // max steering change per tick (radians)
   BASE_R: 6,           // head/trail base radius (px)
   R_GROW: 0.18,        // radius added per point of score
@@ -46,7 +49,42 @@ export const CONFIG = Object.freeze({
   HUE_STEP: 24,        // hue rotation per mote (deg)
   PRISM_CHANCE: 0.16,  // chance a freshly spawned mote is a rare "prism" mote
   PRISM_SCORE: 3,      // points a prism mote is worth (a normal mote is 1)
+  PRISM_GROW: 3,       // a prism grows the trail this many times as much — the greed
+                       // decision: 3× the points, but 3× the space you give up
+  // Stages — the readable arc of the "calm → panic" curve (Growth Architecture Layer 1),
+  // keyed on score. `at` is the score to ENTER the stage; ascending.
+  STAGES: Object.freeze([
+    Object.freeze({ at: 0,   name: 'Seed',         tint: '#38e0a0' }),
+    Object.freeze({ at: 25,  name: 'Sprout',       tint: '#5ed0d0' }),
+    Object.freeze({ at: 60,  name: 'Tendril',      tint: '#7ab8ff' }),
+    Object.freeze({ at: 120, name: 'Bloom',        tint: '#c48cff' }),
+    Object.freeze({ at: 180, name: 'Cosmic bloom', tint: '#ff8fd0' }),
+  ]),
 });
+
+/**
+ * Achievement definitions — plain data (Growth Architecture Layer 2). Pure predicates.
+ * @typedef {{id:string,label:string,desc:string,test:(s:RunSummary,m:Meta)=>boolean}} Achievement
+ * @type {ReadonlyArray<Achievement>}
+ */
+export const ACHIEVEMENTS = Object.freeze([
+  Object.freeze({ id: 'first-run',   label: 'First bloom',   desc: 'Finish a run.',
+    test: (s, m) => m.plays >= 1 }),
+  Object.freeze({ id: 'reach-tendril',label: 'Tendril',      desc: 'Reach the Tendril stage.',
+    test: (s) => s.stageIndex >= 2 }),
+  Object.freeze({ id: 'reach-bloom', label: 'Bloom',         desc: 'Reach the Bloom stage.',
+    test: (s) => s.stageIndex >= 3 }),
+  Object.freeze({ id: 'prismatic',   label: 'Prismatic',     desc: 'Eat a prism mote.',
+    test: (s) => s.prisms >= 1 }),
+  Object.freeze({ id: 'prism-10',    label: 'Spectrum',      desc: 'Eat 10 prisms in a run.',
+    test: (s) => s.prisms >= 10 }),
+  Object.freeze({ id: 'century',     label: 'Transcendent',  desc: 'Score 100 in a run.',
+    test: (s) => s.score >= 100 }),
+  Object.freeze({ id: 'lifetime-1k', label: 'Thousand motes',desc: 'Eat 1,000 motes all-time.',
+    test: (s, m) => m.totals.motes >= 1000 }),
+  Object.freeze({ id: 'regular',     label: 'Regular',       desc: 'Finish 25 runs.',
+    test: (s, m) => m.plays >= 25 }),
+]);
 
 /**
  * A 2D point.
@@ -104,6 +142,16 @@ export function radius(g) {
 }
 
 /**
+ * Current forward travel per tick — the base plus a per-score ramp, capped. Escalation
+ * on top of the shrinking safe space. At score 0 it equals CONFIG.SPEED. Pure.
+ * @param {GameState} g
+ * @returns {number} px per tick
+ */
+export function speedOf(g) {
+  return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED + g.score * g.cfg.SPEED_INC);
+}
+
+/**
  * Create a new game. Does not start it (phase is 'menu'); call {@link start}.
  * @param {number} width playfield width (px)
  * @param {number} height playfield height (px)
@@ -123,6 +171,7 @@ export function createGame(width, height, opts = {}) {
     dir: -Math.PI / 2,
     trail: [], maxLen: cfg.START_LEN,
     score: 0, hue: cfg.HUE_START, t: 0,
+    motesEaten: 0, prisms: 0,
     mote: { x: 0, y: 0, born: 0 },
   };
   reset(g);
@@ -151,6 +200,8 @@ export function reset(g) {
   g.score = 0;
   g.hue = cfg.HUE_START;
   g.t = 0;
+  g.motesEaten = 0;
+  g.prisms = 0;
   spawnMote(g);
   return g;
 }
@@ -207,9 +258,10 @@ export function steer(g, target) {
  * @returns {Point} the new head position
  */
 export function stepHead(g) {
+  const sp = speedOf(g);
   g.head = {
-    x: g.head.x + Math.cos(g.dir) * g.cfg.SPEED,
-    y: g.head.y + Math.sin(g.dir) * g.cfg.SPEED,
+    x: g.head.x + Math.cos(g.dir) * sp,
+    y: g.head.y + Math.sin(g.dir) * sp,
   };
   g.trail.push({ x: g.head.x, y: g.head.y });
   while (g.trail.length > g.maxLen) g.trail.shift();
@@ -253,8 +305,12 @@ export function tryEat(g) {
   if (dist2(g.mote, g.head) < reach * reach) {
     const prism = g.mote.kind === 'prism';
     g.score += prism ? g.cfg.PRISM_SCORE : 1;
-    g.maxLen += g.cfg.GROW_PER_MOTE;
+    // A prism grows the trail PRISM_GROW× as much — the greed decision: more points,
+    // but it eats your safe space that much faster.
+    g.maxLen += g.cfg.GROW_PER_MOTE * (prism ? g.cfg.PRISM_GROW : 1);
     g.hue = (g.hue + g.cfg.HUE_STEP * (prism ? 3 : 1)) % 360;
+    g.motesEaten++;
+    if (prism) g.prisms++;
     spawnMote(g);
     return true;
   }
@@ -314,4 +370,126 @@ export function tick(g, input = { target: null }) {
  */
 export function headingToward(g, p) {
   return Math.atan2(p.y - g.head.y, p.x - g.head.x);
+}
+
+// ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────
+
+/**
+ * Index of the current stage for a score — the highest STAGES entry reached. Clamps to
+ * the last stage. Pure.
+ * @param {InkBloomConfig} cfg
+ * @param {number} score
+ * @returns {number}
+ */
+export function stageIndexAt(cfg, score) {
+  const s = (cfg && cfg.STAGES) || [];
+  let i = 0;
+  for (let k = 0; k < s.length; k++) if (score >= s[k].at) i = k;
+  return i;
+}
+
+/**
+ * The current stage object for a score. Pure.
+ * @param {InkBloomConfig} cfg
+ * @param {number} score
+ * @returns {{at:number,name:string,tint:string}}
+ */
+export function stageAt(cfg, score) {
+  return cfg.STAGES[stageIndexAt(cfg, score)];
+}
+
+/**
+ * Progress through the current stage toward the next — drives the HUD stage chip. Pure.
+ * @param {InkBloomConfig} cfg
+ * @param {number} score
+ * @returns {{index:number,name:string,tint:string,next:?string,nextAt:?number,into:number,span:number,frac:number,isLast:boolean}}
+ */
+export function stageProgress(cfg, score) {
+  const list = cfg.STAGES;
+  const index = stageIndexAt(cfg, score);
+  const cur = list[index];
+  const next = list[index + 1] || null;
+  const into = score - cur.at;
+  const span = next ? next.at - cur.at : 0;
+  const frac = next ? Math.max(0, Math.min(1, into / span)) : 1;
+  return {
+    index, name: cur.name, tint: cur.tint,
+    next: next ? next.name : null, nextAt: next ? next.at : null,
+    into, span, frac, isLast: !next,
+  };
+}
+
+// ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
+
+/**
+ * A finished run distilled to plain data for the meta layer.
+ * @typedef {{score:number, stageIndex:number, motes:number, prisms:number}} RunSummary
+ */
+
+/**
+ * Persistent cross-run save. Plain JSON.
+ * @typedef {Object} Meta
+ * @property {number} v
+ * @property {number} plays
+ * @property {number} best       best single-run score (mirrors `inkbloom.best`)
+ * @property {number} bestStage
+ * @property {{motes:number, prisms:number, points:number}} totals
+ * @property {Object<string,boolean>} achieved
+ */
+
+/**
+ * Normalise any prior meta (legacy best-only, or nothing) into a complete Meta. Pure.
+ * @param {Partial<Meta>} [m]
+ * @param {number} [legacyBest=0]
+ * @returns {Meta}
+ */
+export function normalizeMeta(m, legacyBest = 0) {
+  const src = m && typeof m === 'object' ? m : {};
+  const t = src.totals && typeof src.totals === 'object' ? src.totals : {};
+  return {
+    v: 1,
+    plays: src.plays | 0,
+    best: Math.max(src.best | 0, legacyBest | 0),
+    bestStage: src.bestStage | 0,
+    totals: { motes: t.motes | 0, prisms: t.prisms | 0, points: t.points | 0 },
+    achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
+  };
+}
+
+/**
+ * Pure reducer: fold a finished run into the meta. Returns a NEW Meta. No IO.
+ * @param {Partial<Meta>} meta
+ * @param {RunSummary} summary
+ * @param {InkBloomConfig} [cfg=CONFIG]
+ * @returns {Meta}
+ */
+export function applyRun(meta, summary, cfg = CONFIG) {
+  const next = normalizeMeta(meta);
+  next.plays += 1;
+  next.totals.motes += summary.motes | 0;
+  next.totals.prisms += summary.prisms | 0;
+  next.totals.points += summary.score | 0;
+  next.best = Math.max(next.best, summary.score | 0);
+  next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
+  for (const a of ACHIEVEMENTS) {
+    if (!next.achieved[a.id] && a.test(summary, next, cfg)) next.achieved[a.id] = true;
+  }
+  return next;
+}
+
+/**
+ * Achievement ids present in `nextMeta` but not `prevMeta` — freshly earned, in table
+ * order, as {id,label,desc}. Pure.
+ * @param {Partial<Meta>} prevMeta
+ * @param {Partial<Meta>} nextMeta
+ * @returns {Array<{id:string,label:string,desc:string}>}
+ */
+export function newlyEarned(prevMeta, nextMeta) {
+  const before = (prevMeta && prevMeta.achieved) || {};
+  const after = (nextMeta && nextMeta.achieved) || {};
+  const out = [];
+  for (const a of ACHIEVEMENTS) {
+    if (after[a.id] && !before[a.id]) out.push({ id: a.id, label: a.label, desc: a.desc });
+  }
+  return out;
 }
