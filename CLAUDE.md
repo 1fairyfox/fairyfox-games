@@ -106,13 +106,20 @@ After making changes, run this loop **without being asked**:
 
 1. **Run the tests** for the affected game; full `npm test` before releasing. Only
    proceed on green.
+   - **Preview UI/visual changes locally in Chrome _before_ shipping** (a standing rule).
+     Serve over HTTP (`python -m http.server`), render the changed pages, hard-reload
+     (Ctrl+Shift+R) to dodge stale CSS, and self-critique the whole page (overflow, clipping,
+     nav, responsiveness). Never release a visual change unseen — preview first, then release.
 2. **Commit + push on `dev`**, staging specific files (never `git add -A`). The
    **changelog entry rides inside the commit** (top of `notes/version/YYYY-MM.md`, no
    hash marker), and **bump `VERSION`** in the same commit when warranted (PATCH
    default, MINOR milestone — e.g. a new game, never MAJOR).
-3. When green, **release `dev → main` the git-flow way** — `main` advances only by a
-   `--no-ff`, **tagged** merge, never a fast-forward or a direct commit. **`main` is
-   branch-protected** (supply-chain-hardening), so the release goes through a **PR**:
+3. **Get Fairy Fox's explicit approval before releasing to `main`** — the release deploys
+   (Pages + Netlify), so don't auto-release even on green; commit/push to `dev` freely, then
+   stop and ask before the ship. When approved, **release `dev → main` the git-flow way** —
+   `main` advances only by a `--no-ff`, **tagged** merge, never a fast-forward or a direct
+   commit. **`main` is branch-protected** (supply-chain-hardening), so the release goes
+   through a **PR**:
    `gh pr create --base main --head dev` → `gh pr checks --watch` → `gh pr merge --merge`,
    then **tag** `vX.Y.Z` by hand and push it. `release.yml` **reacts** to the tag (packages
    the site, attests SLSA provenance, publishes the GitHub Release) but does **not** create
