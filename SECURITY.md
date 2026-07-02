@@ -21,7 +21,7 @@ release rather than as back-ports.
 ## Scope
 
 Fairy Fox Games is a **static, client-side** collection of browser games (HTML + canvas
-+ ES modules) served by GitHub Pages and Netlify. There is **no server, no accounts, and
++ ES modules) served by GitHub Pages. There is **no server, no accounts, and
 no user database** on the maintainer's behalf: the only data the site stores is your best
 scores and display preferences, kept in your own browser's local storage and never
 transmitted to us (see the legal pages under `legal/`). Please keep reports accurate to

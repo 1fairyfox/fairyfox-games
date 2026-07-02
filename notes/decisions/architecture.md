@@ -33,7 +33,23 @@ v0.9.1 adopts them. Recording the final state:
 When something seems inapplicable, adapt it to the project (as with signed-releases) or ask —
 don't silently drop it.
 
-### 2026-06-29 — Dual publish: GitHub Pages + Netlify (games.fairyfox.io)
+### 2026-07-02 — Netlify retired; GitHub Pages is the sole host
+
+**Reverses the 2026-06-29 dual-publish decision below.** Netlify has been discontinued
+for this project (owner's call). `games.fairyfox.io` is gone. **GitHub Pages at
+`fairyfox.io/fairyfox-games/` is now the single canonical home.** Removed:
+`.github/workflows/netlify.yml`, `netlify.toml`, the Netlify badge, and all
+`games.fairyfox.io` / Netlify references across the legal docs, README, SECURITY,
+CLAUDE.md, status, and the issue template. Dated historical logs (session/version
+entries) are left as-is — they accurately record what was true then. The legal docs
+were updated in the same change (hosting section now names GitHub Pages only), keeping
+the "Last updated" date current. (The shared hub-standard mirrors under
+`notes/reference/` still describe the general "apps → Netlify" policy; that's a
+system-level standard, not this project's config, and is out of scope here.)
+
+---
+
+### 2026-06-29 — Dual publish: GitHub Pages + Netlify (games.fairyfox.io) — SUPERSEDED (see above)
 
 The site is published to **two** homes:
 

@@ -17,7 +17,6 @@
 
 <!-- Docs / deploy -->
 [![Docs](https://img.shields.io/badge/docs-fairyfox.io-4c9?style=flat-square&logo=readthedocs&logoColor=white)](https://fairyfox.io/fairyfox-games/)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/418513bf-eb19-4773-9283-b741091b337e/deploy-status)](https://app.netlify.com/projects/fairyfox-games/deploys)
 
 <!-- Issues / PRs / license -->
 [![Open issues](https://img.shields.io/github/issues/junebug12851/fairyfox-games?style=flat-square)](https://github.com/junebug12851/fairyfox-games/issues)
@@ -30,7 +29,7 @@ all the time, and the collection keeps widening as it goes.
 
 Some are tiny, some are clever; all of them are here to be played and enjoyed.
 
-**▶ Play them:** <https://games.fairyfox.io/> — or at
+**▶ Play them:** <https://fairyfox.io/fairyfox-games/> — each game at
 `https://fairyfox.io/fairyfox-games/<game>/`.
 
 Part of the [Fairy Fox](https://fairyfox.io) project mesh, with the door open:

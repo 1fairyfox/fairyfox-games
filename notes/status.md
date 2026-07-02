@@ -13,9 +13,8 @@ a thin **rendering shell** loaded as an external module. It's a public,
 contribution-friendly node in the fairyfox.io mesh — and a **first-class collection
 that grows a little deeper every day** (standing rules in `CLAUDE.md`).
 
-**Live:** static, published two ways — GitHub Pages at `fairyfox.io/fairyfox-games/`
-and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
-`…/games/<game>/`.
+**Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
+sole host), plus each game at `…/games/<game>/`.
 
 **Games so far (7):**
 
@@ -99,8 +98,8 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Repo + branches (dev/main) | ✅ |
 | Tests (`node --test`) | ✅ 217/217 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
-| GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
-| Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |
+| GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
+| Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |
 | Mesh registration (hub) | ✅ registry.yml + _data/projects.yml |
 | Themed docs site | ✅ Matches the fairyfox.io homepage chrome |
 | Subproject nav (`.subnav`) | ✅ sub-brand locator + section links (landing + legal) |

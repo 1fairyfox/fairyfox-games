@@ -40,7 +40,7 @@ the shared living-notes standard. Highlights:
 - **Keep the legal docs accurate** (`legal/{privacy,terms,cookies}.html`, per
   `notes/reference/legal-docs.md`). They must match what the site *actually* does — no
   accounts, best scores in `localStorage` only, no cookies/analytics/tracking,
-  self-hosted fonts (no third-party requests), static Pages + Netlify hosting. A change
+  self-hosted fonts (no third-party requests), static GitHub Pages hosting. A change
   to data practices updates the docs **in the same change**, with a bumped "Last updated"
   date. Fonts stay **self-hosted** (`assets/fonts/`) — don't reintroduce a Google Fonts
   hot-link (it leaks visitor IPs and contradicts the privacy page).
@@ -67,7 +67,7 @@ first-class citizens that earn ongoing investment. Hold to these, by default:
   concepts before building.
 - **It's "Games", not "Fun".** The project is the games collection — do not use the
   retired `/fun/` URL or "Fun page" wording anywhere. Play lives at
-  `games.fairyfox.io` and `fairyfox.io/fairyfox-games/`.
+  `fairyfox.io/fairyfox-games/` (GitHub Pages).
 - **Header conventions.** The landing page mirrors the fairyfox.io homepage chrome.
   The **Games** nav item sits **right of Projects** (matching the hub); **About is
   always last**. The brand/Home link is the way home — don't add a redundant
@@ -115,7 +115,7 @@ After making changes, run this loop **without being asked**:
    hash marker), and **bump `VERSION`** in the same commit when warranted (PATCH
    default, MINOR milestone — e.g. a new game, never MAJOR).
 3. **Get Fairy Fox's explicit approval before releasing to `main`** — the release deploys
-   (Pages + Netlify), so don't auto-release even on green; commit/push to `dev` freely, then
+   (GitHub Pages), so don't auto-release even on green; commit/push to `dev` freely, then
    stop and ask before the ship. When approved, **release `dev → main` the git-flow way** —
    `main` advances only by a `--no-ff`, **tagged** merge, never a fast-forward or a direct
    commit. **`main` is branch-protected** (supply-chain-hardening), so the release goes
