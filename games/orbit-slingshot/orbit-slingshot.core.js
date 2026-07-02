@@ -44,7 +44,45 @@ export const CONFIG = Object.freeze({
   CLOSE_BAND: 60,     // skim within this many px of the surface for a close-pass bonus
   CLOSE_BONUS_MAX: 3, // max bonus points for a dead-on skim
   EPS: 1,             // gravity softening floor to avoid divide-by-zero (px)
+  // Escalation — the difficulty texture that stages add (the core-fun fix; the base
+  // game never got harder over a run). Per stage above 0: targets may spawn this much
+  // nearer the planet (riskier reaches) and the pickup radius shrinks by this factor.
+  STAGE_MIN_PULL: 12, // px the target's min spawn radius pulls inward per stage
+  STAGE_MIN_FLOOR: 62,// but never nearer the planet centre than this (px)
+  STAGE_R_SHRINK: 0.06,// pickup-radius shrink per stage (fraction)
+  STAGE_R_MINFRAC: 0.62,// pickup radius never below this fraction of TARGET_R
+  // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
+  STAGES: Object.freeze([
+    Object.freeze({ at: 0,   name: 'Suborbital',    tint: '#6ad4ff' }),
+    Object.freeze({ at: 25,  name: 'Low orbit',     tint: '#8ab4ff' }),
+    Object.freeze({ at: 60,  name: 'Geostationary', tint: '#a98cff' }),
+    Object.freeze({ at: 120, name: 'Deep space',    tint: '#ff8f6a' }),
+  ]),
 });
+
+/**
+ * Achievement definitions — plain data (Growth Architecture Layer 2). Pure predicates.
+ * @typedef {{id:string,label:string,desc:string,test:(s:RunSummary,m:Meta)=>boolean}} Achievement
+ * @type {ReadonlyArray<Achievement>}
+ */
+export const ACHIEVEMENTS = Object.freeze([
+  Object.freeze({ id: 'first-run',    label: 'Liftoff',        desc: 'Finish a run.',
+    test: (s, m) => m.plays >= 1 }),
+  Object.freeze({ id: 'reach-geo',    label: 'Geostationary',  desc: 'Reach the Geostationary stage.',
+    test: (s) => s.stageIndex >= 2 }),
+  Object.freeze({ id: 'reach-deep',   label: 'Deep space',     desc: 'Reach the Deep space stage.',
+    test: (s) => s.stageIndex >= 3 }),
+  Object.freeze({ id: 'skimmer',      label: 'Surface skimmer',desc: 'Earn a max close-pass skim.',
+    test: (s, m, cfg) => s.bestBonus >= (cfg ? cfg.CLOSE_BONUS_MAX : 3) }),
+  Object.freeze({ id: 'daredevil',    label: 'Daredevil',      desc: '10 close-pass skims in a run.',
+    test: (s) => s.skims >= 10 }),
+  Object.freeze({ id: 'century',      label: 'Cosmonaut',      desc: 'Score 100 in a run.',
+    test: (s) => s.score >= 100 }),
+  Object.freeze({ id: 'lifetime-1k',  label: 'Thousand targets',desc: 'Sweep 1,000 targets all-time.',
+    test: (s, m) => m.totals.targets >= 1000 }),
+  Object.freeze({ id: 'regular',      label: 'Regular',        desc: 'Finish 25 runs.',
+    test: (s, m) => m.plays >= 25 }),
+]);
 
 /**
  * A 2D vector.
@@ -98,7 +136,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 },
     target: { x: 0, y: 0 },
-    score: 0, skims: 0, bestBonus: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
+    score: 0, targets: 0, skims: 0, bestBonus: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
   };
   reset(g);
   return g;
@@ -116,6 +154,7 @@ export function reset(g) {
   g.pos = { x: p.x + g.cfg.R0, y: p.y };
   g.vel = { x: 0, y: v };                   // perpendicular → counter-clockwise orbit
   g.score = 0;
+  g.targets = 0;
   g.skims = 0;
   g.bestBonus = 0;
   g.minDist = Infinity;
@@ -137,15 +176,78 @@ export function start(g) {
   return g;
 }
 
+// ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────
+
 /**
- * Place a fresh target at a random angle and radius in the reachable annulus.
+ * Index of the current stage for a score — the highest STAGES entry reached. Clamps to
+ * the last stage. Pure.
+ * @param {OrbitConfig} cfg
+ * @param {number} score
+ * @returns {number}
+ */
+export function stageIndexAt(cfg, score) {
+  const s = (cfg && cfg.STAGES) || [];
+  let i = 0;
+  for (let k = 0; k < s.length; k++) if (score >= s[k].at) i = k;
+  return i;
+}
+
+/**
+ * The current stage object for a score. Pure.
+ * @param {OrbitConfig} cfg
+ * @param {number} score
+ * @returns {{at:number,name:string,tint:string}}
+ */
+export function stageAt(cfg, score) {
+  return cfg.STAGES[stageIndexAt(cfg, score)];
+}
+
+/**
+ * Progress through the current stage toward the next — drives the HUD stage chip. Pure.
+ * @param {OrbitConfig} cfg
+ * @param {number} score
+ * @returns {{index:number,name:string,tint:string,next:?string,nextAt:?number,into:number,span:number,frac:number,isLast:boolean}}
+ */
+export function stageProgress(cfg, score) {
+  const list = cfg.STAGES;
+  const index = stageIndexAt(cfg, score);
+  const cur = list[index];
+  const next = list[index + 1] || null;
+  const into = score - cur.at;
+  const span = next ? next.at - cur.at : 0;
+  const frac = next ? Math.max(0, Math.min(1, into / span)) : 1;
+  return {
+    index, name: cur.name, tint: cur.tint,
+    next: next ? next.name : null, nextAt: next ? next.at : null,
+    into, span, frac, isLast: !next,
+  };
+}
+
+/**
+ * The effective target pickup radius — shrinks with stage so threading gets harder as
+ * you climb (escalation). At stage 0 it equals CONFIG.TARGET_R. Pure.
+ * @param {GameState} g
+ * @returns {number} px
+ */
+export function targetRadius(g) {
+  const stage = stageIndexAt(g.cfg, g.score);
+  const frac = Math.max(g.cfg.STAGE_R_MINFRAC, 1 - stage * g.cfg.STAGE_R_SHRINK);
+  return g.cfg.TARGET_R * frac;
+}
+
+/**
+ * Place a fresh target at a random angle and radius in the reachable annulus. As the
+ * stage climbs the inner edge pulls toward the planet, so later targets demand riskier
+ * dives (escalation). At stage 0 the annulus is exactly [TARGET_MIN_R, TARGET_MAX_R].
  * @param {GameState} g
  * @returns {Vec} the new target position
  */
 export function pickTarget(g) {
   const p = planet(g);
+  const stage = stageIndexAt(g.cfg, g.score);
+  const minR = Math.max(g.cfg.STAGE_MIN_FLOOR, g.cfg.TARGET_MIN_R - stage * g.cfg.STAGE_MIN_PULL);
   const ang = g.rng() * Math.PI * 2;
-  const rr = g.cfg.TARGET_MIN_R + g.rng() * (g.cfg.TARGET_MAX_R - g.cfg.TARGET_MIN_R);
+  const rr = minR + g.rng() * (g.cfg.TARGET_MAX_R - minR);
   g.target = { x: p.x + Math.cos(ang) * rr, y: p.y + Math.sin(ang) * rr };
   return g.target;
 }
@@ -242,9 +344,10 @@ export function tick(g, input = {}) {
   if (outOfBounds(g)) { g.phase = 'dead'; g.cause = 'escape'; return { scored: false, died: true, cause: 'escape' }; }
 
   let scored = false, bonus = 0;
-  if (Math.hypot(g.pos.x - g.target.x, g.pos.y - g.target.y) < g.cfg.TARGET_R + g.cfg.PROBE_R) {
+  if (Math.hypot(g.pos.x - g.target.x, g.pos.y - g.target.y) < targetRadius(g) + g.cfg.PROBE_R) {
     bonus = closePassBonus(g);   // reward a risky skim past the planet
     g.score += 1 + bonus;
+    g.targets++;                 // pickups (distinct from score, which includes bonuses)
     if (bonus > 0) {             // a rewarded skim — track count and personal-best skim
       g.skims++;
       if (bonus > g.bestBonus) g.bestBonus = bonus;
@@ -284,4 +387,82 @@ export function milestoneAt(score) {
     case 100: return 'Cosmonaut';
     default: return null;
   }
+}
+
+// ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
+
+/**
+ * A finished run distilled to plain data for the meta layer.
+ * @typedef {{score:number, stageIndex:number, targets:number, skims:number, bestBonus:number}} RunSummary
+ */
+
+/**
+ * Persistent cross-run save. Plain JSON.
+ * @typedef {Object} Meta
+ * @property {number} v
+ * @property {number} plays
+ * @property {number} best       best single-run score (mirrors `orbitslingshot.best`)
+ * @property {number} bestStage
+ * @property {number} bestBonus  biggest close-pass skim ever
+ * @property {{targets:number, skims:number, points:number}} totals
+ * @property {Object<string,boolean>} achieved
+ */
+
+/**
+ * Normalise any prior meta (legacy best-only, or nothing) into a complete Meta. Pure.
+ * @param {Partial<Meta>} [m]
+ * @param {number} [legacyBest=0]
+ * @returns {Meta}
+ */
+export function normalizeMeta(m, legacyBest = 0) {
+  const src = m && typeof m === 'object' ? m : {};
+  const t = src.totals && typeof src.totals === 'object' ? src.totals : {};
+  return {
+    v: 1,
+    plays: src.plays | 0,
+    best: Math.max(src.best | 0, legacyBest | 0),
+    bestStage: src.bestStage | 0,
+    bestBonus: src.bestBonus | 0,
+    totals: { targets: t.targets | 0, skims: t.skims | 0, points: t.points | 0 },
+    achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
+  };
+}
+
+/**
+ * Pure reducer: fold a finished run into the meta. Returns a NEW Meta. No IO.
+ * @param {Partial<Meta>} meta
+ * @param {RunSummary} summary
+ * @param {OrbitConfig} [cfg=CONFIG]
+ * @returns {Meta}
+ */
+export function applyRun(meta, summary, cfg = CONFIG) {
+  const next = normalizeMeta(meta);
+  next.plays += 1;
+  next.totals.targets += summary.targets | 0;
+  next.totals.skims += summary.skims | 0;
+  next.totals.points += summary.score | 0;
+  next.best = Math.max(next.best, summary.score | 0);
+  next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
+  next.bestBonus = Math.max(next.bestBonus, summary.bestBonus | 0);
+  for (const a of ACHIEVEMENTS) {
+    if (!next.achieved[a.id] && a.test(summary, next, cfg)) next.achieved[a.id] = true;
+  }
+  return next;
+}
+
+/**
+ * Achievement ids present in `nextMeta` but not `prevMeta` — freshly earned, in table
+ * order, as {id,label,desc}. Pure.
+ * @param {Partial<Meta>} prevMeta
+ * @param {Partial<Meta>} nextMeta
+ * @returns {Array<{id:string,label:string,desc:string}>}
+ */
+export function newlyEarned(prevMeta, nextMeta) {
+  const before = (prevMeta && prevMeta.achieved) || {};
+  const after = (nextMeta && nextMeta.achieved) || {};
+  const out = [];
+  for (const a of ACHIEVEMENTS) {
+    if (after[a.id] && !before[a.id]) out.push({ id: a.id, label: a.label, desc: a.desc });
+  }
+  return out;
 }

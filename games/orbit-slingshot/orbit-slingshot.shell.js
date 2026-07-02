@@ -35,6 +35,12 @@ const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
 const toastEl = el('toast');
+const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
+const badgesEl = el('badges'), metaLineEl = el('metaLine');
+
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.b | 0) + ',' + a + ')'; }
 
 let toastTimer = 0;
 function showToast(text) {
@@ -53,14 +59,47 @@ function showMilestone(prev, now) {
   return false;
 }
 
+// Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
 const BEST_KEY = 'orbitslingshot.best';
-let best = 0;
-try { best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+const META_KEY = 'orbitslingshot.meta';
+function loadMeta() {
+  let legacy = 0;
+  try { legacy = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
+  return Orbit.normalizeMeta(raw, legacy);
+}
+function saveMeta(m) {
+  try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
+  try { localStorage.setItem(BEST_KEY, String(m.best)); } catch (e) {}
+}
+let meta = loadMeta();
+let best = meta.best;
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
 let holding = false;          // is the thrust control currently held?
 let trail = [], flames = [], stars = [], shake = 0;
+// Stage feel state (Growth Layer 1)
+let stageIdx = 0, stagePulse = 0;
+let tintCur = hexToRgb('#6ad4ff'), tintTarget = { ...tintCur };
+
+/** Refresh the quiet HUD stage chip from the pure core. */
+function updateStageChip() {
+  if (!stageChip) return;
+  const pr = Orbit.stageProgress(game.cfg, game.score);
+  if (stageNameEl) stageNameEl.textContent = pr.name;
+  if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
+  stageChip.style.color = pr.tint;
+}
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+function enterStage(i) {
+  stageIdx = i;
+  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
+  if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  updateStageChip();
+}
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -81,9 +120,17 @@ game = Orbit.createGame(W, H);
 trail = [];
 
 // ── Input — hold to thrust; press also starts / restarts ──────────────────────
+function beginRun() {
+  Orbit.start(game); trail = [];
+  stageIdx = 0; stagePulse = 0;
+  tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
+  if (stageChip) stageChip.classList.remove('hide');
+  scoreEl.textContent = '0';
+  updateStageChip();
+}
 function press() {
-  if (game.phase === 'menu') { startPanel.classList.add('hide'); Orbit.start(game); trail = []; }
-  else if (game.phase === 'dead') { overPanel.classList.add('hide'); Orbit.start(game); trail = []; }
+  if (game.phase === 'menu') { startPanel.classList.add('hide'); beginRun(); }
+  else if (game.phase === 'dead') { overPanel.classList.add('hide'); beginRun(); }
   holding = true;
 }
 function release() { holding = false; }
@@ -97,17 +144,42 @@ window.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
 
 function onDeath() {
   shake = 18;
+  if (stageChip) stageChip.classList.add('hide');
   finalEl.textContent = game.score;
-  // a second thing to chase: how daring were the skims?
+
+  // Fold the run into the persistent meta (all logic pure in the core).
+  const stageIndex = Orbit.stageIndexAt(game.cfg, game.score);
+  const summary = {
+    score: game.score, stageIndex,
+    targets: game.targets, skims: game.skims, bestBonus: game.bestBonus,
+  };
+  const prev = meta;
+  meta = Orbit.applyRun(prev, summary, game.cfg);
+  saveMeta(meta);
+
+  // Run report: stage reached + how daring the skims were.
   if (overSubEl) {
-    overSubEl.textContent = game.skims > 0
-      ? `${game.skims} close-pass skim${game.skims === 1 ? '' : 's'} · best +${game.bestBonus}`
-      : '';
+    const skims = game.skims > 0 ? ` · ${game.skims} skim${game.skims === 1 ? '' : 's'} (best +${game.bestBonus})` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + skims;
   }
+  if (badgesEl) {
+    badgesEl.innerHTML = '';
+    for (const a of Orbit.newlyEarned(prev, meta)) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.innerHTML = '<b>' + a.label + '</b><span>' + a.desc + '</span>';
+      badgesEl.appendChild(b);
+    }
+  }
+  if (metaLineEl) {
+    const earned = Object.keys(meta.achieved).length;
+    metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.targets
+      + ' targets all-time · ' + earned + '/' + Orbit.ACHIEVEMENTS.length + ' badges';
+  }
+
   const record = game.score > best;
   if (record) {
-    best = game.score;
-    try { localStorage.setItem(BEST_KEY, best); } catch (e) {}
+    best = meta.best;
     bestEl.textContent = best;
     newbestEl.textContent = 'New best!';
     overTitle.textContent = 'New record';
@@ -131,6 +203,10 @@ function stepFx() {
   for (const f of flames) { f.x += f.vx; f.y += f.vy; f.life--; }
   flames = flames.filter(f => f.life > 0);
   if (shake > 0.3) shake *= 0.85; else shake = 0;
+  if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+  tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
+  tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
+  tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
 }
 
 // ── Fixed-timestep simulation ──────────────────────────────────────────────────
@@ -154,6 +230,9 @@ function update(now) {
         if (!showMilestone(prev, game.score) && r.bonus > 0) {
           showToast((r.bonus >= game.cfg.CLOSE_BONUS_MAX ? 'Skim! +' : 'Close pass +') + r.bonus);
         }
+        const si = Orbit.stageIndexAt(game.cfg, game.score);
+        if (si !== stageIdx) enterStage(si);
+        updateStageChip();
       }
       if (r.died) onDeath();
     }
@@ -181,8 +260,18 @@ function draw() {
   pg.addColorStop(0, '#9fb4ff'); pg.addColorStop(1, '#3a3f8a');
   ctx.fillStyle = pg;
   ctx.beginPath(); ctx.arc(p.x, p.y, game.cfg.PLANET_R, 0, 7); ctx.fill();
-  ctx.strokeStyle = 'rgba(159,180,255,0.25)';
+  // planet halo — tinted by the current stage
+  ctx.strokeStyle = rgbStr(tintCur, 0.4);
   ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(p.x, p.y, game.cfg.PLANET_R + 6, 0, 7); ctx.stroke();
+
+  // stage-change shockwave expanding out from the planet
+  if (stagePulse > 0.01) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
+    ctx.lineWidth = 3 * stagePulse + 0.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, game.cfg.PLANET_R + 6 + (1 - stagePulse) * 180, 0, 7); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   if (game.phase !== 'menu') {
     // target

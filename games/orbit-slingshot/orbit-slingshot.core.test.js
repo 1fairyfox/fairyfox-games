@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, planet, createGame, reset, start, pickTarget,
   gravityAt, speed, distToPlanet, hitPlanet, outOfBounds, tick, closePassBonus, milestoneAt,
+  ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, targetRadius, normalizeMeta, applyRun, newlyEarned,
 } from './orbit-slingshot.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -259,4 +260,111 @@ test('a far pickup scores without counting as a skim', () => {
   assert.equal(r.bonus, 0);
   assert.equal(g.skims, 0);
   assert.equal(g.bestBonus, 0);
+});
+
+// ── 10. Escalation: stages tighten the game ───────────────────────────────────
+test('targetRadius equals TARGET_R at stage 0 and shrinks (bounded) at higher stages', () => {
+  const g = newGame();
+  g.score = 0;
+  assert.equal(targetRadius(g), CONFIG.TARGET_R);
+  g.score = CONFIG.STAGES[CONFIG.STAGES.length - 1].at; // top stage
+  assert.ok(targetRadius(g) < CONFIG.TARGET_R, 'threading gets harder');
+  assert.ok(targetRadius(g) >= CONFIG.TARGET_R * CONFIG.STAGE_R_MINFRAC - 1e-9, 'bounded');
+});
+
+test('later stages can spawn targets nearer the planet (riskier reaches)', () => {
+  // Sample many spawns at stage 0 vs a high stage; the high stage should reach nearer.
+  function nearestOverN(scoreLevel, n) {
+    const g = createGame(W, H, { rng: seeded(3) });
+    start(g); g.score = scoreLevel;
+    const p = planet(g);
+    let nearest = Infinity;
+    for (let i = 0; i < n; i++) {
+      pickTarget(g);
+      nearest = Math.min(nearest, Math.hypot(g.target.x - p.x, g.target.y - p.y));
+    }
+    return nearest;
+  }
+  const low = nearestOverN(0, 300);
+  const high = nearestOverN(CONFIG.STAGES[CONFIG.STAGES.length - 1].at + 10, 300);
+  assert.ok(high < low, `high stage reaches nearer the planet (low ${low.toFixed(0)} > high ${high.toFixed(0)})`);
+});
+
+test('a target counter accumulates on pickups (for lifetime meta)', () => {
+  const g = createGame(W, H, { rng: seeded(1), config: { GM: 0 } });
+  start(g);
+  for (let i = 0; i < 4; i++) { g.target = { x: g.pos.x, y: g.pos.y }; tick(g, { thrust: false }); }
+  assert.equal(g.targets, 4);
+});
+
+// ── 11. Stages ─────────────────────────────────────────────────────────────────
+test('STAGES is well-formed and stageIndexAt steps at each boundary + clamps', () => {
+  assert.ok(CONFIG.STAGES.length >= 4);
+  assert.equal(CONFIG.STAGES[0].at, 0);
+  assert.equal(stageIndexAt(CONFIG, 0), 0);
+  for (let i = 1; i < CONFIG.STAGES.length; i++) {
+    const at = CONFIG.STAGES[i].at;
+    assert.equal(stageIndexAt(CONFIG, at - 1), i - 1);
+    assert.equal(stageIndexAt(CONFIG, at), i);
+  }
+  assert.equal(stageIndexAt(CONFIG, 1e9), CONFIG.STAGES.length - 1);
+  assert.equal(stageAt(CONFIG, 0).name, CONFIG.STAGES[0].name);
+});
+
+test('stageProgress: frac 0 at a boundary, rises toward the next, isLast at the top', () => {
+  const p0 = stageProgress(CONFIG, 0);
+  assert.equal(p0.frac, 0); assert.equal(p0.isLast, false); assert.equal(p0.next, CONFIG.STAGES[1].name);
+  const top = stageProgress(CONFIG, 1e9);
+  assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
+});
+
+// ── 12. Meta-progression ──────────────────────────────────────────────────────
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, targets: 0, skims: 0, bestBonus: 0, ...o });
+
+test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
+  const m = normalizeMeta(undefined, 33);
+  assert.equal(m.v, 1);
+  assert.equal(m.best, 33);
+  assert.deepEqual(m.totals, { targets: 0, skims: 0, points: 0 });
+});
+
+test('applyRun accumulates totals and raises bests monotonically; pure', () => {
+  const m0 = normalizeMeta();
+  const m1 = applyRun(m0, summary({ score: 80, stageIndex: 2, targets: 40, skims: 6, bestBonus: 3 }));
+  assert.equal(m0.plays, 0, 'input untouched');
+  assert.equal(m1.plays, 1);
+  assert.equal(m1.totals.targets, 40);
+  assert.equal(m1.best, 80);
+  assert.equal(m1.bestStage, 2);
+  assert.equal(m1.bestBonus, 3);
+  const m2 = applyRun(m1, summary({ score: 10, stageIndex: 0, targets: 5 }));
+  assert.equal(m2.best, 80, 'best never drops');
+  assert.equal(m2.bestBonus, 3, 'bestBonus never drops');
+  assert.equal(m2.totals.targets, 45);
+});
+
+test('achievements fire when earned, cfg-aware, idempotent, cumulative waits to cross', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 100, stageIndex: 3, targets: 60, skims: 10, bestBonus: CONFIG.CLOSE_BONUS_MAX }), CONFIG);
+  assert.equal(m.achieved['first-run'], true);
+  assert.equal(m.achieved['reach-deep'], true);
+  assert.equal(m.achieved['skimmer'], true);
+  assert.equal(m.achieved['daredevil'], true);
+  assert.equal(m.achieved['century'], true);
+  assert.equal(m.achieved['lifetime-1k'], undefined);
+  const snap = JSON.stringify(m.achieved);
+  m = applyRun(m, summary({ score: 3, targets: 2 }));
+  assert.equal(JSON.stringify(m.achieved), snap, 'nothing lost/duplicated');
+});
+
+test('newlyEarned reports only ids gained between two metas, in table order', () => {
+  const prev = normalizeMeta();
+  const next = applyRun(prev, summary({ score: 100, stageIndex: 2, targets: 60, skims: 10, bestBonus: 3 }));
+  const gained = newlyEarned(prev, next).map(a => a.id);
+  assert.ok(gained.includes('first-run'));
+  assert.ok(gained.includes('reach-geo'));
+  assert.ok(gained.includes('century'));
+  const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
+  assert.deepEqual(gained, order);
+  assert.deepEqual(newlyEarned(next, next), []);
 });

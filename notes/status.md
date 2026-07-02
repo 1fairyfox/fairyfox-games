@@ -29,8 +29,12 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   catches/perfects/best-combo + 8 badges, run-report) — legacy best preserved. Pure core
   + 31 tests.
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
-  sweep targets. **Close-pass skim bonus** + **skim tally / best-bonus** + a **Skim!**
-  toast + milestones. Pure core (symplectic Euler) + 21 tests.
+  sweep targets; **close-pass skim bonus** is the risk/reward. **On the Growth
+  Architecture**: escalation (targets creep nearer the planet + pickup radius shrinks by
+  stage — no flat difficulty), a **stage arc** (Suborbital → Low orbit → Geostationary →
+  Deep space) with HUD chip + planet-halo tint, and **meta-progression**
+  (`orbitslingshot.meta`: lifetime targets/skims/best-bonus + 8 badges, run-report) —
+  legacy best preserved. Pure core (symplectic Euler) + 30 tests.
 - **Polarity** (`games/polarity/`) — a **precision-combo** runner: flip cyan/magenta to
   match each gate, but land the flip at the *last instant* to grow a **multiplier**
   (×2…×9) — flip early/safe and it breaks to ×1. **Reference build for the Growth
@@ -52,7 +56,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
   another orb joins the air, up to six; a dropped orb ends it. **Progression ranks** +
   a **self-play winnability** test. Pure core + 24 tests.
 
-**Tests:** 178/178 green across the collection.
+**Tests:** 187/187 green across the collection.
 
 ## In flight / awaiting
 
@@ -81,7 +85,7 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 178/178 across 7 games |
+| Tests (`node --test`) | ✅ 187/187 across 7 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Deploys on push to `main` |
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |
