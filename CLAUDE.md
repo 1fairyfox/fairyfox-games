@@ -37,6 +37,13 @@ the shared living-notes standard. Highlights:
   paths only, no reaching across games. A game folder could be extracted on its own.
 - **The site is static.** No server, no build step for the games themselves; GitHub
   Pages serves them. `.nojekyll` is present so Pages serves files verbatim.
+- **Keep the legal docs accurate** (`legal/{privacy,terms,cookies}.html`, per
+  `notes/reference/legal-docs.md`). They must match what the site *actually* does — no
+  accounts, best scores in `localStorage` only, no cookies/analytics/tracking,
+  self-hosted fonts (no third-party requests), static Pages + Netlify hosting. A change
+  to data practices updates the docs **in the same change**, with a bumped "Last updated"
+  date. Fonts stay **self-hosted** (`assets/fonts/`) — don't reintroduce a Google Fonts
+  hot-link (it leaks visitor IPs and contradicts the privacy page).
 - **Never bump MAJOR** (`→ 1.0.0`) — Fairy Fox's call only.
 
 ## Standing Rules — the games are first-class citizens (a standing instruction)
@@ -72,6 +79,13 @@ You CAN build, test, run, commit, and push — via PowerShell on the local machi
 (git + `gh` authed as `junebug12851`; Node 18+ installed). CI runs the tests on every
 push and PR; GitHub Pages deploys on push to `main`.
 
+**Tooling (non-negotiable, per `notes/reference/agent-tooling.md`):** use **PowerShell +
+the file tools (Read/Edit/Write)** for everything — **never the Cowork bash sandbox**,
+which mangles line endings and can't touch `.git` on this machine. **Execute** the work
+(stage, commit, branch, release) yourself; don't hand over a script. A root
+`.gitattributes` (`* text=auto eol=lf`) forces LF so the tree never fills with phantom
+CRLF "modified" noise.
+
 ```sh
 # play a game locally (ES modules need HTTP, not file://)
 python -m http.server 8000      # open http://localhost:8000/games/<slug>/
@@ -83,6 +97,11 @@ cd games/<slug> && node --test  # one game
 
 ## Default Workflow — Do These By Default (a standing instruction)
 
+**Plan before you execute (per `notes/reference/planning.md`).** For non-trivial work
+(multiple files/steps, a real decision, a standards pass), write a short structured plan
+in `notes/plans/` *first*, then execute against it. Trivial one-step changes are exempt —
+don't bureaucratize a typo.
+
 After making changes, run this loop **without being asked**:
 
 1. **Run the tests** for the affected game; full `npm test` before releasing. Only
@@ -92,11 +111,16 @@ After making changes, run this loop **without being asked**:
    hash marker), and **bump `VERSION`** in the same commit when warranted (PATCH
    default, MINOR milestone — e.g. a new game, never MAJOR).
 3. When green, **release `dev → main` the git-flow way** — `main` advances only by a
-   `--no-ff`, **tagged** merge, never a fast-forward or a direct commit. A **PATCH**
-   releases directly:
-   `git checkout main && git merge --no-ff dev && git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin main --tags && git checkout dev`.
-   A **MINOR/MAJOR** milestone goes through a `release/*` branch — see the
+   `--no-ff`, **tagged** merge, never a fast-forward or a direct commit. **`main` is
+   branch-protected** (supply-chain-hardening), so the release goes through a **PR**:
+   `gh pr create --base main --head dev` → `gh pr checks --watch` → `gh pr merge --merge`,
+   then **tag** `vX.Y.Z` (no `release.yml` owns tagging here, so tag by hand) and push it.
+   A **MINOR/MAJOR** milestone bakes on a `release/*` branch first — see the
    `git-workflow` standard.
+4. **Back-merge invariant — `dev` must contain `main`.** After every release,
+   `git checkout dev && git merge --ff-only main && git push origin dev`, or `dev` drifts
+   a commit behind `main` each release. A `branch-sync` CI guard catches a skipped
+   back-merge within a day.
 
 **Hard safety rules:** never `push --force` / rewrite pushed history; never
 `reset --hard` / `rebase` / `clean -fd` / delete a branch without an explicit request.
@@ -114,6 +138,7 @@ The notes are a living document — keep them current as you work, by default.
 | Health / next changed | Update `notes/status.md` |
 | Made / rejected a decision | `notes/decisions/architecture.md` / `rejected.md` |
 | A change warrants a version | Bump `VERSION`, same commit |
+| Changed the site's data practices / added a user-facing surface | Update `legal/*.html` + the "Last updated" date, same change (accuracy discipline) |
 | Added a new game | New `games/<slug>/` (core + test + shell + README), list it in the root README + the site's `_data/games.yml` |
 
 ## Cross-project standards & checking the fairyfox system for updates

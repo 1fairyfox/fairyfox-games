@@ -1,0 +1,29 @@
+# Dependabot — keep GitHub Actions (and any npm deps) current.
+# See hub/standards/dependencies.md (upgrade policy) and supply-chain-hardening.md
+# (the github-actions ecosystem keeps SHA-pinned Actions current). Targets the WORKING
+# branch (dev) so update PRs match the mesh's git-flow.
+#
+# The games themselves are zero-dependency (Node's built-in test runner only), so the
+# npm block will usually find nothing — it is kept so any future dependency is caught.
+# The github-actions block is the load-bearing one here: it keeps the SHA-pinned
+# workflow Actions from going stale.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    labels: ["dependencies"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    labels: ["dependencies", "github-actions"]
