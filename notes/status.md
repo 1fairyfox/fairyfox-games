@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.9.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.9.1` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -69,9 +69,12 @@ and Netlify at **`games.fairyfox.io`** (landing page), plus each game at
 | Netlify (`games.fairyfox.io`) | ✅ Live over HTTPS |
 | Mesh registration (hub) | ✅ registry.yml + _data/projects.yml |
 | Themed docs site | ✅ Matches the fairyfox.io homepage chrome |
-| Legal docs (`legal/`) | ✅ Privacy/Terms/Cookies — self-hosted, code-accurate |
+| Subproject nav (`.subnav`) | ✅ sub-brand locator + section links (landing + legal) |
+| Legal docs (`legal/`) | ✅ Privacy/Terms/Cookies — shared chrome, clearly scoped to this project |
 | Self-hosted fonts | ✅ `assets/fonts/` — no Google Fonts hot-link (zero 3rd-party requests) |
 | Line-ending hygiene | ✅ root `.gitattributes` (`* text=auto eol=lf`) |
 | Supply-chain hardening | ✅ least-priv + SHA-pinned Actions, SECURITY.md, Dependabot, branch-sync guard |
+| Signed releases | ✅ `release.yml` — SLSA provenance + GitHub Release on each tag |
+| Private vuln reporting | ✅ enabled (SECURITY.md path is live) |
 | Branch protection (`main`) | ✅ solo config — releases go through a PR |
 | `adopts_hub` flag | ✅ true (hub v0.12.1) |

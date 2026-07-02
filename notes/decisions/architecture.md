@@ -2,24 +2,36 @@
 
 Key structural choices and why. Newest on top.
 
-### 2026-07-02 — Adopting hub 0.12.1: two deliberate divergences + font call
+### 2026-07-02 — Adopting hub 0.12.1: corrected to full adoption (v0.9.1)
 
-Adopted the fairyfox standards 0.9.11 → 0.12.1 in full (see the v0.9.0 changelog and
-`fairyfox-reports/2026-07-02-adopting-updates.md`). Three choices worth recording:
+Adopted the fairyfox standards 0.9.11 → 0.12.1 (see the v0.9.0/v0.9.1 changelog and
+`fairyfox-reports/2026-07-02-adopting-updates.md`). **Correction:** the first pass (v0.9.0)
+skipped two *mandatory* measures on my own judgment; the owner rightly rejected that, so
+v0.9.1 adopts them. Recording the final state:
 
-- **`.subnav` (docs-site 0.11.0) — skipped.** The one-seamless-site model adds a secondary
-  submenu nav; the games site is a **single-section landing** (one collection, one page), so
-  a submenu would be chrome with nothing to navigate. The standard allows a single-section
-  site to omit it. Divergence is intentional; revisit if the site grows sections.
-- **SLSA signed-releases (supply-chain-hardening #4) — N/A.** That measure attests a build
-  *artifact* via a `release.yml`. This node is a static site with **no build step and no
-  release pipeline** — there is no artifact to attest. Every other hardening measure was
-  adopted; this one is reasoned-N/A, not skipped work.
+- **`.subnav` — ADOPTED (was wrongly skipped in 0.9.0).** The one-seamless-site model means
+  the **primary** nav navigates the fairyfox.io homepage (you never "leave"); a subproject
+  therefore **needs** its own secondary bar to navigate within itself. Added a `.subnav` with
+  a **"Fairy Fox Games" sub-brand locator** + section links (Collection · Privacy · Terms ·
+  Cookies · Source) on the landing and every legal page. This is *required* for a subproject,
+  not optional — the earlier "single-section, omit it" call was wrong.
+- **SLSA signed-releases — ADOPTED (was wrongly deferred as N/A in 0.9.0).** Added
+  `.github/workflows/release.yml`: on a version tag it packages the static site into a zip,
+  attests keyless SLSA build provenance, and publishes a GitHub Release. A static site *does*
+  have a shippable artifact (the site bundle) to attest. The workflow reacts to the tag; it
+  does not create it (hand-tagging stays).
 - **Self-hosted fonts (beyond the standard).** The landing hot-linked Google Fonts (visitor
   IP → Google). Modelled on `random-ai-prompt`, we **vendored** Fraunces/Inter/JetBrains Mono
   as OFL variable woff2 under `assets/fonts/` (via Fontsource, `--no-save`, so the repo stays
-  zero-dependency) and dropped the Google Fonts link. Now **zero third-party requests**, which
-  the privacy/cookies pages can state truthfully.
+  zero-dependency) and dropped the Google Fonts link. Now **zero third-party requests**.
+- **Legal pages read as the subproject's.** Because the shared chrome makes everything look
+  like one fairyfox.io site, the legal pages now wear the subnav locator + a "Fairy Fox Games
+  · Legal" eyebrow and state in-copy that they cover *the games collection, not the wider
+  site* — so scope is unmistakable.
+
+**Lesson:** a "mandatory" hub measure is not mine to downgrade to "skip/N-A" on judgment.
+When something seems inapplicable, adapt it to the project (as with signed-releases) or ask —
+don't silently drop it.
 
 ### 2026-06-29 — Dual publish: GitHub Pages + Netlify (games.fairyfox.io)
 
