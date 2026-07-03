@@ -1,0 +1,11 @@
+{
+  "name": "poise",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Poise — a one-mechanic, beat-your-own-score canvas game (a ball on a tilting beam). Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.11.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.12.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -16,7 +16,7 @@ that grows a little deeper every day** (standing rules in `CLAUDE.md`).
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (7):**
+**Games so far (8):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. **On the Growth Architecture**: escalation (ink speeds up with score) +
@@ -57,15 +57,23 @@ sole host), plus each game at `…/games/<game>/`.
   bonus** (chaining perfects = big towers); a **stage arc** (Foundation → Mid-rise →
   High-rise → Spire) with HUD chip + tinted sky, and **meta-progression** (`skyline.meta`:
   lifetime floors/perfects/best-streak + 8 badges, run-report) — legacy best preserved.
-  Pure core (no timer-driven death) + 25 tests.
+  A **near-miss** line (`nearMissLine`) nudges "N floors short of your best — so close!"
+  on non-record runs (Growth Wave 2). Pure core (no timer-driven death) + 27 tests.
 - **Loft** (`games/loft/`) — keep the glowing orbs aloft; tap a **falling** orb to bat
   it up (a rhythm, not a mash). **On the Growth Architecture**: a **cluster bonus**
   (`tapScore` — a 3-catch scores 6, so reading a bunch pays), a **stage arc** (Solo →
   Cascade → Flock → Zero-G) with HUD chip + tinted wash, and **meta-progression**
   (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report) —
   legacy best preserved. Pure core + 31 tests.
+- **Poise** (`games/poise/`) — a **balance** game: tilt a beam to keep a rolling ball on
+  it and roll it over the target to score. **On the Growth Architecture**: the ball keeps
+  its momentum through a catch and targets can sit near the ends (risk/reward), and
+  **gravity ramps by stage** (`gravOf`) so control gets twitchier; a **stage arc** (Steady
+  → Wobble → Sway → Pitch → Tempest) with HUD chip + tinted beam/frame, and
+  **meta-progression** (`poise.meta`: lifetime catches/longest-run + 9 badges, run-report)
+  — legacy `poise.best` preserved. Normalised pure core (`pos` −1..1) + 25 tests.
 
-**Tests:** 217/217 green across the collection.
+**Tests:** 244/244 green across the collection.
 
 ## In flight / awaiting
 
@@ -96,7 +104,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 217/217 across 7 games |
+| Tests (`node --test`) | ✅ 244/244 across 8 games |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

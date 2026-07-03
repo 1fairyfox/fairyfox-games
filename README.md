@@ -90,6 +90,7 @@ CI runs the full suite on every push and pull request.
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. | [`games/ricochet/`](games/ricochet/) |
 | **Skyline** | Drop a sliding slab onto your tower — the overhang is sliced off, so only precision keeps it climbing. | [`games/skyline/`](games/skyline/) |
 | **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it up; you can only strike on the way down, and more orbs keep joining. | [`games/loft/`](games/loft/) |
+| **Poise** | Tilt a beam to balance a rolling ball; roll it over the target to score without letting it slip off either end. It grows twitchier as you go. | [`games/poise/`](games/poise/) |
 
 _(A new one joins most days.)_
 
