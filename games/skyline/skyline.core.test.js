@@ -22,6 +22,7 @@ import {
   CONFIG, createGame, reset, start, topBlock, speedOf, spawnCurrent,
   moveCurrent, drop, tick, milestoneBetween,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  nearMissLine,
 } from './skyline.core.js';
 
 /** Deterministic RNG (mulberry32) so spawns are reproducible. */
@@ -344,4 +345,19 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── Near-miss surfacing (Growth Wave 2 — honest "so close" feedback) ────────────
+test('nearMissLine flags a run that lands just under the standing best', () => {
+  assert.equal(nearMissLine(9, 10), '1 floor short of your best — so close!');
+  assert.equal(nearMissLine(8, 10), '2 floors short of your best — so close!');
+  assert.equal(nearMissLine(7, 10), '3 floors short of your best — so close!');
+});
+
+test('nearMissLine celebrates a tie and stays quiet otherwise', () => {
+  assert.equal(nearMissLine(10, 10), 'Matched your best!');
+  assert.equal(nearMissLine(6, 10), null, 'a miss beyond the margin is not surfaced');
+  assert.equal(nearMissLine(12, 10), null, 'a record is not a near miss');
+  assert.equal(nearMissLine(0, 0), null, 'no prior best → nothing to be close to');
+  assert.equal(nearMissLine(5, 8, 1), null, 'respects a tighter margin');
 });
