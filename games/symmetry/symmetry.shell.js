@@ -1,36 +1,36 @@
 /**
- * Poise — browser player shell (external module).
+ * Symmetry — browser player shell (external module).
  *
- * Owns everything the pure core (poise.core.js) does NOT: the canvas, rendering
- * of the tilting beam / ball / target, keyboard + pointer input, a fixed-timestep
- * loop, screen-shake and particle eye-candy (purely visual), and the persistent
- * best score in localStorage. All simulation lives in the core and is driven via
- * `tick()` with the commanded beam tilt.
+ * Owns everything the pure core (symmetry.core.js) does NOT: the canvas, rendering
+ * of the mirror axis / catch line / falling orbs / the two mirrored catchers,
+ * keyboard + pointer input, a fixed-timestep loop, screen-shake and particle
+ * eye-candy (purely visual), and the persistent best score in localStorage. All
+ * simulation lives in the core and is driven via `tick()` with the commanded spread.
  *
  * Loaded as an external module (`<script type="module" src>`), the robust,
  * conventional way to ship this — index.html carries a small classic-script
  * fallback that surfaces a visible message if this module ever fails to load, so a
  * load failure is never a silently dead screen.
  */
-import * as Poise from './poise.core.js';
+import * as Symmetry from './symmetry.core.js';
 
 // Tell the in-page fallback we booted (see index.html).
-window.__poiseBooted = true;
+window.__symmetryBooted = true;
 
 /** Surface a fatal error to the player instead of a dead/blank screen. */
 function fatal(err) {
-  console.error('[poise]', err);
+  console.error('[symmetry]', err);
   const s = document.getElementById('start');
   if (s) {
     s.classList.remove('hide');
     s.innerHTML =
       '<div class="title" style="background:linear-gradient(90deg,#ff8a8a,#ffb37a);' +
       '-webkit-background-clip:text;background-clip:text;color:transparent">Something broke</div>' +
-      '<div class="sub">Poise hit an unexpected error. Reload the page to try again.</div>';
+      '<div class="sub">Symmetry hit an unexpected error. Reload the page to try again.</div>';
   }
 }
-window.addEventListener('error', e => console.error('[poise] error:', e.error || e.message));
-window.addEventListener('unhandledrejection', e => console.error('[poise] rejection:', e.reason));
+window.addEventListener('error', e => console.error('[symmetry] error:', e.error || e.message));
+window.addEventListener('unhandledrejection', e => console.error('[symmetry] rejection:', e.reason));
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -58,20 +58,20 @@ function showToast(text) {
 }
 function checkMilestone(prev, now) {
   for (let s = prev + 1; s <= now; s++) {
-    const m = Poise.milestoneAt(s);
+    const m = Symmetry.milestoneAt(s);
     if (m) { showToast(m); break; }
   }
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
-const BEST_KEY = 'poise.best';
-const META_KEY = 'poise.meta';
+const BEST_KEY = 'symmetry.best';
+const META_KEY = 'symmetry.meta';
 function loadMeta() {
   let legacy = 0;
   try { legacy = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (e) {}
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
-  return Poise.normalizeMeta(raw, legacy);
+  return Symmetry.normalizeMeta(raw, legacy);
 }
 function saveMeta(m) {
   try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
@@ -82,35 +82,36 @@ let best = meta.best;
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
-// Beam geometry (recomputed on resize)
-let cx = 0, cy = 0, halfLen = 0;
-const BEAM_TH = 10;      // beam thickness (px)
-const BALL_R = 15;       // ball radius (px)
+// Field geometry (recomputed on resize)
+let cx = 0, topY = 0, catchY = 0, halfW = 0;
+const ORB_R = 13;        // orb radius (px)
+const PADDLE_H = 12;     // catcher thickness (px)
 let particles = [], shake = 0;
 // Stage feel state (Growth Layer 1)
 let stageIdx = 0, stagePulse = 0;
-let tintCur = hexToRgb('#4fd6a0'), tintTarget = { ...tintCur };
+let tintCur = hexToRgb('#5ad6c0'), tintTarget = { ...tintCur };
 
 // ── Input state ────────────────────────────────────────────────────────────────
 const keys = { left: false, right: false };
 const pointer = { active: false, x: 0 };   // x in px; active while pressed
-function anyInput() { return keys.left || keys.right || pointer.active; }
+let cmd = 0;                                // persisted commanded spread (0..1)
+const KB_STEP = 0.032;                      // keyboard spread nudge per tick
 
-/** The commanded beam tilt this tick, from keys or (proportional) pointer. */
-function commandedTilt() {
-  const MAX = game.cfg.MAX_TILT;
+/** The commanded spread this tick, from the pointer (absolute) or keys (nudge). */
+function commandedSpread() {
   if (pointer.active) {
-    const frac = Math.max(-1, Math.min(1, (pointer.x - cx) / halfLen));
-    return frac * MAX;
+    cmd = Math.max(0, Math.min(1, Math.abs(pointer.x - cx) / halfW));
+  } else {
+    const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dir) cmd = Math.max(0, Math.min(1, cmd + dir * KB_STEP));
   }
-  const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  return dir * MAX;
+  return cmd;
 }
 
 /** Refresh the quiet HUD stage chip from the pure core. */
 function updateStageChip() {
   if (!stageChip) return;
-  const pr = Poise.stageProgress(game.cfg, game.score);
+  const pr = Symmetry.stageProgress(game.cfg, game.score);
   if (stageNameEl) stageNameEl.textContent = pr.name;
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
@@ -124,7 +125,8 @@ function enterStage(i) {
   updateStageChip();
 }
 function beginRun() {
-  Poise.start(game);
+  Symmetry.start(game);
+  cmd = 0;
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
@@ -137,13 +139,15 @@ function resize() {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = W * DPR; canvas.height = H * DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  cx = W / 2; cy = H * 0.56;
-  halfLen = Math.min(W * 0.4, 440);
+  cx = W / 2;
+  topY = Math.max(70, H * 0.13);
+  catchY = H * 0.82;
+  halfW = Math.min(W * 0.44, 470);
   if (game) { game.w = W; game.h = H; }
 }
 window.addEventListener('resize', resize);
 resize();
-game = Poise.createGame(W, H);          // phase 'menu' until first input
+game = Symmetry.createGame(W, H);        // phase 'menu' until first input
 pointer.x = cx;
 
 // ── Input ────────────────────────────────────────────────────────────────────
@@ -188,13 +192,13 @@ function restart() {
 
 // ── Eye candy (view-only) ────────────────────────────────────────────────────
 function burst(x, y, hue, n) {
-  for (let i = 0; i < (n || 18); i++) {
+  for (let i = 0; i < (n || 16); i++) {
     const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 5;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 22 + Math.random() * 16, h: hue });
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 22 + Math.random() * 16, h: hue });
   }
 }
 function stepParticles() {
-  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.vy += 0.12; p.life--; }
+  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.vy += 0.14; p.life--; }
   particles = particles.filter(p => p.life > 0);
   if (shake > 0) shake *= 0.86;
   if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
@@ -203,33 +207,34 @@ function stepParticles() {
   tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
 }
 
-// Point on the beam at normalised position p (-1..1), given tilt. Returns {x,y}.
-function beamPoint(p, tilt) {
-  return { x: cx + p * halfLen * Math.cos(tilt), y: cy + p * halfLen * Math.sin(tilt) };
-}
+// Screen positions from normalised state.
+function orbX(o) { return cx + o.side * o.lane * halfW; }
+function orbY(o) { return topY + o.y * (catchY - topY); }
+function paddleX(side) { return cx + side * game.spread * halfW; }
 
 function onDeath() {
-  const bp = beamPoint(game.pos, game.tilt);
-  burst(bp.x, bp.y, 8, 26);
-  shake = 15;
+  shake = 16;
   if (stageChip) stageChip.classList.add('hide');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
-  const stageIndex = Poise.stageIndexAt(game.cfg, game.score);
-  const summary = { score: game.score, stageIndex, catches: game.score, ticks: game.t };
+  const stageIndex = Symmetry.stageIndexAt(game.cfg, game.score);
+  const summary = {
+    score: game.score, stageIndex, catches: game.catches,
+    twins: game.twins, bestCombo: game.bestCombo, ticks: game.t,
+  };
   const prev = meta;
-  meta = Poise.applyRun(prev, summary, game.cfg);
+  meta = Symmetry.applyRun(prev, summary, game.cfg);
   saveMeta(meta);
 
   if (overSubEl) {
-    const secs = (game.t / 60);
-    const held = secs >= 1 ? ` · balanced ${secs < 10 ? secs.toFixed(1) : Math.round(secs)}s` : '';
-    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + held;
+    const tw = game.twins > 0 ? ` · ${game.twins} twin${game.twins === 1 ? '' : 's'}` : '';
+    const cb = game.bestCombo >= 3 ? ` · best streak ${game.bestCombo}` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + tw + cb;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
-    for (const a of Poise.newlyEarned(prev, meta)) {
+    for (const a of Symmetry.newlyEarned(prev, meta)) {
       const b = document.createElement('div');
       b.className = 'badge';
       b.innerHTML = '<b>' + a.label + '</b><span>' + a.desc + '</span>';
@@ -239,7 +244,7 @@ function onDeath() {
   if (metaLineEl) {
     const earned = Object.keys(meta.achieved).length;
     metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.catches
-      + ' caught all-time · ' + earned + '/' + Poise.ACHIEVEMENTS.length + ' badges';
+      + ' caught all-time · ' + earned + '/' + Symmetry.ACHIEVEMENTS.length + ' badges';
   }
 
   const record = game.score > best;
@@ -247,13 +252,12 @@ function onDeath() {
     best = meta.best;
     bestEl.textContent = best;
     newbestEl.textContent = 'New best!';
-    overTitle.textContent = 'New best balance';
+    overTitle.textContent = 'New best symmetry';
     overTitle.classList.add('record');
   } else {
-    // surface an honest "so close" nudge (pure logic in the core). `best` still holds
-    // the pre-run best here (only the record branch advances it).
-    newbestEl.textContent = Poise.nearMissLine(game.score, best) || '';
-    overTitle.textContent = 'Off the beam';
+    // an honest "so close" nudge on non-record runs (pure logic in the core).
+    newbestEl.textContent = Symmetry.nearMissLine(game.score, best) || '';
+    overTitle.textContent = 'Broke symmetry';
     overTitle.classList.remove('record');
   }
   setTimeout(() => overPanel.classList.remove('hide'), 420);
@@ -269,17 +273,27 @@ function update(now) {
   while (acc >= STEP_MS) {
     if (game.phase === 'play') {
       const prev = game.score;
-      const r = Poise.tick(game, { tilt: commandedTilt() });
-      if (r.caught) {
-        const bp = beamPoint(game.pos, game.tilt);
-        burst(bp.x, bp.y, 150, 14);
-        shake = Math.min(shake + 3, 9);
+      const want = commandedSpread();
+      // Predict which orbs resolve this tick (for accurate particle placement); use the
+      // SAME eased spread the core will apply so the colour never disagrees.
+      const eased = game.spread + (want - game.spread) * game.cfg.SPREAD_LERP;
+      const resolving = [];
+      for (const o of game.orbs) {
+        if (o.y + o.vy >= 1) resolving.push({ x: orbX(o), hit: Math.abs(eased - o.lane) <= game.cfg.CATCH });
       }
+      const r = Symmetry.tick(game, { spread: want });
+      if (r.caught || r.missed) {
+        for (const p of resolving) {
+          if (p.hit) burst(p.x, catchY, 165, 12);
+          else { burst(p.x, catchY, 0, 16); shake = Math.max(shake, 9); }
+        }
+      }
+      if (r.twins) { shake = Math.max(shake, 6); }
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
       if (game.score !== prev) {
         checkMilestone(prev, game.score);
-        const si = Poise.stageIndexAt(game.cfg, game.score);
+        const si = Symmetry.stageIndexAt(game.cfg, game.score);
         if (si !== stageIdx) enterStage(si);
         updateStageChip();
       }
@@ -290,102 +304,94 @@ function update(now) {
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
+function drawOrb(o) {
+  const x = orbX(o), y = orbY(o);
+  const twin = o.pair > 0;
+  const hue = o.side < 0 ? 168 : 205;          // left / right get their own tint
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(x, y, 0, x, y, ORB_R * 2.4);
+  g.addColorStop(0, `hsla(${hue},95%,74%,0.95)`);
+  g.addColorStop(1, `hsla(${hue},95%,60%,0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, ORB_R * 2.4, 0, 7); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = `hsl(${hue},90%,84%)`;
+  ctx.beginPath(); ctx.arc(x, y, ORB_R, 0, 7); ctx.fill();
+  if (twin) {                                   // a gold ring marks a completable pair
+    ctx.strokeStyle = 'rgba(255,214,120,0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y, ORB_R + 4, 0, 7); ctx.stroke();
+  }
+}
+
+function drawPaddle(side) {
+  const x = paddleX(side), w = game.cfg.CATCH * halfW; // spans the true catch tolerance
+  const glow = 0.5 + 0.5 * Math.min(game.combo, 10) / 10; // brighter with the streak
+  ctx.fillStyle = rgbStr(tintCur, glow);
+  ctx.shadowColor = rgbStr(tintCur, 0.8);
+  ctx.shadowBlur = 12;
+  const r = PADDLE_H / 2;
+  const x0 = x - w, x1 = x + w;
+  ctx.beginPath();
+  ctx.moveTo(x0 + r, catchY - r);
+  ctx.arcTo(x1, catchY - r, x1, catchY + r, r);
+  ctx.arcTo(x1, catchY + r, x0, catchY + r, r);
+  ctx.arcTo(x0, catchY + r, x0, catchY - r, r);
+  ctx.arcTo(x0, catchY - r, x1, catchY - r, r);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function drawLives() {
+  const n = game.cfg.LIVES, gap = 22, y = catchY + 34;
+  const x0 = cx - (n - 1) * gap / 2;
+  for (let i = 0; i < n; i++) {
+    const on = i < game.lives;
+    ctx.fillStyle = on ? rgbStr(tintCur, 0.9) : 'rgba(255,255,255,0.12)';
+    ctx.beginPath(); ctx.arc(x0 + i * gap, y, 5, 0, 7); ctx.fill();
+  }
+}
+
 function draw() {
   ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = 'rgba(10,13,18,0.34)';     // motion-blur fade instead of hard clear
+  ctx.fillStyle = 'rgba(10,10,18,0.34)';     // motion-blur fade instead of a hard clear
   ctx.fillRect(0, 0, W, H);
-
-  // stage-tinted frame + a shockwave on stage change (Growth Layer 1 feel)
-  if (game.phase !== 'menu') {
-    ctx.strokeStyle = rgbStr(tintCur, 0.20);
-    ctx.lineWidth = 2;
-    ctx.strokeRect(3, 3, W - 6, H - 6);
-    if (stagePulse > 0.01) {
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
-      ctx.lineWidth = 3 * stagePulse + 0.5;
-      ctx.beginPath(); ctx.arc(cx, cy, (1 - stagePulse) * 220 + 10, 0, 7); ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
-    }
-  }
 
   ctx.save();
   if (shake > 0.4) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
 
   if (game.phase !== 'menu') {
-    const g = game, tilt = g.tilt, t = g.t;
-    const left = beamPoint(-1, tilt), right = beamPoint(1, tilt);
-    // perpendicular "up" from the beam (points away from the fulcrum's base)
-    const up = { x: Math.sin(tilt), y: -Math.cos(tilt) };
+    // mirror axis (the line the two catchers reflect across)
+    ctx.strokeStyle = rgbStr(tintCur, 0.16);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, topY - 20); ctx.lineTo(cx, catchY + 44); ctx.stroke();
 
-    // fulcrum — a quiet triangle under the centre, plus a base line
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + 6);
-    ctx.lineTo(cx - 20, cy + 52);
-    ctx.lineTo(cx + 20, cy + 52);
-    ctx.closePath(); ctx.fill();
-
-    // beam — a tinted bar with soft glow
-    ctx.lineCap = 'round';
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = rgbStr(tintCur, 0.30);
-    ctx.lineWidth = BEAM_TH + 10;
-    ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = rgbStr(tintCur, 0.95);
-    ctx.lineWidth = BEAM_TH;
-    ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
-    // end caps (the lips the ball can roll off)
-    for (const e of [left, right]) {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.beginPath(); ctx.arc(e.x, e.y, BEAM_TH * 0.6, 0, 7); ctx.fill();
+    // catch line + a shockwave on stage change
+    ctx.strokeStyle = rgbStr(tintCur, 0.28);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - halfW, catchY); ctx.lineTo(cx + halfW, catchY); ctx.stroke();
+    if (stagePulse > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
+      ctx.lineWidth = 3 * stagePulse + 0.5;
+      ctx.beginPath(); ctx.moveTo(cx - halfW, catchY); ctx.lineTo(cx + halfW, catchY); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
     }
 
-    // target — a glowing ring sitting on the beam
-    const tp0 = beamPoint(g.target.pos, tilt);
-    const tp = { x: tp0.x + up.x * (BEAM_TH / 2 + 12), y: tp0.y + up.y * (BEAM_TH / 2 + 12) };
-    const pulse = 1 + Math.sin(t * 0.12) * 0.18;
-    ctx.globalCompositeOperation = 'lighter';
-    const tg = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, 26 * pulse);
-    tg.addColorStop(0, 'rgba(150,255,210,0.9)');
-    tg.addColorStop(1, 'rgba(150,255,210,0)');
-    ctx.fillStyle = tg;
-    ctx.beginPath(); ctx.arc(tp.x, tp.y, 26 * pulse, 0, 7); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = 'rgba(180,255,225,0.95)';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(tp.x, tp.y, 10, 0, 7); ctx.stroke();
-    // a faint drop-line from the target down to the beam
-    ctx.strokeStyle = 'rgba(180,255,225,0.28)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(tp.x, tp.y); ctx.lineTo(tp0.x, tp0.y); ctx.stroke();
-
-    // ball — sits on top of the beam at its position
-    const bp0 = beamPoint(g.pos, tilt);
-    const bp = { x: bp0.x + up.x * (BEAM_TH / 2 + BALL_R), y: bp0.y + up.y * (BEAM_TH / 2 + BALL_R) };
-    ctx.globalCompositeOperation = 'lighter';
-    const near = Math.abs(g.pos) > 0.82;          // redden as it nears an edge
-    const bg = ctx.createRadialGradient(bp.x, bp.y, 0, bp.x, bp.y, BALL_R * 2.4);
-    bg.addColorStop(0, near ? 'rgba(255,180,150,0.95)' : 'rgba(255,235,180,0.95)');
-    bg.addColorStop(1, 'rgba(255,210,120,0)');
-    ctx.fillStyle = bg;
-    ctx.beginPath(); ctx.arc(bp.x, bp.y, BALL_R * 2.4, 0, 7); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = near ? '#ffd0b4' : '#fff2cc';
-    ctx.beginPath(); ctx.arc(bp.x, bp.y, BALL_R, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath(); ctx.arc(bp.x - BALL_R * 0.3, bp.y - BALL_R * 0.3, BALL_R * 0.32, 0, 7); ctx.fill();
+    for (const o of game.orbs) drawOrb(o);
+    drawPaddle(-1);
+    drawPaddle(1);
+    drawLives();
 
     // particles
     ctx.globalCompositeOperation = 'lighter';
     for (const p of particles) {
-      ctx.fillStyle = `hsla(${p.h},100%,72%,${p.life / 38})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, 7); ctx.fill();
+      ctx.fillStyle = `hsla(${p.h},100%,70%,${p.life / 40})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 7); ctx.fill();
     }
+    ctx.globalCompositeOperation = 'source-over';
   }
   ctx.restore();
-  ctx.globalCompositeOperation = 'source-over';
 }
 
 // Guard the loop so a render-time error fails visibly (and stops) rather than

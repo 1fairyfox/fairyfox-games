@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.12.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.13.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -16,7 +16,7 @@ that grows a little deeper every day** (standing rules in `CLAUDE.md`).
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (8):**
+**Games so far (9):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. **On the Growth Architecture**: escalation (ink speeds up with score) +
@@ -71,12 +71,27 @@ sole host), plus each game at `…/games/<game>/`.
   **gravity ramps by stage** (`gravOf`) so control gets twitchier; a **stage arc** (Steady
   → Wobble → Sway → Pitch → Tempest) with HUD chip + tinted beam/frame, and
   **meta-progression** (`poise.meta`: lifetime catches/longest-run + 9 badges, run-report)
-  — legacy `poise.best` preserved. Normalised pure core (`pos` −1..1) + 25 tests.
+  — legacy `poise.best` preserved. Normalised pure core (`pos` −1..1) + 30 tests. A
+  **near-miss** line (`nearMissLine`) nudges "N catches short of your best — so close!"
+  on non-record runs (Growth Wave 2).
+- **Symmetry** (`games/symmetry/`) — a **mirror-coordination** game: one control (the
+  *spread*) drives two catchers locked in a mirror about a centre line, so you often
+  can't save both sides at once — a forced tradeoff. **On the Growth Architecture**:
+  gold-ringed **twins** (a mirrored pair; one spread catches both for a bonus) as the
+  skill counter-play, a catch **combo**, escalation (orbs fall faster + spawn thicker by
+  stage), a **stage arc** (Mirror → Reflection → Twin → Kaleidoscope → Singularity) with
+  HUD chip + field tint, and **meta-progression** (`symmetry.meta`: lifetime
+  catches/twins/best-combo + 9 badges, run-report + near-miss) — legacy best preserved.
+  Pure core (normalised lanes/spread, seedable RNG) + 23 tests.
 
-**Tests:** 244/244 green across the collection.
+**Tests:** 272/272 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.13.0 (2026-07-04) queued on `dev`:** a new ninth game **Symmetry**
+  (mirror-coordination — one control, two mirrored catchers, forced tradeoffs + twin
+  bonuses) and a **Poise** grow (near-miss line). **Awaiting Fairy Fox's release call to
+  `main`.**
 - **Growth Architecture — rolled out to all 7 games (v0.11.0).** Every game now has a
   **core-fun pass** (its own tension hook) **plus** the full three layers: readable
   **stages** (HUD chip + field tint + stage beat), persistent **meta-progression**
@@ -104,7 +119,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 244/244 across 8 games |
+| Tests (`node --test`) | ✅ 272/272 across 9 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

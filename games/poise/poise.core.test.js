@@ -22,7 +22,7 @@ import {
   createGame, reset, start, spawnTarget,
   stepBall, offEnd, tryCatch, tick, milestoneAt,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress,
-  normalizeMeta, applyRun, newlyEarned,
+  normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './poise.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible in tests. */
@@ -308,4 +308,30 @@ test('milestoneAt returns labels at thresholds and null otherwise', () => {
   assert.equal(milestoneAt(100), 'Zen master');
   assert.equal(milestoneAt(11), null);
   assert.equal(milestoneAt(0), null);
+});
+
+// ── 10. Near-miss line (honest "so close" feedback) ───────────────────────────
+test('nearMissLine returns null when there is no prior best to chase', () => {
+  assert.equal(nearMissLine(0, 0), null);
+  assert.equal(nearMissLine(5, 0), null);
+});
+
+test('nearMissLine celebrates matching the standing best', () => {
+  assert.equal(nearMissLine(20, 20), 'Matched your best!');
+});
+
+test('nearMissLine nudges a run that lands within the margin (singular/plural)', () => {
+  assert.equal(nearMissLine(19, 20), '1 catch short of your best — so close!');
+  assert.equal(nearMissLine(18, 20), '2 catches short of your best — so close!');
+});
+
+test('nearMissLine stays quiet for a record or a miss beyond the margin', () => {
+  assert.equal(nearMissLine(25, 20), null);  // a record — the shell shows "New best!" instead
+  assert.equal(nearMissLine(10, 20), null);  // 10 short: not close enough
+  assert.equal(nearMissLine(17, 20, 2), null); // exactly one past the default margin
+});
+
+test('nearMissLine respects a custom margin and coerces to integers', () => {
+  assert.equal(nearMissLine(16, 20, 4), '4 catches short of your best — so close!');
+  assert.equal(nearMissLine(19.7, 20.4), '1 catch short of your best — so close!');
 });
