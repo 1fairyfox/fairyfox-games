@@ -5,6 +5,13 @@ Built on `../reference/growth-architecture.md` (the pattern) and
 `../reference/game-design.md` (the why). Ordered; tick items off as they ship; history
 lands in `../sessions/`._
 
+> **Priority lever (2026-07-05, from owner playtest): varied structure.** Stages + badges
+> made growth *nameable* but not *felt* — a returning player still walks the identical run
+> skeleton every time ("played once = played always"). The fix is **Wave 4** below: the run
+> becomes a seeded **sequence of named sub-patterns**, so no two runs share a shape and each
+> update visibly changes future runs. Polarity is the reference build. The daily grow-step
+> now leads with this. Pattern: `../reference/varied-structure.md`.
+
 ## The shape of a game's growth (every game walks this same path)
 
 - **Wave 1 — Structure.** Promote milestones → **stages** in the core (readable run
@@ -17,9 +24,16 @@ lands in `../sessions/`._
   card becomes a **run report + account snapshot**; **near-miss** surfacing.
 - **Wave 3 — New ways to play.** One **skill-safe mode** (Zen / Sprint / Daily-seed as
   fits) and one deeper on-mechanic wrinkle per game, plus richer feel (sound later).
-- **Ongoing.** Each daily run deepens one game one notch *along this path* — a new
-  stage name, an achievement, a cosmetic, a near-miss stat — never a random bolt-on,
-  always through the simple-but-deep checklist.
+- **Wave 4 — Varied structure (no two runs alike).** _The priority lever._ The run's
+  **skeleton** varies run to run: a seeded **sequence of named sub-patterns** pulled from an
+  expandable, stage-weighted pool (Polarity's *formations* are the reference — Staircase,
+  Hold, Zipper, Bursts, The Wall). This is what finally kills "same game every time" and
+  gives every update something a returning player can *see*. Full pattern +
+  test/guardrail requirements: `../reference/varied-structure.md`.
+- **Ongoing.** Each daily run makes one **player-visible** change and logs it to
+  `../../assets/changelog.js`: bring one game onto Wave 4 (or add one new sub-pattern to a
+  game already on it), advance the lowest-coverage game first, then the older waves — never
+  a random or invisible bolt-on, always through the simple-but-deep checklist.
 
 The daily job should **advance the lowest-wave game first**, so the whole collection
 rises together and no game is left behind.
@@ -100,12 +114,18 @@ each game's world; shapes are shared.
 
 ## Sequencing (so it reads as a steady, followable stream)
 
-1. **Wave 1 across all 7** — establishes the "it's growing" feeling everywhere. This is
-   the current refactor pass.
-2. **Wave 2**, one game per few daily runs, lowest-wave-first.
-3. **Wave 3** as each game's Wave 2 settles.
-4. **Cross-cutting later:** a shared (but per-game-implemented) tiny sound layer;
-   optional daily-seed; an all-collection "trophies" glance on the landing page.
+1. **Wave 1 — done across the collection** (all games have stages + meta + feel).
+2. **Wave 4 (varied structure) — the current priority.** Polarity is live (formations);
+   bring one more game onto the pattern per daily run, lowest-coverage-first, or add one
+   new sub-pattern to a game already on it. Each is one clean, player-visible change.
+3. **Wave 2 / Wave 3** (achievements, cosmetics, skill-safe modes) continue in the gaps,
+   lowest-wave-first, when a run isn't advancing Wave 4.
+4. **Cross-cutting later:** a shared (but per-game-implemented) tiny sound layer; optional
+   daily-seed; an all-collection "trophies" glance on the landing page.
+
+Every run, whatever the wave: make **one change a returning player can see**, and **log it
+to `../../assets/changelog.js`** (prepend a player-facing entry) + bump the game's
+`data-updated` on the landing card, so the changelog and homepage pulse stay honest.
 
 ## Guardrails (unchanged, load-bearing)
 

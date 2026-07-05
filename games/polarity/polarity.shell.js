@@ -52,6 +52,7 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), milestoneEl = el('milestone');
+const formationEl = el('formation');
 const clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult');
@@ -82,6 +83,7 @@ bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
 let flash = 0, shake = 0, ms = 0;   // ms: milestone-banner life, 1 → 0
+let fm = 0;                          // fm: formation-cue life, 1 → 0
 let beatBest = false;               // fired the one-time "New best!" flash this run?
 
 // Stage + combo feel state
@@ -103,6 +105,14 @@ function showMilestone(label) {
   if (!milestoneEl) return;
   milestoneEl.textContent = label;
   ms = 1;
+}
+
+/** Quietly announce a notable formation as you enter it (Staircase, Zipper, Bursts, The
+ *  Wall). Peripheral and brief — names the varied structure without cluttering the field. */
+function showFormation(name) {
+  if (!formationEl || !name) return;
+  formationEl.textContent = name;
+  fm = 1;
 }
 
 /** Refresh the quiet HUD stage chip (name + progress bar) from the pure core. */
@@ -159,7 +169,8 @@ function beginRun() {
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
   tintTarget = { ...tintCur };
-  stagePulse = 0; multPulse = 0; breakPulse = 0;
+  stagePulse = 0; multPulse = 0; breakPulse = 0; fm = 0;
+  if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.remove('hide');
   if (multEl) multEl.classList.remove('hide');
   scoreEl.textContent = '0';
@@ -180,8 +191,9 @@ window.addEventListener('keydown', e => {
 });
 
 function onDeath() {
-  shake = 18; ms = 0;
+  shake = 18; ms = 0; fm = 0;
   if (milestoneEl) milestoneEl.style.opacity = 0;
+  if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
   if (multEl) multEl.classList.add('hide');
   finalEl.textContent = game.score;
@@ -264,6 +276,7 @@ function update(now) {
         if (label) showMilestone(label);
         else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
         if (best > 0 && game.score > best) beatBest = true;
+        if (r.formation) showFormation(r.formation);   // a notable formation just began
         // Stage transition — the readable arc of the run (Growth Layer 1).
         const si = stageIndexAt(game.cfg, game.cleared);
         if (si !== stageIdx) enterStage(si);
@@ -276,6 +289,7 @@ function update(now) {
     if (shake > 0.3) shake *= 0.85; else shake = 0;
     if (flash > 0.01) flash *= 0.86; else flash = 0;
     if (ms > 0.001) ms *= 0.965; else ms = 0;
+    if (fm > 0.001) fm *= 0.955; else fm = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
     if (multPulse > 0.01 || breakPulse > 0.01) {
       if (multPulse > 0.01) multPulse *= 0.9; else multPulse = 0;
@@ -289,6 +303,10 @@ function update(now) {
     if (milestoneEl) {
       milestoneEl.style.opacity = ms > 0 ? Math.min(1, ms * 1.6) : 0;
       milestoneEl.style.transform = 'translateY(' + ((1 - ms) * -14) + 'px) scale(' + (0.9 + ms * 0.18) + ')';
+    }
+    if (formationEl) {
+      formationEl.style.opacity = fm > 0 ? Math.min(0.9, fm * 1.5) : 0;
+      formationEl.style.letterSpacing = reduceMotion ? '.3em' : (0.3 + (1 - fm) * 0.14).toFixed(3) + 'em';
     }
     acc -= STEP_MS;
   }

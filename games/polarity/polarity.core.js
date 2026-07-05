@@ -63,6 +63,30 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 120, name: 'Event horizon', tint: '#ff5cc8' }),
     Object.freeze({ at: 180, name: 'Singularity',   tint: '#ff8f6a' }),
   ]),
+  // Formations — the run's STRUCTURE, not just its noise. This is the "varied-structure"
+  // layer: instead of every gate being drawn from one flat rule, a run is a different
+  // *sequence* of these named patterns, so no two runs share the same skeleton. Each is a
+  // short burst of gates with its own character — a rhythmic Staircase, a restful Hold, a
+  // relentless Zipper, tight Bursts, a flip-heavy Wall. `minStage` gates when a formation
+  // first appears; `weight(stageIndex)` biases selection (later stages lean on the
+  // demanding ones); `notable` formations earn a quiet name-cue as they arrive (the calm
+  // ones pass silently, keeping the base clean). `build(ctx)` is PURE given `ctx.rng` and
+  // returns the formation's gates as {pol, gap} specs — see the buildFormation* fns below.
+  // New formations can be added here over time for players to discover; ids are stable.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'drift',     name: 'Drift',     minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildDrift }),
+    Object.freeze({ id: 'hold',      name: 'Hold',      minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildHold }),
+    Object.freeze({ id: 'staircase', name: 'Staircase', minStage: 0, notable: true,
+      weight: () => 2, build: buildStaircase }),
+    Object.freeze({ id: 'zipper',    name: 'Zipper',    minStage: 1, notable: true,
+      weight: (s) => s, build: buildZipper }),
+    Object.freeze({ id: 'burst',     name: 'Bursts',    minStage: 1, notable: true,
+      weight: (s) => s, build: buildBurst }),
+    Object.freeze({ id: 'wall',      name: 'The Wall',  minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildWall }),
+  ]),
 });
 
 /**
@@ -95,8 +119,9 @@ export const ACHIEVEMENTS = Object.freeze([
 ]);
 
 /**
- * A charged gate.
- * @typedef {{x:number, pol:0|1}} Gate
+ * A charged gate. `form`/`formHead` tag which formation it belongs to (for the HUD cue);
+ * gates built directly in tests may omit them, and the sim treats them as optional.
+ * @typedef {{x:number, pol:0|1, form?:string, formHead?:boolean}} Gate
  */
 
 /**
@@ -138,6 +163,7 @@ export function createGame(width, height, opts = {}) {
     pol: 0, gates: [],
     cleared: 0, score: 0, mult: 1, bestMult: 1,
     clutch: 0, flippedSinceGate: false, flipT: -9999, t: 0,
+    formGates: [], formId: null, formName: null, formNotable: false,  // current formation
   };
   reset(g);
   return g;
@@ -169,7 +195,13 @@ export function reset(g) {
   g.flippedSinceGate = false;
   g.flipT = -9999;  // "no recent flip" — far enough back that frame-one is never precise
   g.t = 0;
+  g.formGates = [];   // no formation loaded yet; the first spawnGate pulls one
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
   g.gates = [];
+  // The opening buffer is a gentle, evenly-spaced cadence (a calm on-ramp); formations
+  // take over from the first spawnGate once these seeded gates start resolving.
   for (let i = 0; i < g.cfg.BUFFER; i++) {
     g.gates.push({ x: g.cfg.PLAYER_X + g.cfg.GATE_GAP * (i + 1), pol: randPol(g) });
   }
@@ -283,32 +315,153 @@ export function stageProgress(cfg, cleared) {
   };
 }
 
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng`; it returns an array of gate specs `{pol, gap}`,
+// gaps already inside [GAP_MIN, GATE_GAP] (spawnGate re-clamps as a belt-and-braces).
+// `ctx` = { rng, lastPol, stage, cfg }. `lastPol` is the polarity of the gate immediately
+// before this formation, so a formation can choose to start by flipping (forcing a read)
+// or holding (a rest). Names/behaviours are Polarity's flavour; the *shape* — a pool of
+// stage-weighted, seeded patterns — is the reusable varied-structure standard.
+
+/** Drift — the calm baseline: a loose mix, ~half the gates ask for a flip. Roomy. */
+function buildDrift(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 3);           // 3..5 gates
+  let pol = ctx.lastPol;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    pol = rng() < 0.5 ? pol : (pol ? 0 : 1);      // repeat or flip, evenly
+    out.push({ pol, gap: cfg.GATE_GAP * (rng() < 0.25 ? 0.85 : 1) });
+  }
+  return out;
+}
+
+/** Hold — a breather: a short run of one polarity (all gimmes, no flip needed). The
+ *  flow "give the player a breath" beat between the demanding formations. Roomy. */
+function buildHold(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 3);           // 3..5 gates, all lastPol
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ pol: ctx.lastPol, gap: cfg.GATE_GAP });
+  return out;
+}
+
+/** Staircase — strict alternation with steadily tightening spacing: a rhythmic climb
+ *  that rewards a metronomic last-instant flip (the multiplier engine). */
+function buildStaircase(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 3);           // 4..6 gates
+  let pol = ctx.lastPol ? 0 : 1;                 // start by flipping
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;           // 0..1 across the run
+    const gap = cfg.GATE_GAP - (cfg.GATE_GAP - cfg.GAP_MIN * 1.3) * t;  // 175 → ~125
+    out.push({ pol, gap });
+    pol = pol ? 0 : 1;
+  }
+  return out;
+}
+
+/** Zipper — a relentless strict alternation at a tight, even cadence. Pure flip rhythm. */
+function buildZipper(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 5 + Math.floor(rng() * 4);           // 5..8 gates
+  let pol = ctx.lastPol ? 0 : 1;
+  const out = [];
+  for (let i = 0; i < n; i++) { out.push({ pol, gap: cfg.GATE_GAP * 0.8 }); pol = pol ? 0 : 1; }
+  return out;
+}
+
+/** Bursts — tight same-polarity doubles with a roomy flip between pairs: hold through a
+ *  fast double, then commit the flip. Reads as staccato. */
+function buildBurst(ctx) {
+  const { rng, cfg } = ctx;
+  const pairs = 2 + Math.floor(rng() * 2);       // 2..3 pairs
+  let pol = ctx.lastPol ? 0 : 1;
+  const out = [];
+  for (let p = 0; p < pairs; p++) {
+    out.push({ pol, gap: cfg.GATE_GAP });        // roomy approach + flip into the pair
+    out.push({ pol, gap: cfg.GAP_MIN });         // the tight second of the double (same pol)
+    pol = pol ? 0 : 1;
+  }
+  return out;
+}
+
+/** The Wall — the hardest: rapid strict alternation at near-minimum spacing. A flip wall. */
+function buildWall(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 4);           // 4..7 gates
+  let pol = ctx.lastPol ? 0 : 1;
+  const out = [];
+  for (let i = 0; i < n; i++) { out.push({ pol, gap: cfg.GAP_MIN * 1.05 }); pol = pol ? 0 : 1; }
+  return out;
+}
+
 /**
- * Append the next gate beyond the current last one, patterned by the current stage
- * (Growth Layer 1 texture): later stages **alternate more** (demanding flips rather than
- * gimmes), **tighten spacing**, and throw occasional **bursts** (tight doubles). Pure
- * given the game's rng, so patterns are reproducible under a seed.
+ * Choose the next formation for a stage — a seeded, stage-weighted pick over the
+ * eligible pool (`minStage` ≤ stage), softly avoiding an immediate repeat of the same
+ * formation. Pure given `rng`. This is what makes each run's *sequence* of structures
+ * differ while still escalating (later stages weight toward the demanding formations).
+ * @param {PolarityConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the formation just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next formation into `g.formGates` (resolved {pol, gap} specs, the first marked
+ * as the formation head), and record its identity on `g.formId`/`g.formName`. Pure logic
+ * over the game's rng. Called by {@link spawnGate} when the current formation is spent.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.cleared);
+  const last = g.gates.length ? g.gates[g.gates.length - 1] : null;
+  const lastPol = last ? last.pol : g.pol;
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const specs = f.build({ rng: g.rng, lastPol, stage, cfg });
+  if (specs.length) specs[0].head = true;        // the leading gate carries the name cue
+  g.formGates = specs;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+}
+
+/**
+ * Append the next gate beyond the current last one by pulling from the current formation
+ * (loading a fresh one when the queue is spent). Each gate carries its formation's name
+ * and a `formHead` flag on the first gate of a formation, so the shell can announce the
+ * notable structures as they arrive. Gap is clamped to [GAP_MIN, GATE_GAP]. Pure given
+ * the game's rng, so a seeded run reproduces the same sequence of formations.
  * @param {GameState} g
  * @returns {Gate} the spawned gate
  */
 export function spawnGate(g) {
   const cfg = g.cfg;
+  if (!g.formGates || g.formGates.length === 0) loadFormation(g);
+  const spec = g.formGates.shift();
   const last = g.gates.length ? g.gates[g.gates.length - 1] : null;
   const lastX = last ? last.x : cfg.PLAYER_X;
-  const lastPol = last ? last.pol : g.pol;
-  const stage = stageIndexAt(cfg, g.cleared);
-
-  // Polarity: chance to REPEAT the previous gate (a gimme "hold") falls with stage, so
-  // higher stages demand more flips — the multiplier opportunities.
-  const pRepeat = Math.max(0.12, 0.5 - 0.07 * stage);
-  const pol = g.rng() < pRepeat ? lastPol : (lastPol ? 0 : 1);
-
-  // Spacing: tightens with stage; occasional burst pulls the next gate in close.
-  let gap = cfg.GATE_GAP * (1 - 0.05 * stage);
-  if (g.rng() < 0.16 + 0.05 * stage) gap *= 0.6;
-  gap = Math.max(cfg.GAP_MIN, gap);
-
-  const gate = { x: lastX + gap, pol };
+  const gap = Math.max(cfg.GAP_MIN, Math.min(cfg.GATE_GAP, spec.gap));
+  const gate = {
+    x: lastX + gap,
+    pol: spec.pol ? 1 : 0,
+    form: g.formName,
+    formHead: spec.head === true && g.formNotable === true,  // cue only the notable ones
+  };
   g.gates.push(gate);
   return gate;
 }
@@ -322,6 +475,8 @@ export function spawnGate(g) {
  * @property {boolean} precise a precise (combo-growing) hit landed this tick
  * @property {boolean} broke   the multiplier was reset to 1 by a safe/early flip
  * @property {number}  mult    the multiplier after this tick
+ * @property {?string} formation name of a notable formation whose leading gate resolved
+ *   this tick (for the HUD cue), else null
  */
 
 /**
@@ -336,18 +491,19 @@ export function spawnGate(g) {
  * @returns {TickResult}
  */
 export function tick(g) {
-  if (g.phase !== 'play') return { passed: false, died: false, clutch: false, precise: false, broke: false, mult: g.mult };
+  if (g.phase !== 'play') return { passed: false, died: false, clutch: false, precise: false, broke: false, mult: g.mult, formation: null };
   g.t++;
   const speed = speedOf(g);
   for (const gate of g.gates) gate.x -= speed;
 
-  let passed = false, clutch = false, precise = false, broke = false;
+  let passed = false, clutch = false, precise = false, broke = false, formation = null;
   // Gates are ordered nearest-first; resolve any that have reached the line.
   while (g.gates.length && g.gates[0].x <= g.cfg.PLAYER_X) {
     const gate = g.gates[0];
     if (gate.pol === g.pol) {
       passed = true;
       g.cleared++;
+      if (gate.formHead) formation = gate.form;   // a notable formation just began
       if (isClutch(g)) {
         precise = true; clutch = true; g.clutch++;
         g.mult = Math.min(g.cfg.MULT_MAX, g.mult + 1);
@@ -359,13 +515,13 @@ export function tick(g) {
       g.score += g.mult;
       g.flippedSinceGate = false;
       g.gates.shift();
-      spawnGate(g);          // keep the buffer full, patterned by stage
+      spawnGate(g);          // keep the buffer full, pulling from the current formation
     } else {
       g.phase = 'dead';
-      return { passed, died: true, clutch, precise, broke, mult: g.mult };
+      return { passed, died: true, clutch, precise, broke, mult: g.mult, formation };
     }
   }
-  return { passed, died: false, clutch, precise, broke, mult: g.mult };
+  return { passed, died: false, clutch, precise, broke, mult: g.mult, formation };
 }
 
 // ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
