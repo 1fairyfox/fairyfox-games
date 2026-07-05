@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Arc</title>
+<style>
+  :root { --bg:#0a0a12; --ink:#e8e8f0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink); -webkit-user-select:none; user-select:none; touch-action:none;
+  }
+  #wrap { position:relative; width:100vw; height:100vh; }
+  canvas { display:block; width:100%; height:100%; }
+
+  #hud {
+    position:absolute; top:0; left:0; right:0; padding:18px 22px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none; font-variant-numeric:tabular-nums;
+  }
+  .stat { line-height:1; }
+  .stat .label { font-size:11px; letter-spacing:.18em; text-transform:uppercase; opacity:.45; }
+  .stat .val { font-size:30px; font-weight:600; margin-top:6px; }
+  #best { text-align:right; }
+  #best .val { opacity:.7; }
+  /* Lives pips — three dots that dim as lives are spent. */
+  #lives { display:flex; gap:7px; margin-top:12px; }
+  #lives .pip { width:9px; height:9px; border-radius:50%; background:#ff8fb0;
+    box-shadow:0 0 8px rgba(255,143,176,.7); transition:opacity .3s ease, transform .3s ease; }
+  #lives .pip.spent { opacity:.18; transform:scale(.7); box-shadow:none; }
+
+  .panel {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:radial-gradient(ellipse at center, rgba(10,10,18,.55), rgba(10,10,18,.9));
+    backdrop-filter:blur(2px); transition:opacity .35s ease;
+  }
+  .panel.hide { opacity:0; pointer-events:none; }
+  .title { font-size:clamp(40px,9vw,64px); font-weight:700; letter-spacing:-.02em;
+    background:linear-gradient(90deg,#7af9d0,#8ab4ff,#ff8fb0);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { margin-top:14px; font-size:15px; line-height:1.6; opacity:.65; max-width:360px; }
+  .prompt { margin-top:30px; font-size:14px; letter-spacing:.14em; text-transform:uppercase;
+    opacity:.8; animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:.95} }
+  @media (prefers-reduced-motion: reduce){ .prompt{ animation:none; opacity:.8 } }
+  #gameover .title { background:linear-gradient(90deg,#ff8a8a,#ffb37a); }
+  #gameover .title.record { background:linear-gradient(90deg,#7af9d0,#8ab4ff); }
+  .final { margin-top:18px; font-size:18px; }
+  .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
+  .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
+  .tips { margin-top:18px; font-size:13px; line-height:1.6; opacity:.6; max-width:380px; }
+  .tips b { color:#ffb3cd; }
+  .toast { position:absolute; top:30%; left:50%; transform:translate(-50%,-50%) scale(.96);
+    font-size:clamp(28px,6vw,44px); font-weight:700; letter-spacing:-.01em; text-align:center;
+    background:linear-gradient(90deg,#7af9d0,#8ab4ff,#ff8fb0);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
+  .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
+
+  /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
+  #stageChip {
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    pointer-events:none; transition:opacity .3s ease; color:#6ad;
+  }
+  #stageChip.hide { opacity:0; }
+  #stageName { font-size:11px; letter-spacing:.2em; text-transform:uppercase; opacity:.9; }
+  #stageBar { width:120px; height:3px; border-radius:3px; background:rgba(255,255,255,.1); overflow:hidden; }
+  #stageFill { height:100%; width:0%; background:currentColor; border-radius:3px; transition:width .25s ease; }
+  #stageChip.pop #stageName { animation:chipPop .5s ease; }
+  @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
+  @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
+
+  /* Game-over run report (Growth L2). */
+  .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
+  .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
+  .badge { display:flex; flex-direction:column; gap:1px; padding:6px 14px; border-radius:10px;
+    background:rgba(122,249,208,.08); border:1px solid rgba(122,249,208,.22); max-width:280px; }
+  .badge b { font-size:13px; color:#7af9d0; letter-spacing:.04em; }
+  .badge span { font-size:11.5px; opacity:.6; }
+  .metaLine { margin-top:16px; font-size:12px; letter-spacing:.06em; opacity:.45; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div class="stat">
+      <div class="label">Score</div><div class="val" id="score">0</div>
+      <div id="lives"><span class="pip"></span><span class="pip"></span><span class="pip"></span></div>
+    </div>
+    <div class="stat" id="best"><div class="label">Best</div><div class="val" id="bestVal">0</div></div>
+  </div>
+
+  <div id="stageChip" class="hide">
+    <div id="stageName">Ranging</div>
+    <div id="stageBar"><div id="stageFill"></div></div>
+  </div>
+
+  <div class="panel" id="start">
+    <div class="title">Arc</div>
+    <div class="sub">Hold to build power, release to lob the shot. It always fires at 45° —
+      the only skill is judging how far the pad is and charging just enough to land on it.</div>
+    <div class="tips">Tip: watch the <b>power bar</b> and learn the feel — a near pad needs a short
+      charge, a far one a long one. Land in the pad's bright <b>centre</b> for a <b>bullseye</b>
+      (double points), and keep landing to grow your <b>combo</b> multiplier. A miss breaks the
+      streak and costs one of three lives. Pads shrink through the <b>stages</b> (Ranging → Volley →
+      Barrage → Siege → Dead-eye); feats earn <b>badges</b> that stick across runs.</div>
+    <div class="prompt">Hold &amp; release to fire</div>
+  </div>
+
+  <div class="panel hide" id="gameover">
+    <div class="title" id="overTitle">Out of lives</div>
+    <div class="final">Score<b id="finalScore">0</b></div>
+    <div class="oversub" id="overSub"></div>
+    <div class="newbest" id="newbest"></div>
+    <div class="badges" id="badges"></div>
+    <div class="metaLine" id="metaLine"></div>
+    <div class="prompt">Click or press Space to fire again</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- The game logic core + render shell are external modules; this is the
+     conventional, robust way to load them. -->
+<script type="module" src="./arc.shell.js"></script>
+
+<!-- Boot-failure fallback (classic script, always runs): if the module shell
+     never signals a successful boot — blocked module, network/parse failure —
+     show a visible message instead of a silently dead start screen. -->
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__arcBooted) return;
+      var s = document.getElementById('start');
+      if (!s) return;
+      s.classList.remove('hide');
+      s.innerHTML =
+        '<div class="title" style="background:linear-gradient(90deg,#ff8a8a,#ffb37a);' +
+        '-webkit-background-clip:text;background-clip:text;color:transparent">Couldn’t load</div>' +
+        '<div class="sub">Arc couldn’t load. Check your connection and reload the page.</div>';
+    }, 3500);
+  });
+</script>
+</body>
+</html>

@@ -24,8 +24,14 @@ Ordered, current. Remove as done; history lives in `../sessions/`.
 4. **Keep inventing fresh, mechanically-distinct experiments.** Verbs used so far:
    steer (Ink Bloom), time-a-catch (Echo Chamber), thrust/physics (Orbit Slingshot),
    flip-match (Polarity), aim-and-bounce (Ricochet), precision-stack (Skyline),
-   keep-aloft/rhythm (Loft). Reach for a genuinely new verb next — e.g. balance,
-   route/connect, sort, grow-and-release.
+   keep-aloft/rhythm (Loft), balance (Poise), mirror-coordination (Symmetry), judge-power
+   / charge-and-release (Arc). Reach for a genuinely new verb next — e.g. route/connect,
+   sort, grow-and-release, swing/grapple.
+
+5. **Eyeball Arc in a real browser** (Chrome preview MCP was down on its ship run
+   2026-07-05, so it shipped on a headless shell smoke test instead of a live preview).
+   Confirm the charge gauge, arc flight, pad/bullseye, and lives pips read cleanly and
+   nothing overflows/clips; note any polish for a follow-up PATCH.
 
 ## From the hub-standards adoption (v0.9.0/0.9.1) — optional follow-ups
 

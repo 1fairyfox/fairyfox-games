@@ -494,3 +494,22 @@ export function newlyEarned(prevMeta, nextMeta) {
   }
   return out;
 }
+
+/**
+ * A short "near-miss" line for the game-over card — honest, encouraging feedback when a
+ * run lands *just* under (or level with) your standing best, the classic "one more go"
+ * nudge. Returns null when it doesn't apply (no prior best, a new record, or a miss by
+ * more than `margin`). Pure; the shell shows it only on non-record runs. Skill-safe:
+ * pure feedback, no gameplay effect.
+ * @param {number} score this run's score (points)
+ * @param {number} best the standing best BEFORE this run
+ * @param {number} [margin=5] how close (in points) still counts as a near miss
+ * @returns {string|null}
+ */
+export function nearMissLine(score, best, margin = 5) {
+  if (!(best > 0)) return null;            // nothing to be close to yet
+  const gap = (best | 0) - (score | 0);
+  if (gap === 0) return 'Matched your best!';
+  if (gap > 0 && gap <= margin) return gap + (gap === 1 ? ' point' : ' points') + ' short of your best — so close!';
+  return null;                             // a record (gap<0) or not close enough
+}

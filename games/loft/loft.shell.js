@@ -209,7 +209,9 @@ function onDeath() {
     overTitle.textContent = 'New best';
     overTitle.classList.add('record');
   } else {
-    newbestEl.textContent = '';
+    // Non-record run: surface an honest "so close" nudge (pure logic in the core).
+    // `best` still holds the pre-run best here (only the record branch advances it).
+    newbestEl.textContent = Loft.nearMissLine(game.score, best) || '';
     overTitle.textContent = 'It dropped';
     overTitle.classList.remove('record');
   }
