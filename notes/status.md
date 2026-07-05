@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.14.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.15.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -39,12 +39,14 @@ sole host), plus each game at `…/games/<game>/`.
   legacy best preserved. Pure core (symplectic Euler) + 30 tests.
 - **Polarity** (`games/polarity/`) — a **precision-combo** runner: flip cyan/magenta to
   match each gate, but land the flip at the *last instant* to grow a **multiplier**
-  (×2…×9) — flip early/safe and it breaks to ×1. **Reference build for the Growth
-  Architecture**: readable **stage arc** (Drift → … → Singularity) that also patterns
-  the gates (more forced flips, tighter spacing, bursts), HUD stage chip + multiplier
-  readout + ambient tint, and **meta-progression** (`polarity.meta`: lifetime
-  runs/gates/furthest stage/best-mult + 9 skill-safe badges, run-report card) — legacy
-  `polarity.best` preserved. Pure core + 36 tests.
+  (×2…×9) — flip early/safe and it breaks to ×1. **Reference build for both the Growth
+  Architecture and Varied Structure**: each run is a **seeded sequence of named formations**
+  (Drift · Hold · Staircase · Zipper · Bursts · The Wall) pulled from a stage-weighted pool,
+  so no two runs share a skeleton and the notable ones name themselves as you enter them
+  (`FORMATIONS`/`pickFormation`/`loadFormation`); readable **stage arc** (Drift → … →
+  Singularity) weighting the pool, HUD stage chip + multiplier readout + ambient tint, and
+  **meta-progression** (`polarity.meta`: lifetime runs/gates/furthest stage/best-mult + 9
+  skill-safe badges, run-report card) — legacy `polarity.best` preserved. Pure core + 44 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
   sweeping up targets. **On the Growth Architecture**: a **bank bonus** (`shotScore` —
   a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
@@ -97,10 +99,19 @@ sole host), plus each game at `…/games/<game>/`.
 - **Loft** grew this run: a **near-miss** line (`nearMissLine`) now nudges "N points short of
   your best — so close!" on non-record runs (Growth Wave 2). Loft 31 → 32 tests.
 
-**Tests:** 299/299 green across the collection.
+**Tests:** 307/307 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.15.0 (2026-07-05) — Varied Structure + a visible changelog.** Built in an
+  interactive session from owner feedback ("played once = played always; updates aren't
+  felt"). Polarity is the **varied-structure reference build** (seeded **formations** — the
+  run's skeleton varies every play); a new player-facing **`changelog.html`** + a homepage
+  **"Recently updated"** strip (both from `assets/changelog.js`) + **relative dates**
+  (`assets/reldate.js`) make growth visible. New standard `reference/varied-structure.md`;
+  roadmap gains **Wave 4**; the daily task retuned to lead with player-visible change + log a
+  changelog entry each run. 307/307 green, Chrome-previewed. **Status: committed to `dev`;
+  `dev → main` release pending owner go-ahead** (see Next).
 - **Released v0.14.0 (2026-07-05) → `main`:** new game **Arc** (charge-and-release power
   lob — a distinct "judge power" verb) shipped with the full Growth Architecture; **Loft**
   grew a near-miss line. Masthead now **Games 10**; collection **299/299** tests. NOTE: the
@@ -139,7 +150,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 299/299 across 10 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 307/307 across 10 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

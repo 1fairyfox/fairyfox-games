@@ -22,6 +22,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, createGame, reset, start, toggle, speedOf, spawnGate, tick, milestoneAt, isClutch,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  pickFormation, loadFormation,
 } from './polarity.core.js';
 
 /** Deterministic RNG (mulberry32) so gate patterns are reproducible. */
@@ -111,9 +112,9 @@ test('tick moves every gate left by the current speed', () => {
 
 test('tick is a full no-op before start and after death', () => {
   const g = newGame();
-  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1 });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1, formation: null });
   g.phase = 'dead';
-  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1 });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1, formation: null });
 });
 
 test('spawnGate appends a valid gate within [GAP_MIN, GATE_GAP] of the last, polarity 0|1', () => {
@@ -323,10 +324,11 @@ test('stageProgress: frac 0 at a boundary, rises toward the next, isLast only at
 
 test('later stages demand more flips (lower repeat rate) — a distribution check', () => {
   // At stage 0 vs a late stage, count how often spawnGate repeats the previous polarity.
-  function repeatRate(clearedLevel) {
-    const g = createGame(W, H, { rng: seeded(7) });
+  // Averaged over several seeds so the formation-driven structure is measured, not noise.
+  function repeatRate(clearedLevel, seed) {
+    const g = createGame(W, H, { rng: seeded(seed) });
     start(g); g.cleared = clearedLevel;
-    let repeats = 0, n = 400;
+    let repeats = 0, n = 500;
     for (let i = 0; i < n; i++) {
       const prev = g.gates[g.gates.length - 1].pol;
       const gate = spawnGate(g);
@@ -334,9 +336,116 @@ test('later stages demand more flips (lower repeat rate) — a distribution chec
     }
     return repeats / n;
   }
-  const early = repeatRate(0);
-  const late = repeatRate(CONFIG.STAGES[CONFIG.STAGES.length - 1].at + 20);
+  const lateAt = CONFIG.STAGES[CONFIG.STAGES.length - 1].at + 20;
+  const seeds = [1, 7, 42, 99, 2024];
+  const early = seeds.reduce((a, s) => a + repeatRate(0, s), 0) / seeds.length;
+  const late = seeds.reduce((a, s) => a + repeatRate(lateAt, s), 0) / seeds.length;
   assert.ok(late < early, `late stage alternates more (early ${early.toFixed(2)} > late ${late.toFixed(2)})`);
+});
+
+// ── 9b. Formations (varied run structure) ───────────────────────────────────────
+test('FORMATIONS is a well-formed pool: id/name/build/weight, non-decreasing minStage', () => {
+  assert.ok(CONFIG.FORMATIONS.length >= 4, 'a real pool of formations');
+  const ids = new Set();
+  let prevMin = 0;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.equal(typeof f.id, 'string'); assert.ok(f.id.length > 0);
+    assert.equal(ids.has(f.id), false, 'ids are unique'); ids.add(f.id);
+    assert.equal(typeof f.name, 'string'); assert.ok(f.name.length > 0);
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.ok(f.minStage >= prevMin, 'minStage listed non-decreasing'); prevMin = f.minStage;
+  }
+  // At least one formation is available from the very first stage.
+  assert.ok(CONFIG.FORMATIONS.some(f => f.minStage === 0));
+});
+
+test('every formation builds gate specs with gaps inside [GAP_MIN, GATE_GAP]', () => {
+  const rng = seeded(3);
+  for (const f of CONFIG.FORMATIONS) {
+    for (let rep = 0; rep < 30; rep++) {
+      const specs = f.build({ rng, lastPol: rep & 1, stage: 3, cfg: CONFIG });
+      assert.ok(Array.isArray(specs) && specs.length >= 1, `${f.id} yields gates`);
+      for (const s of specs) {
+        assert.ok(s.pol === 0 || s.pol === 1, `${f.id} pol is 0|1`);
+        assert.ok(s.gap >= CONFIG.GAP_MIN - 1e-9 && s.gap <= CONFIG.GATE_GAP + 1e-9,
+          `${f.id} gap ${s.gap} within bounds`);
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible formations and is deterministic under seed', () => {
+  for (let stage = 0; stage < CONFIG.STAGES.length; stage++) {
+    const a = seeded(500 + stage), b = seeded(500 + stage);
+    let prev = null;
+    for (let i = 0; i < 60; i++) {
+      const fa = pickFormation(CONFIG, stage, a, prev);
+      const fb = pickFormation(CONFIG, stage, b, prev);
+      assert.equal(fa.id, fb.id, 'same seed → same pick');
+      assert.ok(stage >= fa.minStage, `picked ${fa.id} needs stage ${fa.minStage} ≤ ${stage}`);
+      prev = fa.id;
+    }
+  }
+});
+
+test('a run is a sequence of formations — gates carry a form name, heads only on notables', () => {
+  const g = newGame(); start(g);
+  const notable = new Set(CONFIG.FORMATIONS.filter(f => f.notable).map(f => f.name));
+  const names = new Set();
+  let heads = 0;
+  for (let i = 0; i < 300; i++) {
+    const gate = spawnGate(g);
+    if (gate.form) names.add(gate.form);
+    if (gate.formHead) { heads++; assert.ok(notable.has(gate.form), 'a head belongs to a notable formation'); }
+  }
+  assert.ok(names.size >= 2, 'more than one formation appears in a run');
+  assert.ok(heads >= 1, 'at least one notable formation announced itself');
+});
+
+test('two different seeds produce different run structures (real variety, not just noise)', () => {
+  function formSequence(seed) {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g); g.cleared = 2;   // past the calm opening so formations are in play
+    const seq = [];
+    for (let i = 0; i < 120; i++) { const gate = spawnGate(g); if (gate.formHead) seq.push(gate.form); }
+    return seq.join('>');
+  }
+  assert.notEqual(formSequence(11), formSequence(22), 'distinct seeds → distinct skeletons');
+});
+
+test('the same seed reproduces the same run structure (determinism preserved)', () => {
+  function formSequence(seed) {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g); g.cleared = 2;
+    const seq = [];
+    for (let i = 0; i < 120; i++) { const gate = spawnGate(g); if (gate.formHead) seq.push(gate.form); }
+    return seq.join('>');
+  }
+  assert.equal(formSequence(77), formSequence(77));
+});
+
+test('tick surfaces a notable formation name as its leading gate resolves', () => {
+  // Drive a matched run and capture any formation cue tick reports.
+  const g = newGame(); start(g);
+  let sawFormation = null;
+  for (let i = 0; i < 4000 && !sawFormation; i++) {
+    g.pol = g.gates[0].pol;               // always match nearest (gimme) → never die
+    const r = tick(g);
+    if (r.formation) sawFormation = r.formation;
+  }
+  assert.ok(sawFormation, 'a notable formation was announced during the run');
+  assert.ok(CONFIG.FORMATIONS.some(f => f.name === sawFormation && f.notable));
+});
+
+test('loadFormation records the current formation identity on the game state', () => {
+  const g = newGame(); start(g);
+  g.formGates = [];                        // force a reload on next spawn
+  loadFormation(g);
+  assert.ok(g.formGates.length >= 1);
+  assert.equal(typeof g.formName, 'string');
+  assert.ok(CONFIG.FORMATIONS.some(f => f.name === g.formName && f.id === g.formId));
 });
 
 // ── 10. Clutch / precise window ────────────────────────────────────────────────

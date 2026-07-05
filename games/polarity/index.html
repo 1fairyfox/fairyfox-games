@@ -60,6 +60,17 @@
     text-shadow:0 0 24px rgba(169,140,255,.25);
   }
 
+  /* Formation cue — a quiet, in-world name for the notable gate formation you're entering
+     (Staircase, Zipper, Bursts, The Wall). The run is a *sequence* of these, so naming the
+     demanding ones as they arrive makes the varied structure legible without clutter. Calm
+     formations pass silently. Shell-driven opacity; fades quickly. */
+  #formation {
+    position:absolute; left:0; right:0; top:59%; text-align:center;
+    pointer-events:none; opacity:0;
+    font-size:13px; font-weight:700; letter-spacing:.3em; text-transform:uppercase;
+    color:#a98cff; text-shadow:0 0 18px rgba(169,140,255,.45);
+  }
+
   /* Stage chip — a quiet HUD readout of the run's current stage + progress toward the
      next (Growth Architecture Layer 1). Peripheral, never loud; pops on stage change. */
   #stageChip {
@@ -110,6 +121,7 @@
   <div id="mult" class="hide">×1</div>
 
   <div id="milestone"></div>
+  <div id="formation"></div>
 
   <div class="panel" id="start">
     <div class="title">Polarity</div>
@@ -121,7 +133,9 @@
       climbs (×2, ×3 … ×9), and every gate is worth that much. Play it safe for a steady trickle,
       or ride the edge for a huge score — one bad read ends the run. It gets faster and the
       patterns get meaner through the <b>stages</b> (Drift → Current → Riptide → Event horizon →
-      Singularity). Feats earn <b>badges</b> that stick across runs.</div>
+      Singularity). Each run is built from shifting <b>formations</b> — a rhythmic Staircase, a
+      restful Hold, a relentless Zipper, tight Bursts, The Wall — so no two runs play the same.
+      Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Click / Space to begin</div>
   </div>
 

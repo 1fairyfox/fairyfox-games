@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
+<title>Changelog · Fairy Fox Games</title>
+<meta name="description" content="What's changed across the Fairy Fox Games collection — new games and the ways existing ones keep growing, newest first.">
+
+<link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
+<link rel="icon" type="image/svg+xml" href="https://fairyfox.io/favicon.svg">
+<link rel="shortcut icon" href="https://fairyfox.io/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="https://fairyfox.io/apple-touch-icon.png">
+
+<link rel="stylesheet" href="./assets/fonts/fonts.css">
+<link rel="stylesheet" href="./assets/styles.css">
+<style>
+  /* Changelog list — a quiet, readable feed built on the shared design tokens. */
+  .cl-list { display:flex; flex-direction:column; gap:.9rem; margin-top:1.4rem; }
+  .cl-item { display:grid; grid-template-columns:132px 1fr; gap:1rem 1.25rem;
+    padding:1.05rem 1.2rem; border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--card-grad); box-shadow:var(--shadow); }
+  .cl-meta { display:flex; flex-direction:column; gap:.5rem; align-items:flex-start; }
+  .cl-date { font-size:.8rem; color:var(--text-faint); font-variant-numeric:tabular-nums;
+    cursor:default; }
+  .cl-kind { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; font-weight:650;
+    padding:.16rem .5rem; border-radius:999px; border:1px solid var(--line-2); white-space:nowrap; }
+  .cl-kind.new  { color:#7af9d0; border-color:rgba(56,211,163,.4); background:rgba(56,211,163,.08); }
+  .cl-kind.grow { color:var(--accent-ink); border-color:color-mix(in srgb,var(--violet) 42%,var(--line-2));
+    background:color-mix(in srgb,var(--violet) 10%,transparent); }
+  .cl-kind.site { color:var(--text-soft); }
+  .cl-body { min-width:0; }
+  .cl-game { margin:0 0 .3rem; font-size:1.02rem; }
+  .cl-game a { color:var(--accent-ink); }
+  .cl-text { margin:0; color:var(--text-soft); font-size:.95rem; line-height:1.55; }
+  @media (max-width:560px){
+    .cl-item { grid-template-columns:1fr; gap:.55rem; }
+    .cl-meta { flex-direction:row; align-items:center; gap:.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="https://fairyfox.io/">
+      <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
+      <span class="brand-name">Fairy&nbsp;Fox</span>
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="https://fairyfox.io/">Home</a>
+      <a href="https://fairyfox.io/projects/">Projects</a>
+      <a href="./#games">Games</a>
+      <a href="https://fairyfox.io/docs/">Docs</a>
+      <a href="https://fairyfox.io/downloads/">Downloads</a>
+      <a href="https://fairyfox.io/blog/">Updates</a>
+      <a href="https://fairyfox.io/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="subnav" aria-label="Fairy Fox Games section">
+  <div class="wrap">
+    <a class="sub-brand" href="./">Fairy Fox Games</a>
+    <a href="./#games">The Collection</a>
+    <a href="./changelog.html" class="active">Changelog</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a href="./legal/privacy.html">Privacy</a>
+    <a href="./legal/terms.html">Terms</a>
+    <a href="./legal/cookies.html">Cookies</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a class="ext" href="https://github.com/junebug12851/fairyfox-games">Source ↗</a>
+  </div>
+</nav>
+
+<main>
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="label">
+          <h2>Changelog</h2>
+        </div>
+      </div>
+      <p style="color:var(--text-soft);max-width:var(--maxw-text);margin:.3rem 0 0">
+        What's changed across the collection, newest first — new games, and the ways the
+        existing ones keep growing. These are experiments that grow a little deeper over time,
+        so it's worth coming back to see what's new.
+      </p>
+
+      <div id="cl-list" class="cl-list"></div>
+      <noscript>
+        <p style="color:var(--text-soft);margin-top:1.4rem">
+          The changelog is a small script-rendered list. With JavaScript disabled, browse the
+          games directly from <a href="./#games">the collection</a>.
+        </p>
+      </noscript>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-brand">
+      <a class="brand" href="https://fairyfox.io/">
+        <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
+        <span class="brand-name">Fairy Fox</span>
+      </a>
+      <p>The project hub and documentation library for Fairy Fox's software work.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Explore</h4>
+      <a href="https://fairyfox.io/projects/">Projects</a>
+      <a href="https://fairyfox.io/docs/">Documentation</a>
+      <a href="https://fairyfox.io/downloads/">Downloads</a>
+      <a href="https://fairyfox.io/blog/">Updates</a>
+      <a href="https://fairyfox.io/about/">About</a>
+    </div>
+    <div class="footer-col">
+      <h4>Projects</h4>
+      <a href="https://fairyfox.io/projects/pokered-save-editor-2/">Pokered Save Editor 2</a>
+      <a href="https://fairyfox.io/projects/random-ai-prompt/">Random AI Prompt</a>
+      <a href="https://fairyfox.io/projects/pokered-save-editor/">Pokered Save Editor</a>
+      <a href="https://fairyfox.io/projects/fairyfox-games/">Fairy Fox Games</a>
+      <a href="https://fairyfox.io/projects/fairyfox-io/">fairyfox.io</a>
+    </div>
+    <div class="footer-col">
+      <h4>Elsewhere</h4>
+      <a href="https://github.com/junebug12851">GitHub ↗</a>
+      <a href="https://fairyfox.io/feed.xml">Atom feed</a>
+    </div>
+  </div>
+  <div class="footer-bar">
+    <div class="wrap">
+      <span>© 2026 Fairy Fox</span>
+      <span>Built with Jekyll · deployed on GitHub Pages</span>
+      <span class="spacer"></span>
+      <a href="https://github.com/junebug12851">@junebug12851</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    "use strict";
+    var header = document.querySelector(".site-header");
+    if (!header) return;
+    var toggle = header.querySelector(".nav-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        var open = header.classList.toggle("nav-open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && header.classList.contains("nav-open")) {
+        header.classList.remove("nav-open");
+        if (toggle) toggle.setAttribute("aria-expanded", "false");
+      }
+    });
+  })();
+</script>
+
+<script src="./assets/reldate.js"></script>
+<script src="./assets/changelog.js"></script>
+<script>
+  (function () {
+    "use strict";
+    var list = document.getElementById("cl-list");
+    var data = window.FFG_CHANGELOG;
+    if (!list || !Array.isArray(data)) return;
+    var KIND = { new: "New game", grow: "Update", site: "Site" };
+
+    data.forEach(function (e) {
+      var item = document.createElement("article");
+      item.className = "cl-item";
+
+      var meta = document.createElement("div");
+      meta.className = "cl-meta";
+      var date = document.createElement("span");
+      date.className = "cl-date";
+      date.textContent = (window.FFG && FFG.relDate) ? FFG.relDate(e.date) : e.date;
+      if (window.FFG && FFG.fullDate) date.title = FFG.fullDate(e.date);
+      var kind = document.createElement("span");
+      kind.className = "cl-kind " + (e.kind || "grow");
+      kind.textContent = KIND[e.kind] || "Update";
+      meta.appendChild(date);
+      meta.appendChild(kind);
+
+      var body = document.createElement("div");
+      body.className = "cl-body";
+      var h = document.createElement("h3");
+      h.className = "cl-game";
+      if (e.slug) {
+        var a = document.createElement("a");
+        a.href = "./games/" + e.slug + "/";
+        a.textContent = e.game;
+        h.appendChild(a);
+      } else {
+        h.textContent = e.game;
+      }
+      var p = document.createElement("p");
+      p.className = "cl-text";
+      p.textContent = e.text;
+      body.appendChild(h);
+      body.appendChild(p);
+
+      item.appendChild(meta);
+      item.appendChild(body);
+      list.appendChild(item);
+    });
+  })();
+</script>
+</body>
+</html>
