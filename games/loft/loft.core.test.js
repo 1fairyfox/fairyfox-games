@@ -21,6 +21,7 @@ import {
   createGame, reset, start, spawnOrb, applyTap, stepOrb, orbGrounded, topUpOrbs,
   tick, lowestFalling, milestoneAt,
   tapScore, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  nearMissLine,
 } from './loft.core.js';
 
 /** Deterministic RNG (mulberry32) so orb spawns are reproducible in tests. */
@@ -351,4 +352,16 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── 10. Near-miss (honest game-over feedback) ───────────────────────────────────
+test('nearMissLine nudges only on an honest near miss, never on a record', () => {
+  assert.equal(nearMissLine(50, 0), null, 'no prior best → nothing to be close to');
+  assert.equal(nearMissLine(60, 50), null, 'a record is not a near miss');
+  assert.equal(nearMissLine(50, 50), 'Matched your best!');
+  assert.equal(nearMissLine(49, 50), '1 point short of your best — so close!');
+  assert.equal(nearMissLine(47, 50), '3 points short of your best — so close!');
+  assert.equal(nearMissLine(45, 50), '5 points short of your best — so close!', 'at the margin');
+  assert.equal(nearMissLine(44, 50), null, 'beyond the default margin → no line');
+  assert.equal(nearMissLine(30, 50, 25), '20 points short of your best — so close!', 'margin is configurable');
 });

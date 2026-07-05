@@ -22,7 +22,9 @@ Loft follows the shared **Growth Architecture**
   catches, furthest stage, most orbs kept aloft at once, biggest cluster, and **badges**
   (first run, Flock/Zero-G, a full flock of six, a 3-orb cluster, a century, 1,000
   all-time catches, 25 runs). Game-over run report + account line. Skill-safe: badges,
-  never power. Legacy `loft.best` preserved.
+  never power. Legacy `loft.best` preserved. A **near-miss** line (`nearMissLine`)
+  nudges "N points short of your best — so close!" on non-record runs — honest "one
+  more go" feedback, no gameplay effect.
 
 **Controls:** tap / click / touch anywhere to strike — every *descending* orb within
 reach is knocked upward, and one tap can rescue a whole cluster. You can only hit an

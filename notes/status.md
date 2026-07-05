@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.13.1` (single source of truth: repo-root `VERSION`).
+**Version:** `0.14.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -16,7 +16,7 @@ that grows a little deeper every day** (standing rules in `CLAUDE.md`).
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (9):**
+**Games so far (10):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. **On the Growth Architecture**: escalation (ink speeds up with score) +
@@ -83,11 +83,30 @@ sole host), plus each game at `…/games/<game>/`.
   HUD chip + field tint, and **meta-progression** (`symmetry.meta`: lifetime
   catches/twins/best-combo + 9 badges, run-report + near-miss) — legacy best preserved.
   Pure core (normalised lanes/spread, seedable RNG) + 23 tests.
+- **Arc** (`games/arc/`) — a **charge-and-release power lob**: a launcher fires at a fixed
+  45°; **hold to build power, release to lob**, and land the shot on the target pad. The
+  single control is *how long you charge* (judge the distance, dial the power) — no aim, no
+  bounce. **On the Growth Architecture**: a **precision combo** as the core-fun hook — a
+  centre **bullseye** pays double and consecutive lands grow a ×1…×6 multiplier, while a
+  miss breaks the streak *and* costs one of three lives; a **stage arc** (Ranging → Volley →
+  Barrage → Siege → Dead-eye, each shrinking the pad + widening the spread) with HUD chip +
+  field tint, and **meta-progression** (`arc.meta`: lifetime lands/points/bullseyes + best
+  combo + 9 badges, run-report + near-miss) — legacy `arc.best` preserved. Pure core (the
+  45° range formula `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 26
+  tests.
+- **Loft** grew this run: a **near-miss** line (`nearMissLine`) now nudges "N points short of
+  your best — so close!" on non-record runs (Growth Wave 2). Loft 31 → 32 tests.
 
-**Tests:** 272/272 green across the collection.
+**Tests:** 299/299 green across the collection.
 
 ## In flight / awaiting
 
+- **Released v0.14.0 (2026-07-05) → `main`:** new game **Arc** (charge-and-release power
+  lob — a distinct "judge power" verb) shipped with the full Growth Architecture; **Loft**
+  grew a near-miss line. Masthead now **Games 10**; collection **299/299** tests. NOTE: the
+  Chrome preview MCP was unavailable this run, so Arc's shell was validated with a headless
+  DOM/canvas smoke test instead of a live browser preview — eyeball Arc in a real browser at
+  the next opportunity.
 - **Released v0.13.0 (2026-07-04) → `main`:** the whole queued arc (v0.12.0 Poise +
   v0.13.0 Symmetry, plus the earlier v0.10.x/0.11.0 work) is now shipped and live; GitHub
   Pages redeployed, homepage shows **Games 9**. **Release policy changed:** ship `dev →
@@ -120,7 +139,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 272/272 across 9 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 299/299 across 10 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

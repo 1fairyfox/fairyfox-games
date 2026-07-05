@@ -92,6 +92,7 @@ CI runs the full suite on every push and pull request.
 | **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it up; you can only strike on the way down, and more orbs keep joining. | [`games/loft/`](games/loft/) |
 | **Poise** | Tilt a beam to balance a rolling ball; roll it over the target to score without letting it slip off either end. It grows twitchier as you go. | [`games/poise/`](games/poise/) |
 | **Symmetry** | One control, two mirrored catchers — spread them around the centre to catch orbs on both sides. You can't always save both, so read ahead and chase the twin pairs. | [`games/symmetry/`](games/symmetry/) |
+| **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |
 
 _(A new one joins most days.)_
 
