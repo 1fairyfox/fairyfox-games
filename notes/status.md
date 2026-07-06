@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.18.1` (single source of truth: repo-root `VERSION`).
+**Version:** `0.18.2` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -130,6 +130,14 @@ sole host), plus each game at `…/games/<game>/`.
 
 ## In flight / awaiting
 
+- **v0.18.2 (2026-07-06) — Fix (the real one): white flash on the games/docs chrome pages.**
+  v0.18.1 hardened the wrong pages (the game *shells*); the flash the owner sees is on the shared
+  **chrome** pages (games landing, changelog, 3 legal), whose dark bg lives only in the external
+  render-blocking `styles.css` while `<html>` is transparent → the pre-CSS window paints white.
+  Extended the inline no-FOUC head script on all 5 chrome pages to paint `<html>` the resolved-theme
+  bg (`#181017`/`#efe4d1`/`#f1e3c2`) before the stylesheet. Verified in Chrome with a delayed-CSS
+  A/B (empty vs `rgb(24,16,23)`). **Local divergence** from the hub inline script — re-apply on
+  re-vendor. 361/361 green.
 - **v0.18.1 (2026-07-06) — Fix: white flash when opening a game.** Cross-document navigation was
   exposing the browser's default white base for one frame because the 11 game shells carried no
   early colour signal — their dark background lived only inside the inline `<style>`. Added a
