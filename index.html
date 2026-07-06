@@ -338,11 +338,13 @@
       }).forEach(function (c) { grid.appendChild(c); });
     }
 
-    // Recently-updated strip — the latest few changelog entries, newest first.
+    // Recently-updated strip — the latest few changelog entries, newest first. Games
+    // only (entries tied to an actual game via `slug`); site-wide notes are excluded here
+    // and live on the full changelog page.
     var section = document.getElementById("recent");
     var list = document.getElementById("recent-list");
-    var data = window.FFG_CHANGELOG;
-    if (section && list && Array.isArray(data) && data.length) {
+    var data = (window.FFG_CHANGELOG || []).filter(function (e) { return e && e.slug; });
+    if (section && list && data.length) {
       data.slice(0, 4).forEach(function (e) {
         var item = document.createElement("div");
         item.className = "recent-item";
