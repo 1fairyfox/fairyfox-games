@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.16.3` (single source of truth: repo-root `VERSION`).
+**Version:** `0.17.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -114,6 +114,22 @@ sole host), plus each game at `…/games/<game>/`.
 
 ## In flight / awaiting
 
+- **v0.17.0 (2026-07-06) — Seamless chrome refresh + the shared Reader ("Aa") menu + modular
+  docs pages.** Ran the fairyfox check/adopt flow: hub clone refreshed v0.12.1 → **v0.14.3**
+  (clean ff), then adopted the current docs-site chrome so gh-pages reads as one site again.
+  **Nav dropped Downloads** (Home · Projects · Games · Docs · Updates · About). Added the now
+  **required** Reader menu — `assets/reader.js` (vendored) + inline no-FOUC head early-apply +
+  re-vendored `assets/styles.css` (reader button/panel, `data-theme` **light/sepia/dark**,
+  `--reading-*` vars, refreshed tokens), **preserving** the local `.subnav` sub-brand +
+  `.eyebrow`. Footer "Projects" → each project's own `fairyfox.io/<key>/` page. **Docs pages
+  modularized** (owner ask): inline CSS/JS extracted into small browser-imported files —
+  `home.css` · `changelog.css` · `legal.css` · shared `nav.js` · ES modules `home.js` /
+  `changelog-page.js` importing `reldate.js` (now ESM) + `changelog-data.js` (renamed, now
+  `export const CHANGELOG`); reader early-apply stays inline (no-flash). `privacy`/`cookies`
+  legal docs updated for the reader's localStorage prefs (date → 2026-07-06). Pre-authorized by
+  the standing `adopt-standards-by-default` ledger entry; full verification run before/after.
+  Chrome-previewed, no console errors; 10/10 game suites green. Report:
+  `fairyfox-reports/2026-07-06-adopting-updates.md`.
 - **v0.16.0 (2026-07-05) — Game Farm identity + Echo Chamber varied structure + PLANT/GROW
   split.** Public rebrand to an **AI-managed game farm** (new games planted, existing ones
   grow — AI named publicly, superseding the old no-AI note). **Echo Chamber** is the **2nd
@@ -175,7 +191,9 @@ sole host), plus each game at `…/games/<game>/`.
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |
 | Mesh registration (hub) | ✅ registry.yml + _data/projects.yml |
-| Themed docs site | ✅ Matches the fairyfox.io homepage chrome |
+| Themed docs site | ✅ Matches the fairyfox.io homepage chrome (hub v0.14.3: no Downloads, Reader "Aa" menu, project-home footer links) |
+| Reader ("Aa") menu | ✅ Shared component adopted — theme/accent/size/spacing/width, origin-wide `fairyfox:reader:b` |
+| Modular docs assets | ✅ Per-page CSS + ES-module JS, browser-imported (no inline blocks; reader early-apply inline for no-FOUC) |
 | Subproject nav (`.subnav`) | ✅ sub-brand locator + section links (landing + legal) |
 | Legal docs (`legal/`) | ✅ Privacy/Terms/Cookies — shared chrome, clearly scoped to this project |
 | Self-hosted fonts | ✅ `assets/fonts/` — no Google Fonts hot-link (zero 3rd-party requests) |

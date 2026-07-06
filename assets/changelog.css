@@ -1,0 +1,23 @@
+/* changelog.css — the full changelog feed. A quiet, readable list built on the
+   shared design tokens in styles.css. Rendered by changelog-page.js. */
+.cl-list { display:flex; flex-direction:column; gap:.9rem; margin-top:1.4rem; }
+.cl-item { display:grid; grid-template-columns:132px 1fr; gap:1rem 1.25rem;
+  padding:1.05rem 1.2rem; border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--card-grad); box-shadow:var(--shadow); }
+.cl-meta { display:flex; flex-direction:column; gap:.5rem; align-items:flex-start; }
+.cl-date { font-size:.8rem; color:var(--text-faint); font-variant-numeric:tabular-nums;
+  cursor:default; }
+.cl-kind { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; font-weight:650;
+  padding:.16rem .5rem; border-radius:999px; border:1px solid var(--line-2); white-space:nowrap; }
+.cl-kind.new  { color:#7af9d0; border-color:rgba(56,211,163,.4); background:rgba(56,211,163,.08); }
+.cl-kind.grow { color:var(--accent-ink); border-color:color-mix(in srgb,var(--violet) 42%,var(--line-2));
+  background:color-mix(in srgb,var(--violet) 10%,transparent); }
+.cl-kind.site { color:var(--text-soft); }
+.cl-body { min-width:0; }
+.cl-game { margin:0 0 .3rem; font-size:1.02rem; }
+.cl-game a { color:var(--accent-ink); }
+.cl-text { margin:0; color:var(--text-soft); font-size:.95rem; line-height:1.55; }
+@media (max-width:560px){
+  .cl-item { grid-template-columns:1fr; gap:.55rem; }
+  .cl-meta { flex-direction:row; align-items:center; gap:.7rem; }
+}

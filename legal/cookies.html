@@ -6,6 +6,25 @@
 <meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
+
+<!-- Reader ("Aa") menu: apply the saved theme / accent / text size before first paint
+     (no flash). Deliberately inline — an external file would defeat the no-FOUC point.
+     Versioned origin-wide key (fairyfox:reader:b); kept in sync with assets/reader.js. -->
+<script>
+(function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
+S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
+if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
+if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
+if(p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
+if(p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);
+if(p.accent){var h=p.accent,ink="color-mix(in srgb, "+h+", var(--text) 42%)";
+r.style.setProperty("--accent",h);r.style.setProperty("--violet",h);
+r.style.setProperty("--violet-deep","color-mix(in srgb, "+h+", #000 12%)");
+r.style.setProperty("--accent-ink",ink);r.style.setProperty("--link",ink);
+r.style.setProperty("--link-hover","color-mix(in srgb, "+h+", var(--text) 26%)");
+r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}catch(e){}})();
+</script>
+
 <title>Cookies Policy — Fairy Fox Games</title>
 
 <link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
@@ -14,17 +33,7 @@
 
 <link rel="stylesheet" href="../assets/fonts/fonts.css">
 <link rel="stylesheet" href="../assets/styles.css">
-<style>
-  .legal-main{max-width:820px;margin-inline:auto;padding:2.2rem var(--gutter) 4rem}
-  .legal-main .updated{color:var(--text-faint);font-size:.85rem;margin:.15rem 0 1.6rem}
-  .legal-main h2{font-size:clamp(1.2rem,2vw,1.4rem);margin:2.1rem 0 .5rem}
-  .tldr{background:color-mix(in srgb,var(--violet) 12%,transparent);
-    border:1px solid color-mix(in srgb,var(--violet) 42%,transparent);
-    border-radius:var(--radius);padding:1rem 1.15rem;margin:1.25rem 0 2rem}
-  .tldr p{color:var(--text);margin:.4rem 0}
-  .legal-scope{border-top:1px solid var(--line);margin-top:2.6rem;padding-top:1.4rem;
-    color:var(--text-faint);font-size:.85rem}
-</style>
+<link rel="stylesheet" href="../assets/legal.css">
 </head>
 <body>
 
@@ -42,7 +51,6 @@
       <a href="https://fairyfox.io/projects/">Projects</a>
       <a href="../" class="active">Games</a>
       <a href="https://fairyfox.io/docs/">Docs</a>
-      <a href="https://fairyfox.io/downloads/">Downloads</a>
       <a href="https://fairyfox.io/blog/">Updates</a>
       <a href="https://fairyfox.io/about/">About</a>
     </nav>
@@ -66,13 +74,13 @@
 <main class="legal-main">
   <p class="eyebrow">Fairy Fox Games · Legal</p>
   <h1>Cookies Policy</h1>
-  <p class="updated">Last updated: July 2, 2026</p>
+  <p class="updated">Last updated: July 6, 2026</p>
 
   <div class="tldr">
     <p><strong>The short version.</strong> The <strong>Fairy Fox Games</strong> collection does not
-      use cookies — none at all, and no tracking. It saves your best scores in your browser&rsquo;s
-      local storage so the games can remember them. That data stays on your device and is never sent
-      to us.</p>
+      use cookies — none at all, and no tracking. It saves your best scores and reading/display
+      preferences in your browser&rsquo;s local storage so the games can remember them. That data
+      stays on your device and is never sent to us.</p>
   </div>
 
   <p>This Cookies Policy explains how <strong>Fairy Fox Games</strong> (&ldquo;the Service&rdquo;) uses
@@ -86,11 +94,15 @@
     non-essential cookies, there is nothing to consent to and no cookie banner to click through.</p>
 
   <h2>What we use instead: local storage</h2>
-  <p>To remember your <strong>best scores</strong> and small display preferences, the games use your
-    browser&rsquo;s <strong>local storage</strong>. This is similar to a cookie in that it is saved in
-    your browser, but unlike a cookie it is <strong>never automatically sent to any server</strong> —
-    it simply lets a game show your best score the next time you play. This information stays on your
-    device. We never receive it. For more, see our <a href="privacy.html">Privacy Policy</a>.</p>
+  <p>To remember your <strong>best scores</strong> and your <strong>reading and display
+    preferences</strong> (the &ldquo;Aa&rdquo; reading menu&rsquo;s theme, accent colour, text size,
+    line spacing, and width), the games use your browser&rsquo;s <strong>local storage</strong>. This
+    is similar to a cookie in that it is saved in your browser, but unlike a cookie it is
+    <strong>never automatically sent to any server</strong> — it simply lets a game show your best
+    score, and the site remember how you like to read, the next time you visit. The reading
+    preferences are saved under a shared key so one choice carries across the wider
+    <a href="https://fairyfox.io/">fairyfox.io</a> site in the same browser. This information stays on
+    your device. We never receive it. For more, see our <a href="privacy.html">Privacy Policy</a>.</p>
 
   <h2>Third-party requests</h2>
   <p>The Service serves its own fonts and does not load them from Google Fonts or any other
@@ -107,7 +119,7 @@
     <a href="https://support.apple.com/guide/safari/manage-cookies-and-website-data-sfri11471/mac">Safari</a>,
     and
     <a href="https://support.microsoft.com/microsoft-edge/view-and-delete-browser-history-in-microsoft-edge-00cf7943-a9e1-975a-a33d-ac10ce454ca4">Edge</a>).
-    Note that clearing it also resets your saved best scores.</p>
+    Note that clearing it also resets your saved best scores and preferences.</p>
 
   <h2>Changes to this policy</h2>
   <p>We may update this Cookies Policy as the Service changes. When we do, we will revise the
@@ -137,17 +149,16 @@
       <h4>Explore</h4>
       <a href="https://fairyfox.io/projects/">Projects</a>
       <a href="https://fairyfox.io/docs/">Documentation</a>
-      <a href="https://fairyfox.io/downloads/">Downloads</a>
       <a href="https://fairyfox.io/blog/">Updates</a>
       <a href="https://fairyfox.io/about/">About</a>
     </div>
     <div class="footer-col">
       <h4>Projects</h4>
-      <a href="https://fairyfox.io/projects/pokered-save-editor-2/">Pokered Save Editor 2</a>
-      <a href="https://fairyfox.io/projects/random-ai-prompt/">Random AI Prompt</a>
-      <a href="https://fairyfox.io/projects/pokered-save-editor/">Pokered Save Editor</a>
-      <a href="https://fairyfox.io/projects/fairyfox-games/">Fairy Fox Games</a>
-      <a href="https://fairyfox.io/projects/fairyfox-io/">fairyfox.io</a>
+      <a href="https://fairyfox.io/pokered-save-editor-2/">Pokered Save Editor 2</a>
+      <a href="https://fairyfox.io/random-ai-prompt/">Random AI Prompt</a>
+      <a href="https://github.com/junebug12851/pokered-save-editor">Pokered Save Editor</a>
+      <a href="https://fairyfox.io/fairyfox-games/">Fairy Fox Games</a>
+      <a href="https://fairyfox.io/docs/">fairyfox.io</a>
     </div>
     <div class="footer-col">
       <h4>Elsewhere</h4>
@@ -165,25 +176,8 @@
   </div>
 </footer>
 
-<script>
-  (function () {
-    "use strict";
-    var header = document.querySelector(".site-header");
-    if (!header) return;
-    var toggle = header.querySelector(".nav-toggle");
-    if (toggle) {
-      toggle.addEventListener("click", function () {
-        var open = header.classList.toggle("nav-open");
-        toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      });
-    }
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && header.classList.contains("nav-open")) {
-        header.classList.remove("nav-open");
-        if (toggle) toggle.setAttribute("aria-expanded", "false");
-      }
-    });
-  })();
-</script>
+<!-- Chrome behaviour + reader menu (shared, browser-imported). -->
+<script src="../assets/nav.js" defer></script>
+<script src="../assets/reader.js" defer></script>
 </body>
 </html>
