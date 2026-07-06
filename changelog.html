@@ -13,6 +13,7 @@
 (function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
 S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
 if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
+r.style.background=({light:"#efe4d1",sepia:"#f1e3c2",dark:"#181017"})[(p.theme&&p.theme!=="system")?p.theme:(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark")]||"#181017";
 if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
 if(p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
 if(p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);

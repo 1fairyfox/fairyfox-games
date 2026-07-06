@@ -17,7 +17,7 @@
 export const CHANGELOG = [
   {
     date: "2026-07-06", game: "The collection", slug: null, kind: "site",
-    text: "Opening a game is smoother now — no more quick white flash before it loads. Every game announces its dark background instantly, so you drop straight from the hub into the game with no flicker."
+    text: "Getting into the games is smoother now — no more quick white flash when the page loads. Pages announce their background instantly, so you move from the hub into Fairy Fox Games with no flicker."
   },
   {
     date: "2026-07-06", game: "Sluice", slug: "sluice", kind: "new",
