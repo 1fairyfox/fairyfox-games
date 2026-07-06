@@ -16,6 +16,10 @@
  */
 export const CHANGELOG = [
   {
+    date: "2026-07-06", game: "Sluice", slug: "sluice", kind: "new",
+    text: "A brand-new game: sort the falling sparks. Each coloured spark drops down the middle — send it into the channel that matches its colour before it lands. The twist: the channels keep rearranging, so you have to read the row, not memorise a key. Route early for a rising combo, wait to be safe when it scrambles, and don't let three slip past. It speeds up and adds channels through the stages, and every run is built from shifting patterns — Shuffle, Cascade, Rush, The Churn."
+  },
+  {
     date: "2026-07-06", game: "Ink Bloom", slug: "ink-bloom", kind: "grow",
     text: "No two blooms grow the same anymore: motes now arrive in shifting patterns — a sweeping Vine you chase across the field, a wide Ring you loop, a tight Thicket to thread your growing trail through, and a rare prism Spectrum greed-rush. The meaner patterns unlock as you climb the stages, so runs keep opening up the deeper you go."
   },

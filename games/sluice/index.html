@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sluice</title>
+<style>
+  :root { --bg:#08080f; --ink:#e8e8f0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink); -webkit-user-select:none; user-select:none; touch-action:none;
+  }
+  #wrap { position:relative; width:100vw; height:100vh; }
+  canvas { display:block; width:100%; height:100%; }
+
+  #hud {
+    position:absolute; top:0; left:0; right:0; padding:18px 22px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none; font-variant-numeric:tabular-nums;
+  }
+  .stat { line-height:1; }
+  .stat .label { font-size:11px; letter-spacing:.18em; text-transform:uppercase; opacity:.45; }
+  .stat .val { font-size:30px; font-weight:600; margin-top:6px; }
+  #best { text-align:right; }
+  #best .val { opacity:.7; }
+  /* Lives — a row of pips under the score; a lost life dims. */
+  #lives { display:flex; gap:6px; margin-top:10px; }
+  #lives .pip { width:10px; height:10px; border-radius:50%; background:#ff6a8a; box-shadow:0 0 8px rgba(255,106,138,.6); transition:opacity .2s ease, transform .2s ease; }
+  #lives .pip.gone { opacity:.16; transform:scale(.8); box-shadow:none; }
+
+  .panel {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:radial-gradient(ellipse at center, rgba(8,8,15,.55), rgba(8,8,15,.9));
+    backdrop-filter:blur(2px); transition:opacity .35s ease;
+  }
+  .panel.hide { opacity:0; pointer-events:none; }
+  .title { font-size:clamp(40px,9vw,64px); font-weight:700; letter-spacing:-.02em;
+    background:linear-gradient(90deg,#35e0ff,#7af9d0,#ffd15c,#ff5cc8);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { margin-top:14px; font-size:15px; line-height:1.6; opacity:.65; max-width:380px; }
+  .prompt { margin-top:30px; font-size:14px; letter-spacing:.14em; text-transform:uppercase;
+    opacity:.8; animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:.95} }
+  @media (prefers-reduced-motion: reduce){ .prompt{ animation:none; opacity:.8 } }
+  #gameover .title.record { background:linear-gradient(90deg,#7af9d0,#8ab4ff); }
+  .final { margin-top:18px; font-size:18px; }
+  .final b { font-size:40px; font-weight:700; display:block; margin-top:4px; }
+  .newbest { color:#7af9d0; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin-top:10px; min-height:16px; }
+  .snapline { color:#ffcf6a; font-size:13px; letter-spacing:.12em; text-transform:uppercase; margin-top:6px; min-height:15px; }
+  .tip { margin-top:18px; font-size:12.5px; line-height:1.5; opacity:.5; max-width:340px; }
+  .tip b { opacity:.85; font-weight:600; }
+
+  /* Milestone banner — a brief flash when a sort-count threshold is hit. */
+  #milestone {
+    position:absolute; left:0; right:0; top:34%; text-align:center;
+    pointer-events:none; opacity:0;
+    font-size:clamp(26px,6vw,44px); font-weight:700; letter-spacing:-.01em;
+    background:linear-gradient(90deg,#35e0ff,#7af9d0,#ff5cc8);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 24px rgba(122,249,208,.25);
+  }
+
+  /* Formation cue — a quiet, in-world name for the notable pattern you're entering
+     (Shuffle, Cascade, Rush, The Churn). The run is a *sequence* of these, so naming the
+     demanding ones as they arrive makes the varied structure legible without clutter. */
+  #formation {
+    position:absolute; left:0; right:0; top:54%; text-align:center;
+    pointer-events:none; opacity:0;
+    font-size:13px; font-weight:700; letter-spacing:.3em; text-transform:uppercase;
+    color:#7af9d0; text-shadow:0 0 18px rgba(122,249,208,.45);
+  }
+
+  /* Stage chip — a quiet HUD readout of the run's current stage + progress. */
+  #stageChip {
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    pointer-events:none; transition:opacity .3s ease; color:#6ad;
+  }
+  #stageChip.hide { opacity:0; }
+  #stageName { font-size:11px; letter-spacing:.2em; text-transform:uppercase; opacity:.9; }
+  #stageBar { width:120px; height:3px; border-radius:3px; background:rgba(255,255,255,.1); overflow:hidden; }
+  #stageFill { height:100%; width:0%; background:currentColor; border-radius:3px; transition:width .25s ease; }
+  #stageChip.pop #stageName { animation:chipPop .5s ease; }
+  @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
+  @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
+
+  /* Multiplier — the star of the loop. Big + hot when the combo climbs; dim at ×1. */
+  #mult {
+    position:absolute; top:64px; left:50%; transform:translateX(-50%) scale(1);
+    pointer-events:none; opacity:.22; font-weight:800; font-size:clamp(30px,8vw,52px);
+    letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:#8ab4ff;
+    text-shadow:0 0 22px currentColor; transition:opacity .12s ease;
+  }
+  #mult.hide { opacity:0 !important; }
+
+  /* Game-over run report. */
+  .stageReached { margin-top:8px; font-size:13px; letter-spacing:.1em; text-transform:uppercase; opacity:.6; min-height:15px; }
+  .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
+  .badge { display:flex; flex-direction:column; gap:1px; padding:6px 14px; border-radius:10px;
+    background:rgba(122,249,208,.08); border:1px solid rgba(122,249,208,.22); max-width:280px; }
+  .badge b { font-size:13px; color:#7af9d0; letter-spacing:.04em; }
+  .badge span { font-size:11.5px; opacity:.6; }
+  .metaLine { margin-top:16px; font-size:12px; letter-spacing:.06em; opacity:.45; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div class="stat">
+      <div class="label">Score</div><div class="val" id="score">0</div>
+      <div id="lives" aria-label="lives"></div>
+    </div>
+    <div class="stat" id="best"><div class="label">Best</div><div class="val" id="bestVal">0</div></div>
+  </div>
+
+  <div id="stageChip" class="hide">
+    <div id="stageName">Trickle</div>
+    <div id="stageBar"><div id="stageFill"></div></div>
+  </div>
+
+  <div id="mult" class="hide">×1</div>
+
+  <div id="milestone"></div>
+  <div id="formation"></div>
+
+  <div class="panel" id="start">
+    <div class="title">Sluice</div>
+    <div class="sub">Coloured sparks fall one at a time. Send each into the channel that matches
+      its colour — press <b>1&ndash;4</b> or tap the channel — before it lands.</div>
+    <div class="tip"><b>The catch:</b> the channels keep <b>rearranging</b>, so the matching one
+      is somewhere new — read the row, don't memorise a key. Route a spark <em>early</em> (a
+      <b>snap</b>) and your <b>multiplier</b> climbs (×2, ×3 … ×9); wait to be safe and it scores
+      but won't grow. Wrong channel or a spark that lands is a miss — three misses end the run. It
+      speeds up and widens through the <b>stages</b> (Trickle → Stream → Rapids → Cataract →
+      Maelstrom), and each run is built from shifting <b>patterns</b> — Shuffle, Cascade, Rush,
+      The Churn — so no two play the same. Feats earn <b>badges</b> that stick.</div>
+    <div class="prompt">Click / Space to begin</div>
+  </div>
+
+  <div class="panel hide" id="gameover">
+    <div class="title" id="overTitle">Washed out</div>
+    <div class="final">Score<b id="finalScore">0</b></div>
+    <div class="stageReached" id="stageReached"></div>
+    <div class="newbest" id="newbest"></div>
+    <div class="snapline" id="snapline"></div>
+    <div class="badges" id="badges"></div>
+    <div class="metaLine" id="metaLine"></div>
+    <div class="prompt">Click or press Space to try again</div>
+  </div>
+</div>
+
+<!-- The game logic core + render shell are external modules; this is the
+     conventional, robust way to load them. -->
+<script type="module" src="./sluice.shell.js"></script>
+
+<!-- Boot-failure fallback (classic script, always runs). -->
+<script>
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__sluiceBooted) return;
+      var s = document.getElementById('start');
+      if (!s) return;
+      s.classList.remove('hide');
+      s.innerHTML =
+        '<div class="title" style="color:#ff9a9a">Couldn’t load</div>' +
+        '<div class="sub">Sluice couldn’t load. Check your connection and reload the page.</div>';
+    }, 3500);
+  });
+</script>
+</body>
+</html>

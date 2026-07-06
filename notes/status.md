@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.17.1` (single source of truth: repo-root `VERSION`).
+**Version:** `0.18.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -24,7 +24,7 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (10):**
+**Games so far (11):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. **On Varied Structure + Growth**: each run is a seeded **sequence of mote
@@ -111,13 +111,37 @@ sole host), plus each game at `…/games/<game>/`.
   combo + 9 badges, run-report + near-miss) — legacy `arc.best` preserved. Pure core (the
   45° range formula `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 26
   tests.
-- **Loft** grew this run: a **near-miss** line (`nearMissLine`) now nudges "N points short of
-  your best — so close!" on non-record runs (Growth Wave 2). Loft 31 → 32 tests.
+- **Sluice** (`games/sluice/`) — a **colour-sorting** game (a genuinely new verb:
+  *sort/route*): coloured sparks fall one at a time and you route each into the **channel**
+  that matches its colour (press **1–4** or tap) before it lands. The twist that makes it a
+  *read* not muscle memory: the channels **rearrange**, so the matching slot keeps moving.
+  **On Varied Structure + the Growth Architecture from birth**: a run is a seeded **sequence
+  of named formations** (Steady · Run · Alternate · Shuffle · Cascade · Rush · The Churn)
+  pulled from a stage-weighted pool that **unlocks as you climb** (`FORMATIONS`/
+  `pickFormation`/`loadFormation`), a **snap combo** as the core-fun hook (route early → the
+  ×2…×9 multiplier grows; slow-safe scores but doesn't), a **stage arc** (Trickle → Stream →
+  Rapids → Cataract → Maelstrom) that both speeds the fall **and widens the channels**
+  (3 → 4 by stage, `binsAt`) with HUD chip + tint, three lives, and **meta-progression**
+  (`sluice.meta`: lifetime sorts/snaps + best stage/mult + 10 badges, run-report) — legacy
+  `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
+  the pattern from day one.)**
 
-**Tests:** 326/326 green across the collection.
+**Tests:** 361/361 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.18.0 (2026-07-06) — PLANT: new game Sluice (a new verb: colour sort/route).** Coloured
+  sparks fall; route each into the matching-colour channel before it lands (1–4 / tap) — and the
+  channels rearrange, so the correct slot keeps moving (a live read, not muscle memory).
+  Core-fun = a **snap combo** (route early → the ×2…×9 multiplier grows; slow-safe scores without
+  growing it — a fast-read-vs-sure-read gamble per spark); 3 lives. Ships on **varied structure +
+  the full Growth Architecture from birth**: 7 stage-weighted `FORMATIONS` (Steady/Run/Alternate
+  calm; Shuffle/Cascade/Rush/The Churn notable, minStage-gated), stages Trickle→…→Maelstrom that
+  speed the fall **and widen the channels** (3→4, `binsAt`), meta (`sluice.meta`, 10 badges). Pure
+  core + **35 tests**; collection **361/361** green. Wired into README + landing card (masthead
+  **Games 11**) + a `kind:"new"` changelog entry. Released `dev → main` by default on green (MINOR
+  via `release/0.18.0`). **4 of 11 games on varied structure (Polarity, Echo Chamber, Ink Bloom,
+  Sluice).**
 - **v0.17.1 (2026-07-06) — Ink Bloom onto varied structure (the 3rd game on the pattern).**
   Ink Bloom's single-mote spawn is now a seeded **sequence of named spawn patterns** — Scatter,
   Drift, Vine, Ring, Thicket, and a rare prism **Spectrum** crescendo — pulled from a
@@ -201,7 +225,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 326/326 across 10 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 361/361 across 11 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |
