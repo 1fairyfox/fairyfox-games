@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, rim, maxTarget, createGame, reset, start, pickTarget, offset, tick, echo, milestoneAt,
   speedOf, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  pickCadence, loadCadence,
 } from './echo-chamber.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -188,7 +189,7 @@ test('missing on the last life ends the game; dead ignores further input', () =>
   const res = echo(g);
   assert.equal(res.dead, true);
   assert.equal(g.phase, 'dead');
-  assert.deepEqual(echo(g), { hit: false, dead: false });
+  assert.deepEqual(echo(g), { hit: false, dead: false, cadence: null });
   assert.deepEqual(tick(g), { overrun: false, dead: false });
 });
 
@@ -381,4 +382,104 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── 13. Cadences (varied structure + progression) ─────────────────────────────────
+test('CADENCES is a well-formed pool: id/name/build/weight, non-decreasing minStage', () => {
+  assert.ok(CONFIG.CADENCES.length >= 4);
+  const ids = new Set();
+  let prevMin = 0;
+  for (const c of CONFIG.CADENCES) {
+    assert.equal(typeof c.id, 'string'); assert.ok(c.id.length > 0);
+    assert.equal(ids.has(c.id), false, 'ids unique'); ids.add(c.id);
+    assert.equal(typeof c.name, 'string'); assert.ok(c.name.length > 0);
+    assert.equal(typeof c.build, 'function');
+    assert.equal(typeof c.weight, 'function');
+    assert.equal(typeof c.notable, 'boolean');
+    assert.ok(c.minStage >= prevMin, 'minStage listed non-decreasing'); prevMin = c.minStage;
+  }
+  assert.ok(CONFIG.CADENCES.some(c => c.minStage === 0), 'something available from stage 0');
+});
+
+test('every cadence builds target fractions inside [0,1]', () => {
+  const rng = seeded(5);
+  for (const c of CONFIG.CADENCES) {
+    for (let rep = 0; rep < 30; rep++) {
+      const fr = c.build({ rng, stage: 3, cfg: CONFIG });
+      assert.ok(Array.isArray(fr) && fr.length >= 1, `${c.id} yields targets`);
+      for (const f of fr) assert.ok(f >= -1e-9 && f <= 1 + 1e-9, `${c.id} fraction ${f} in [0,1]`);
+    }
+  }
+});
+
+test('pickCadence only returns stage-eligible cadences and is deterministic under a seed', () => {
+  for (let stage = 0; stage < CONFIG.STAGES.length; stage++) {
+    const a = seeded(300 + stage), b = seeded(300 + stage);
+    let prev = null;
+    for (let i = 0; i < 60; i++) {
+      const ca = pickCadence(CONFIG, stage, a, prev);
+      const cb = pickCadence(CONFIG, stage, b, prev);
+      assert.equal(ca.id, cb.id, 'same seed → same pick');
+      assert.ok(stage >= ca.minStage, `picked ${ca.id} needs stage ${ca.minStage} ≤ ${stage}`);
+      prev = ca.id;
+    }
+  }
+});
+
+test('targets stay in bounds across a full cadence-driven run', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < 200; i++) {
+    assert.ok(g.targetR >= CONFIG.TARGET_MIN_R - 1e-9 && g.targetR <= maxTarget(g) + 1e-9,
+      `target ${g.targetR} in band`);
+    g.ringR = g.targetR; echo(g);   // dead-on catch → re-arms from the cadence
+  }
+});
+
+// Sequence of distinct cadence ids encountered across a forced-catch run.
+function cadenceSequence(seed, steps) {
+  const g = createGame(W, H, { rng: seeded(seed) });
+  start(g);
+  const seq = []; let last = null;
+  for (let i = 0; i < steps; i++) {
+    g.ringR = g.targetR; echo(g);
+    if (g.cadId !== last) { seq.push(g.cadId); last = g.cadId; }
+  }
+  return seq;
+}
+
+test('distinct seeds produce distinct run structures (real variety, not just noise)', () => {
+  assert.notEqual(cadenceSequence(11, 60).join('>'), cadenceSequence(22, 60).join('>'));
+});
+
+test('the same seed reproduces the same run structure (determinism preserved)', () => {
+  assert.equal(cadenceSequence(77, 60).join('>'), cadenceSequence(77, 60).join('>'));
+});
+
+test('climbing stages introduces the harder cadences (progression drives variation)', () => {
+  // Late-stage pool must include cadences that are gated OUT of stage 0.
+  const early = new Set(CONFIG.CADENCES.filter(c => c.minStage <= 0).map(c => c.id));
+  const late = new Set(CONFIG.CADENCES.filter(c => c.minStage <= CONFIG.STAGES.length - 1).map(c => c.id));
+  assert.ok(late.size > early.size, 'the pool widens as you climb');
+  assert.ok([...late].some(id => !early.has(id)), 'new cadences unlock with stage');
+});
+
+test('echo surfaces a notable cadence name as you enter it', () => {
+  const g = newGame(); start(g);
+  let saw = null;
+  for (let i = 0; i < 500 && !saw; i++) {
+    g.ringR = g.targetR;
+    const r = echo(g);
+    if (r.cadence) saw = r.cadence;
+  }
+  assert.ok(saw, 'a notable cadence was announced during the run');
+  assert.ok(CONFIG.CADENCES.some(c => c.name === saw && c.notable));
+});
+
+test('loadCadence records the current cadence identity + fills the queue', () => {
+  const g = newGame(); start(g);
+  g.cadQ = [];
+  loadCadence(g);
+  assert.ok(g.cadQ.length >= 1);
+  assert.equal(typeof g.cadName, 'string');
+  assert.ok(CONFIG.CADENCES.some(c => c.name === g.cadName && c.id === g.cadId));
 });

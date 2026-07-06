@@ -14,6 +14,14 @@
  */
 window.FFG_CHANGELOG = [
   {
+    date: "2026-07-05", game: "The farm", slug: null, kind: "site",
+    text: "Fairy Fox Games is now an AI-managed game farm: new games are planted (a fresh one every few days) and the ones already here keep growing deeper, on their own, over time. Same games you love — a clearer promise."
+  },
+  {
+    date: "2026-07-05", game: "Echo Chamber", slug: "echo-chamber", kind: "grow",
+    text: "Every run is now a shifting sequence of target cadences — Even, Pulse, Near, Far, Climb, Scatter — and climbing the stages unlocks the trickier ones, so the rhythm of the catches keeps building and no two runs feel the same."
+  },
+  {
     date: "2026-07-05", game: "Polarity", slug: "polarity", kind: "grow",
     text: "Every run is now built from a shifting sequence of named formations — a rhythmic Staircase, a restful Hold, a relentless Zipper, tight Bursts, and The Wall — pulled from a seeded pool, so no two runs share the same shape. The tougher ones announce themselves as you enter them."
   },

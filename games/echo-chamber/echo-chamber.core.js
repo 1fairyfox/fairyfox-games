@@ -51,7 +51,114 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 60,  name: 'Harmonic',  tint: '#a98cff' }),
     Object.freeze({ at: 120, name: 'Overtone',  tint: '#ff8f6a' }),
   ]),
+  // Cadences — the run's varied STRUCTURE + PROGRESSION (see notes/reference/varied-structure.md).
+  // A run is no longer a string of independent random target radii; it's a seeded *sequence*
+  // of named cadences, each a short pattern of where the target band sits (as a fraction of
+  // the placeable range) — so the rhythm and risk of the catches differ every run. `minStage`
+  // gates a cadence in, so climbing the stages INTRODUCES the harder cadences (progression
+  // drives the variation): early runs are Even/Pulse/Near; deep runs bring Far (catch out by
+  // the rim, on the edge of an overrun), Climb (a rising ladder), and Scatter (big near↔far
+  // jumps). `weight(stageIndex)` biases the pick; `notable` cadences get a quiet name cue.
+  // `build(ctx)` is PURE given ctx.rng → an array of target fractions in [0,1].
+  CADENCES: Object.freeze([
+    Object.freeze({ id: 'even',    name: 'Even',    minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: cadEven }),
+    Object.freeze({ id: 'pulse',   name: 'Pulse',   minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 2 - 0.5 * s), build: cadPulse }),
+    Object.freeze({ id: 'near',    name: 'Near',    minStage: 0, notable: false,
+      weight: () => 1.5, build: cadNear }),
+    Object.freeze({ id: 'far',     name: 'Far',     minStage: 1, notable: true,
+      weight: (s) => s, build: cadFar }),
+    Object.freeze({ id: 'climb',   name: 'Climb',   minStage: 1, notable: true,
+      weight: (s) => s, build: cadClimb }),
+    Object.freeze({ id: 'scatter', name: 'Scatter', minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: cadScatter }),
+  ]),
 });
+
+// ── Cadence builders (pure given ctx.rng) — return target fractions in [0,1] ───────
+// ctx = { rng, stage, cfg }. Fractions map to a radius via lo + frac*(hi-lo) in pickTarget,
+// so they're resolution-independent and always land inside the placeable band.
+
+/** Even — comfortable mid-chamber targets, gently varied. The calm baseline. */
+function cadEven(ctx) {
+  const n = 3 + Math.floor(ctx.rng() * 2);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(0.4 + ctx.rng() * 0.2);   // 0.40–0.60
+  return out;
+}
+/** Pulse — the same radius repeated: a steady groove you can settle into. */
+function cadPulse(ctx) {
+  const n = 3 + Math.floor(ctx.rng() * 3);
+  const r = 0.38 + ctx.rng() * 0.24;                             // one radius, ~0.38–0.62
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(r);
+  return out;
+}
+/** Near — a run of tight inner targets: quick, short echoes back to back. */
+function cadNear(ctx) {
+  const n = 3 + Math.floor(ctx.rng() * 2);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(0.1 + ctx.rng() * 0.25);  // 0.10–0.35
+  return out;
+}
+/** Far — targets out by the rim: long echoes you must catch on the edge of an overrun. */
+function cadFar(ctx) {
+  const n = 3 + Math.floor(ctx.rng() * 2);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(0.72 + ctx.rng() * 0.23); // 0.72–0.95
+  return out;
+}
+/** Climb — a rising ladder from inner to outer: the target steps outward each catch. */
+function cadClimb(ctx) {
+  const n = 4 + Math.floor(ctx.rng() * 2);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(0.15 + 0.8 * (i / (n - 1)));  // 0.15 → 0.95
+  return out;
+}
+/** Scatter — big near↔far jumps: the hardest to read, breaks any rhythm. */
+function cadScatter(ctx) {
+  const n = 4 + Math.floor(ctx.rng() * 2);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(i % 2 ? 0.8 + ctx.rng() * 0.15 : 0.12 + ctx.rng() * 0.18);
+  return out;
+}
+
+/**
+ * Choose the next cadence for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of catch-patterns differ while progressing (later stages
+ * weight toward the demanding cadences).
+ * @param {EchoChamberConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the cadence just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickCadence(cfg, stage, rng, prevId) {
+  const pool = cfg.CADENCES.filter(c => stage >= c.minStage);
+  const list = pool.length ? pool : [cfg.CADENCES[0]];
+  const weights = list.map(c => Math.max(0.0001, c.weight(stage)) * (c.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next cadence into `g.cadQ` (target fractions) and record its identity on the game
+ * state. Pure logic over the game's rng. Called by {@link pickTarget} when the queue empties.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadCadence(g) {
+  const stage = stageIndexAt(g.cfg, g.score);
+  const c = pickCadence(g.cfg, stage, g.rng, g.cadId);
+  g.cadQ = c.build({ rng: g.rng, stage, cfg: g.cfg }).slice();
+  g.cadId = c.id;
+  g.cadName = c.name;
+  g.cadNotable = c.notable;
+}
 
 /**
  * Achievement definitions — plain data (Growth Architecture Layer 2). `test` is a pure
@@ -133,6 +240,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     ringR: 0, targetR: 0, tol: cfg.TOL_START,
     score: 0, lives: cfg.LIVES, combo: 0, perfects: 0, bestCombo: 0, catches: 0, t: 0,
+    cadQ: [], cadId: null, cadName: null, cadNotable: false,   // current cadence queue + identity
   };
   reset(g);
   return g;
@@ -154,6 +262,10 @@ export function reset(g) {
   g.bestCombo = 0;
   g.catches = 0;
   g.t = 0;
+  g.cadQ = [];            // clear the cadence queue; the first pickTarget loads a fresh one
+  g.cadId = null;
+  g.cadName = null;
+  g.cadNotable = false;
   pickTarget(g);
   return g;
 }
@@ -178,7 +290,11 @@ export function start(g) {
 export function pickTarget(g) {
   const lo = g.cfg.TARGET_MIN_R;
   const hi = maxTarget(g);
-  g.targetR = hi <= lo ? Math.max(lo, hi) : lo + g.rng() * (hi - lo);
+  if (hi <= lo) { g.targetR = Math.max(lo, hi); return g.targetR; }  // chamber too small: fallback
+  if (!g.cadQ || g.cadQ.length === 0) loadCadence(g);               // refill from the next cadence
+  const frac = g.cadQ.shift();
+  const f = frac < 0 ? 0 : (frac > 1 ? 1 : frac);                   // clamp to the band
+  g.targetR = lo + f * (hi - lo);
   return g.targetR;
 }
 
@@ -238,7 +354,7 @@ export function tick(g) {
  * @returns {{hit:boolean, perfect:boolean, mult:number, dead:boolean}}
  */
 export function echo(g) {
-  if (g.phase !== 'play') return { hit: false, dead: false };
+  if (g.phase !== 'play') return { hit: false, dead: false, cadence: null };
   const err = Math.abs(g.ringR - g.targetR);
   if (err <= g.tol) {
     g.catches++;                          // lifetime-catchable hit count (for meta)
@@ -249,14 +365,16 @@ export function echo(g) {
     if (perfect) g.perfects++;            // lifetime perfect count this run (a stat to chase)
     if (g.combo > g.bestCombo) g.bestCombo = g.combo; // track the longest streak reached
     g.tol = Math.max(g.cfg.TOL_MIN, g.tol - g.cfg.TOL_SHRINK);
+    const prevCad = g.cadId;              // did this catch tip us into a new (notable) cadence?
     g.ringR = 0;
-    pickTarget(g);
-    return { hit: true, perfect, mult, dead: false };
+    pickTarget(g);                        // score already updated, so a new stage can unlock cadences
+    const cadence = (g.cadNotable && g.cadId !== prevCad) ? g.cadName : null;
+    return { hit: true, perfect, mult, dead: false, cadence };
   }
   g.combo = 0;
   g.lives--;
   if (g.lives <= 0) g.phase = 'dead';
-  return { hit: false, perfect: false, mult: 1, dead: g.phase === 'dead' };
+  return { hit: false, perfect: false, mult: 1, dead: g.phase === 'dead', cadence: null };
 }
 
 /**

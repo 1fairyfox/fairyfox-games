@@ -23,9 +23,10 @@
 [![Open PRs](https://img.shields.io/github/issues-pr/junebug12851/fairyfox-games?style=flat-square)](https://github.com/junebug12851/fairyfox-games/pulls)
 [![License](https://img.shields.io/github/license/junebug12851/fairyfox-games?style=flat-square)](LICENSE)
 
-An experiment with an ever-growing, ever-expanding library of small, simple games —
-the kind you can start in a second and lose a few happy minutes to. New ones are added
-all the time, and the collection keeps widening as it goes.
+An **AI-managed game farm** — a library of small, simple games, planted and tended by AI.
+New games are sown regularly and the ones already growing keep getting deeper, so the
+collection widens *and* deepens on its own over time. The kind of games you can start in a
+second and lose a few happy minutes to.
 
 Some are tiny, some are clever; all of them are here to be played and enjoyed.
 
