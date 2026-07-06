@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.18.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.18.1` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -130,6 +130,14 @@ sole host), plus each game at `…/games/<game>/`.
 
 ## In flight / awaiting
 
+- **v0.18.1 (2026-07-06) — Fix: white flash when opening a game.** Cross-document navigation was
+  exposing the browser's default white base for one frame because the 11 game shells carried no
+  early colour signal — their dark background lived only inside the inline `<style>`. Added a
+  literal `background` on `<html>` + a matching dark `<meta name="theme-color">` (each game's own
+  `--bg`) to every shell, so the first painted frame is dark. Pure static HTML, render-identical;
+  collection **361/361** green; Chrome-previewed Arc + Orbit Slingshot. Released `dev → main` by
+  default on green (PATCH). (Hub/landing pages already shipped `theme-color`, which is why they
+  never flashed.)
 - **v0.18.0 (2026-07-06) — PLANT: new game Sluice (a new verb: colour sort/route).** Coloured
   sparks fall; route each into the matching-colour channel before it lands (1–4 / tap) — and the
   channels rearrange, so the correct slot keeps moving (a live read, not muscle memory).

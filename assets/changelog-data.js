@@ -16,6 +16,10 @@
  */
 export const CHANGELOG = [
   {
+    date: "2026-07-06", game: "The collection", slug: null, kind: "site",
+    text: "Opening a game is smoother now — no more quick white flash before it loads. Every game announces its dark background instantly, so you drop straight from the hub into the game with no flicker."
+  },
+  {
     date: "2026-07-06", game: "Sluice", slug: "sluice", kind: "new",
     text: "A brand-new game: sort the falling sparks. Each coloured spark drops down the middle — send it into the channel that matches its colour before it lands. The twist: the channels keep rearranging, so you have to read the row, not memorise a key. Route early for a rising combo, wait to be safe when it scrambles, and don't let three slip past. It speeds up and adds channels through the stages, and every run is built from shifting patterns — Shuffle, Cascade, Rush, The Churn."
   },
