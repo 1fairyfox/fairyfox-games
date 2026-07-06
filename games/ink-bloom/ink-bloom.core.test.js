@@ -21,6 +21,7 @@ import {
   createGame, reset, start, spawnMote,
   steer, stepHead, hitWall, hitSelf, tryEat, tick, headingToward, milestoneAt,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  pickFormation, loadFormation,
 } from './ink-bloom.core.js';
 
 /** Deterministic RNG (mulberry32) so mote placement is reproducible in tests. */
@@ -226,7 +227,7 @@ test('a scripted run eats a planted mote, then dies into a wall', () => {
   assert.equal(died, true, 'eventually dies into the wall');
   assert.equal(g.phase, 'dead');
   // Dead games ignore further ticks.
-  assert.deepEqual(tick(g, { target: 0 }), { died: false, ate: false });
+  assert.deepEqual(tick(g, { target: 0 }), { died: false, ate: false, formation: null });
 });
 
 // ── 9. Prism motes & milestones (growth) ─────────────────────────────────────
@@ -373,4 +374,155 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── 13. Varied structure — formations (the run's skeleton varies) ─────────────────
+const FORM_IDS = new Set(CONFIG.FORMATIONS.map(f => f.id));
+const FORM_NAMES = new Set(CONFIG.FORMATIONS.map(f => f.name));
+
+test('FORMATIONS pool is well-formed (unique ids/names, fns, notable, non-decreasing minStage)', () => {
+  const ids = new Set(), names = new Set();
+  let prevMin = 0, stage0 = 0;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.equal(typeof f.id, 'string'); assert.ok(f.id.length);
+    assert.equal(typeof f.name, 'string'); assert.ok(f.name.length);
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.ok(Number.isInteger(f.minStage) && f.minStage >= 0);
+    assert.ok(!ids.has(f.id), 'unique id'); ids.add(f.id);
+    assert.ok(!names.has(f.name), 'unique name'); names.add(f.name);
+    assert.ok(f.minStage >= prevMin, 'minStage non-decreasing'); prevMin = f.minStage;
+    if (f.minStage === 0) stage0++;
+  }
+  assert.ok(stage0 >= 1, 'at least one formation available from stage 0');
+});
+
+test('every build yields ≥1 mote spec with finite nx/ny and a boolean prism', () => {
+  const rng = seeded(11);
+  for (const f of CONFIG.FORMATIONS) {
+    for (let trial = 0; trial < 30; trial++) {
+      const specs = f.build({ rng, cfg: CONFIG, stage: 3, hx: rng(), hy: rng() });
+      assert.ok(Array.isArray(specs) && specs.length >= 1, `${f.id} yields specs`);
+      for (const s of specs) {
+        assert.ok(Number.isFinite(s.nx) && Number.isFinite(s.ny), `${f.id} finite coords`);
+        assert.equal(typeof s.prism, 'boolean', `${f.id} prism boolean`);
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible formations and is deterministic', () => {
+  // Stage 0: only minStage-0 formations are eligible (no ring/thicket/spectrum).
+  const seen0 = new Set();
+  const rngA = seeded(4), rngB = seeded(4);
+  for (let i = 0; i < 400; i++) {
+    const f = pickFormation(CONFIG, 0, rngA, null);
+    assert.ok(f.minStage <= 0, 'stage-0 pick is eligible');
+    seen0.add(f.id);
+    // determinism: an identical seed + args reproduces the same pick
+    assert.equal(pickFormation(CONFIG, 0, rngB, null).id, f.id);
+  }
+  assert.ok(!seen0.has('spectrum') && !seen0.has('ring') && !seen0.has('thicket'),
+    'gated formations never appear at stage 0');
+  assert.ok(seen0.size >= 2, 'stage 0 still varies among the calm formations');
+});
+
+test('climbing stages opens the pool — the crescendo unlocks late (progression)', () => {
+  const rng = seeded(8);
+  const seenTop = new Set();
+  for (let i = 0; i < 600; i++) seenTop.add(pickFormation(CONFIG, 4, rng, null).id);
+  // The demanding, late formations become available at the top stage.
+  assert.ok(seenTop.has('spectrum'), 'Spectrum crescendo appears late');
+  assert.ok(seenTop.has('ring') || seenTop.has('thicket'), 'stage-gated formations appear late');
+});
+
+test('distinct seeds → distinct run structures; same seed → identical structure', () => {
+  const formSeq = (seed) => {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    const seq = [];
+    for (let i = 0; i < 80; i++) {
+      g.score = Math.min(200, i * 3);   // climb through the stages as we go
+      spawnMote(g);
+      seq.push(g.formId);
+    }
+    return seq.join(',');
+  };
+  assert.notEqual(formSeq(1), formSeq(2), 'different seeds build different-shaped runs');
+  assert.equal(formSeq(5), formSeq(5), 'a seed reproduces its exact structure');
+});
+
+test('the mote queue never empties across a long run; every mote stays in bounds', () => {
+  const g = createGame(W, H, { rng: seeded(6) });
+  start(g);
+  const pad = CONFIG.MOTE_PAD;
+  for (let i = 0; i < 3000; i++) {
+    g.score = i % 220;                  // sweep every stage repeatedly
+    spawnMote(g);
+    assert.ok(g.mote, 'a mote is always produced');
+    assert.ok(g.mote.x >= pad && g.mote.x <= W - pad, 'mote x in bounds');
+    assert.ok(g.mote.y >= pad && g.mote.y <= H - pad, 'mote y in bounds');
+    assert.ok(g.mote.kind === 'normal' || g.mote.kind === 'prism');
+  }
+});
+
+test('REGRESSION: a seeded fresh run survives frame one with a formation loaded', () => {
+  const g = createGame(W, H, { rng: seeded(13) });
+  start(g);
+  assert.ok(FORM_IDS.has(g.formId), 'a formation is loaded from the first spawn');
+  const r = tick(g, { target: null });
+  assert.equal(r.died, false, 'survives frame one');
+  assert.equal(g.phase, 'play');
+});
+
+test('spawnMote marks the head mote of a notable formation and names it', () => {
+  const g = createGame(W, H, { rng: seeded(2) });
+  g.score = 200;                        // top stage: notable formations are eligible
+  let sawNotableHead = false;
+  for (let i = 0; i < 400; i++) {
+    g.moteQueue = [];                   // force a fresh formation load on every spawn
+    spawnMote(g);
+    assert.ok(FORM_NAMES.has(g.mote.form), 'mote carries its formation name');
+    if (g.formNotable) {
+      assert.equal(g.mote.formHead, true, 'notable formation head is flagged');
+      sawNotableHead = true;
+    } else {
+      assert.equal(g.mote.formHead, false, 'calm formations never cue');
+    }
+  }
+  assert.ok(sawNotableHead, 'saw at least one notable formation head');
+});
+
+test('tick surfaces the name of a freshly-entered notable formation, only notable ones', () => {
+  let hitNotable = false;
+  for (const seed of [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]) {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    g.score = 200;                      // top stage: notables in the pool
+    g.head = { x: W / 2, y: H / 2 };     // safe interior
+    g.mote = { x: W / 2, y: H / 2, born: 0, kind: 'normal' }; // on the head → eaten this tick
+    g.moteQueue = [];                   // the eat loads a fresh formation for the next mote
+    const r = tick(g, { target: null });
+    assert.equal(r.ate, true, 'ate the planted mote');
+    assert.equal(r.died, false);
+    if (g.formNotable) {
+      assert.equal(r.formation, g.mote.form, 'notable formation announced');
+      hitNotable = true;
+    } else {
+      assert.equal(r.formation, null, 'calm formations pass silently');
+    }
+  }
+  assert.ok(hitNotable, 'exercised the notable-cue path');
+});
+
+test('loadFormation records identity and fills a non-empty queue', () => {
+  const g = createGame(W, H, { rng: seeded(3) });
+  g.moteQueue = []; g.formId = null;
+  loadFormation(g);
+  assert.ok(FORM_IDS.has(g.formId), 'formId set to a real formation');
+  assert.ok(FORM_NAMES.has(g.formName), 'formName set');
+  assert.equal(typeof g.formNotable, 'boolean');
+  assert.ok(g.moteQueue.length >= 1, 'queue filled');
+  assert.equal(g.moteQueue[0].head, true, 'first spec is the formation head');
 });

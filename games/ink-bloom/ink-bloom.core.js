@@ -60,6 +60,32 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 120, name: 'Bloom',        tint: '#c48cff' }),
     Object.freeze({ at: 180, name: 'Cosmic bloom', tint: '#ff8fd0' }),
   ]),
+  // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
+  // Instead of every mote landing from one flat random rule, a run is a different *sequence*
+  // of these named spawn patterns, so no two runs share the same skeleton. Each is a short
+  // burst of motes with its own shape — a roomy Scatter, a wandering Drift, a sweeping Vine
+  // that leads you across the field, a wide Ring you loop, a tight Thicket you thread your
+  // growing trail through, a rare prism Spectrum (a greed rush). `minStage` gates when a
+  // formation first appears; `weight(stageIndex)` biases selection (later stages lean on the
+  // demanding ones — the difficulty ramp lives here now); `notable` formations earn a quiet
+  // name-cue as they arrive (the calm ones pass silently). `build(ctx)` is PURE given
+  // `ctx.rng` and returns the formation's motes as {nx, ny, prism} specs (nx/ny normalised
+  // 0..1 within the padded field; spawnMote clamps as belt-and-braces). New formations can be
+  // added here over time for players to discover; ids are stable. Polarity is the reference.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'scatter',  name: 'Scatter',  minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildScatter }),
+    Object.freeze({ id: 'drift',    name: 'Drift',    minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildDrift }),
+    Object.freeze({ id: 'vine',     name: 'Vine',     minStage: 0, notable: true,
+      weight: () => 2, build: buildVine }),
+    Object.freeze({ id: 'ring',     name: 'Ring',     minStage: 1, notable: true,
+      weight: (s) => s, build: buildRing }),
+    Object.freeze({ id: 'thicket',  name: 'Thicket',  minStage: 1, notable: true,
+      weight: (s) => s, build: buildThicket }),
+    Object.freeze({ id: 'spectrum', name: 'Spectrum', minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildSpectrum }),
+  ]),
 });
 
 /**
@@ -172,6 +198,7 @@ export function createGame(width, height, opts = {}) {
     trail: [], maxLen: cfg.START_LEN,
     score: 0, hue: cfg.HUE_START, t: 0,
     motesEaten: 0, prisms: 0,
+    moteQueue: [], formId: null, formName: null, formNotable: false, // current formation
     mote: { x: 0, y: 0, born: 0 },
   };
   reset(g);
@@ -202,6 +229,10 @@ export function reset(g) {
   g.t = 0;
   g.motesEaten = 0;
   g.prisms = 0;
+  g.moteQueue = [];       // no formation loaded yet; the first spawnMote pulls one
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
   spawnMote(g);
   return g;
 }
@@ -218,23 +249,166 @@ export function start(g) {
 }
 
 /**
- * Place a fresh mote, padded from the walls and (best-effort) away from the head.
+ * Place the next mote, pulling one spec from the current formation's queue (loading a
+ * fresh formation when the queue is spent). Each mote carries its formation's name and a
+ * `formHead` flag on the first mote of a *notable* formation, so the shell can announce
+ * the sweeping/tight structures as they arrive. Position is the spec's normalised (nx, ny)
+ * mapped into the padded field and clamped to legal bounds. Pure given the game's rng, so a
+ * seeded run reproduces the same sequence of formations and placements.
  * @param {GameState} g
- * @returns {Point} the new mote position
+ * @returns {Point} the new mote (also stored on g.mote)
  */
 export function spawnMote(g) {
   const { cfg } = g;
+  if (!g.moteQueue || g.moteQueue.length === 0) loadFormation(g);
+  const spec = g.moteQueue.shift();
   const pad = cfg.MOTE_PAD;
-  let x, y, tries = 0;
-  do {
-    x = pad + g.rng() * (g.w - 2 * pad);
-    y = pad + g.rng() * (g.h - 2 * pad);
-    tries++;
-  } while (tries < cfg.MOTE_TRIES &&
-           Math.hypot(x - g.head.x, y - g.head.y) < cfg.MOTE_MIN_DIST);
-  const kind = g.rng() < cfg.PRISM_CHANCE ? 'prism' : 'normal';
-  g.mote = { x, y, born: g.t, kind };
+  const uw = Math.max(1, g.w - 2 * pad), uh = Math.max(1, g.h - 2 * pad);
+  const x = pad + clamp01(spec.nx) * uw;
+  const y = pad + clamp01(spec.ny) * uh;
+  g.mote = {
+    x, y, born: g.t,
+    kind: spec.prism ? 'prism' : 'normal',
+    form: g.formName,
+    formHead: spec.head === true && g.formNotable === true, // cue only the notable ones
+  };
   return g.mote;
+}
+
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng`; it returns an array of mote specs {nx, ny, prism}
+// with nx/ny normalised 0..1 in the padded field (spawnMote clamps as belt-and-braces).
+// `ctx` = { rng, cfg, stage, hx, hy } — hx/hy are the head's normalised position, so a
+// "roomy" formation can place motes away from the head. Names/behaviours are Ink Bloom's
+// botanical flavour; the *shape* — a pool of stage-weighted, seeded patterns — is the
+// reusable varied-structure standard (Polarity is the reference build).
+
+/** Clamp a value into [0,1]. */
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+/** A coordinate on the roomier side of `h` (0..1) — keeps calm motes away from the head. */
+function farFrom(h, rng) {
+  return h < 0.5 ? 0.5 + rng() * 0.48 : rng() * 0.48;
+}
+
+/** Scatter — the calm baseline: a few motes placed well away from the head. Roomy. */
+function buildScatter(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 2);                 // 3..4 motes
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: farFrom(ctx.hx, rng), ny: farFrom(ctx.hy, rng),
+      prism: rng() < cfg.PRISM_CHANCE });
+  }
+  return out;
+}
+
+/** Drift — a loose wander: motes anywhere on the field, no particular shape. Roomy. */
+function buildDrift(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 3);                 // 3..5 motes
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: rng(), ny: rng(), prism: rng() < cfg.PRISM_CHANCE });
+  }
+  return out;
+}
+
+/** Vine — motes step along a line, so you sweep clear across the field following a runner. */
+function buildVine(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 2);                 // 4..5 motes
+  const sx = 0.12 + rng() * 0.76, sy = 0.12 + rng() * 0.76;
+  const ang = rng() * Math.PI * 2, step = 0.2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: sx + Math.cos(ang) * step * i, ny: sy + Math.sin(ang) * step * i,
+      prism: rng() < cfg.PRISM_CHANCE });
+  }
+  return out;
+}
+
+/** Ring — motes arranged around a wide loop, pulling you into big circling arcs. */
+function buildRing(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 5 + Math.floor(rng() * 2);                 // 5..6 motes
+  const r = 0.34 + rng() * 0.06, a0 = rng() * Math.PI * 2, step = (Math.PI * 2) / n;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: 0.5 + Math.cos(a0 + step * i) * r, ny: 0.5 + Math.sin(a0 + step * i) * r,
+      prism: rng() < cfg.PRISM_CHANCE });
+  }
+  return out;
+}
+
+/** Thicket — a tight cluster: several motes packed into one small zone, so you must thread
+ *  your growing trail through a cramped space. The demanding one. */
+function buildThicket(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 3);                 // 4..6 motes
+  const ax = 0.22 + rng() * 0.56, ay = 0.22 + rng() * 0.56;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: ax + (rng() - 0.5) * 0.18, ny: ay + (rng() - 0.5) * 0.18,
+      prism: rng() < cfg.PRISM_CHANCE });
+  }
+  return out;
+}
+
+/** Spectrum — a rare prism rush (the late-run crescendo): a short burst of mostly-prism
+ *  motes. Big points, but each grows the trail 3× — a run of greed calls back to back. */
+function buildSpectrum(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 2);                 // 3..4 motes
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ nx: rng(), ny: rng(), prism: rng() < 0.72 });
+  }
+  return out;
+}
+
+/**
+ * Choose the next formation for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of structures differ while still escalating (later stages
+ * weight toward the demanding formations).
+ * @param {InkBloomConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the formation just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next formation into `g.moteQueue` (resolved {nx, ny, prism} specs, the first
+ * marked as the formation head), and record its identity on `g.formId`/`g.formName`. Pure
+ * logic over the game's rng. Called by {@link spawnMote} when the current formation is spent.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const pad = cfg.MOTE_PAD;
+  const uw = Math.max(1, g.w - 2 * pad), uh = Math.max(1, g.h - 2 * pad);
+  const hx = clamp01((g.head.x - pad) / uw), hy = clamp01((g.head.y - pad) / uh);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const specs = f.build({ rng: g.rng, cfg, stage, hx, hy });
+  if (specs.length) specs[0].head = true;              // the leading mote carries the name cue
+  g.moteQueue = specs;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
 }
 
 /**
@@ -338,27 +512,36 @@ export function milestoneAt(score) {
 
 /**
  * Result of a single {@link tick}.
- * @typedef {{died:boolean, ate:boolean}} TickResult
+ * @typedef {Object} TickResult
+ * @property {boolean} died  the run ended this tick
+ * @property {boolean} ate   a mote was eaten this tick
+ * @property {?string} formation  name of a notable formation whose head mote just became
+ *   the active target (for the HUD cue) — i.e. a new sweeping/tight structure just began —
+ *   else null
  */
 
 /**
  * Advance the simulation one fixed tick.
  * Order: steer → move → wall check → self check → eat. A death short-circuits
- * before eating. No-op (returns died:false, ate:false) unless phase is 'play'.
+ * before eating. No-op (died:false, ate:false, formation:null) unless phase is 'play'.
  * @param {GameState} g
  * @param {{target:(number|null)}} [input] target heading this tick, or null to hold course
  * @returns {TickResult}
  */
 export function tick(g, input = { target: null }) {
-  if (g.phase !== 'play') return { died: false, ate: false };
+  if (g.phase !== 'play') return { died: false, ate: false, formation: null };
   g.t++;
   if (input && input.target != null) steer(g, input.target);
   stepHead(g);
   if (hitWall(g) || hitSelf(g)) {
     g.phase = 'dead';
-    return { died: true, ate: false };
+    return { died: true, ate: false, formation: null };
   }
-  return { died: false, ate: tryEat(g) };
+  const ate = tryEat(g);
+  // tryEat respawns on a successful eat, so g.mote is now the *next* target; if that new
+  // target is the head of a notable formation, a fresh structure has just begun — cue it.
+  const formation = ate && g.mote.formHead ? g.mote.form : null;
+  return { died: false, ate, formation };
 }
 
 /**

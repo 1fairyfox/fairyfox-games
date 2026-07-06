@@ -16,6 +16,10 @@
  */
 export const CHANGELOG = [
   {
+    date: "2026-07-06", game: "Ink Bloom", slug: "ink-bloom", kind: "grow",
+    text: "No two blooms grow the same anymore: motes now arrive in shifting patterns — a sweeping Vine you chase across the field, a wide Ring you loop, a tight Thicket to thread your growing trail through, and a rare prism Spectrum greed-rush. The meaner patterns unlock as you climb the stages, so runs keep opening up the deeper you go."
+  },
+  {
     date: "2026-07-06", game: "The site", slug: null, kind: "site",
     text: "New reading menu: tap the “Aa” button in the header to switch theme (light, sepia, or dark), pick an accent colour, and set the text size — the site remembers your choice, and it carries across the whole of fairyfox.io. The pages now match the main site's look, seamlessly."
   },
