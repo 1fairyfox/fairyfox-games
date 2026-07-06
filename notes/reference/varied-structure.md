@@ -26,6 +26,31 @@ Wall"), and a **surface to expand**: adding one new formation visibly changes ev
 run. That is the difference between "same game with different dice" and "a run that's
 built differently each time."
 
+## Progression, not just noise (load-bearing)
+
+Variation on its own feels *random* and directionless — a run that merely shuffles patterns
+has no build, no "I'm getting somewhere". **Progression is the spine; variation is what
+progression unlocks.** Three rules make every game *advance*, not just differ:
+
+1. **Stages are the progression spine; formations gate on them.** Each formation has a
+   `minStage`, so **climbing stages introduces new/harder formations into the live pool.**
+   Early run = a small, calm pool (Drift/Hold); deep run = the full, meaner pool (Zipper,
+   The Wall). Advancing therefore visibly *opens the run up* — the player feels the game
+   escalating and widening at once. This is the core mechanism; do it in every game.
+2. **A late-run crescendo.** Weight selection so the deep pool dominates late and the calm
+   patterns fade — the run should intensify toward the top, not plateau into a coin-flip.
+   Combine with the existing per-stage speed/density ramp so late stages read as a peak.
+3. **Cross-run unlocks that expand the pool (optional but encouraged).** Gate one or two
+   formations/variants behind a **lifetime milestone** (e.g. `meta.totals.X ≥ N`). They
+   appear in *future* runs once earned — so investing over weeks literally makes runs
+   richer, and a returning player sees genuinely new structure show up. This is the meta
+   layer *driving* variation instead of sitting inertly beside it. Keep it skill-safe
+   (new patterns to read, never a power boost) and legible (announce the unlock).
+
+Net effect: **within a run**, progressing = unlocking variety + intensity; **across runs**,
+progressing = permanently widening the pool. Every game must have (1). (2) and (3) are how
+it stops feeling like flat randomness.
+
 ## The shape (copy this per game, in its own core — no shared module)
 
 Each game names the unit to fit its world (Polarity: *formations*; a stacker: *layout

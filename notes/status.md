@@ -2,16 +2,24 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.15.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.16.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
-Fairy Fox Games is a **monorepo of small canvas games** — one mechanic, beat your own
+Fairy Fox Games is an **AI-managed game farm** (the public identity, incl. on the site as
+of v0.16.0): new games are **planted** and the existing ones **grow** deeper over time.
+Under the hood it's a **monorepo of small canvas games** — one mechanic, beat your own
 score. Each game is a self-contained folder under `games/`, built the same disciplined
 way: a **pure logic core** (`*.core.js`, no DOM) + a **test suite** (`node --test`) +
-a thin **rendering shell** loaded as an external module. It's a public,
-contribution-friendly node in the fairyfox.io mesh — and a **first-class collection
-that grows a little deeper every day** (standing rules in `CLAUDE.md`).
+a thin **rendering shell** loaded as an external module. Public, contribution-friendly node
+in the fairyfox.io mesh — a **first-class collection that grows a little deeper every day**
+(standing rules in `CLAUDE.md`).
+
+**The farm runs on two scheduled jobs:** 🌱 **PLANT** (`fairyfox-games-new`, ~every 3 days)
+sows a genuinely new, mechanically-distinct game; 🌿 **GROW** (`fairyfox-games-daily`, daily)
+deepens one existing game with a **player-visible** change (leading with varied structure +
+progression) and logs a player-facing changelog entry. Public copy = "AI-managed game farm"
+(AI IS named publicly now; still no build-recipe/formula framing).
 
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
@@ -25,11 +33,14 @@ sole host), plus each game at `…/games/<game>/`.
   **meta-progression** (`inkbloom.meta`: lifetime motes/prisms + 8 badges, run-report) —
   legacy best preserved. Pure core + 34 tests.
 - **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band. **On
-  the Growth Architecture**: the echo now **speeds up with score** (no late plateau),
-  perfect-combo to **×5**, a **stage arc** (Whisper → Resonance → Harmonic → Overtone)
-  with HUD chip + chamber tint, and **meta-progression** (`echochamber.meta`: lifetime
-  catches/perfects/best-combo + 8 badges, run-report) — legacy best preserved. Pure core
-  + 31 tests.
+  Varied Structure + Growth**: each run is a seeded **sequence of target cadences** (Even ·
+  Pulse · Near · Far · Climb · Scatter) that **unlock as you climb the stages** (progression
+  drives the variety; notable cadences name themselves) — `CADENCES`/`pickCadence`/
+  `loadCadence`; the echo **speeds up with score** (no late plateau), perfect-combo to
+  **×5**, a **stage arc** (Whisper → Resonance → Harmonic → Overtone) with HUD chip + chamber
+  tint, and **meta-progression** (`echochamber.meta`: lifetime catches/perfects/best-combo +
+  8 badges, run-report) — legacy best preserved. Pure core + 40 tests. **(2nd game on varied
+  structure.)**
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
   sweep targets; **close-pass skim bonus** is the risk/reward. **On the Growth
   Architecture**: escalation (targets creep nearer the planet + pickup radius shrinks by
@@ -99,10 +110,19 @@ sole host), plus each game at `…/games/<game>/`.
 - **Loft** grew this run: a **near-miss** line (`nearMissLine`) now nudges "N points short of
   your best — so close!" on non-record runs (Growth Wave 2). Loft 31 → 32 tests.
 
-**Tests:** 307/307 green across the collection.
+**Tests:** 316/316 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.16.0 (2026-07-05) — Game Farm identity + Echo Chamber varied structure + PLANT/GROW
+  split.** Public rebrand to an **AI-managed game farm** (new games planted, existing ones
+  grow — AI named publicly, superseding the old no-AI note). **Echo Chamber** is the **2nd
+  game on varied structure + progression** (target *cadences* that unlock by stage). The
+  standard now leads with **progression** (stages introduce the variation). The automation
+  is split into **🌱 PLANT** (`fairyfox-games-new`, ~every 3 days) and **🌿 GROW**
+  (`fairyfox-games-daily`, daily — deepen one existing game onto the pattern). 316/316 green.
+  **Rollout: 2 of 10 games on varied structure (Polarity, Echo Chamber); the GROW farm
+  converts one more per day, lowest-coverage first.**
 - **v0.15.0 (2026-07-05) — Varied Structure + a visible changelog.** Built in an
   interactive session from owner feedback ("played once = played always; updates aren't
   felt"). Polarity is the **varied-structure reference build** (seeded **formations** — the
@@ -150,7 +170,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 307/307 across 10 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 316/316 across 10 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

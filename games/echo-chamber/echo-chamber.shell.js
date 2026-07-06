@@ -36,7 +36,7 @@ const el = id => document.getElementById(id);
 const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const livesEl = el('lives'), newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
-const toastEl = el('toast'), comboEl = el('combo');
+const toastEl = el('toast'), comboEl = el('combo'), cadenceEl = el('cadence');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
 
@@ -57,6 +57,15 @@ function checkMilestone(prev, now) {
     const m = Echo.milestoneAt(s);
     if (m) { showToast(m); break; }
   }
+}
+let cadenceTimer = 0;
+/** Quietly announce a notable target-cadence as you enter it (Far / Climb / Scatter). */
+function showCadence(name) {
+  if (!cadenceEl || !name) return;
+  cadenceEl.textContent = name;
+  cadenceEl.classList.add('show');
+  clearTimeout(cadenceTimer);
+  cadenceTimer = setTimeout(() => cadenceEl.classList.remove('show'), 1200);
 }
 function renderCombo() {
   if (!comboEl) return;
@@ -124,6 +133,7 @@ function beginRun() {
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
+  if (cadenceEl) cadenceEl.classList.remove('show');
   scoreEl.textContent = '0';
   renderLives(); renderCombo(); updateStageChip();
 }
@@ -138,6 +148,7 @@ function act() {
     scoreEl.textContent = game.score;
     renderCombo();
     checkMilestone(prev, game.score);
+    if (res.cadence) showCadence(res.cadence);   // a notable cadence just began
     const si = Echo.stageIndexAt(game.cfg, game.score);
     if (si !== stageIdx) enterStage(si);
     updateStageChip();
@@ -180,6 +191,7 @@ function renderLives() {
 function onDeath() {
   shake = 16;
   if (stageChip) stageChip.classList.add('hide');
+  if (cadenceEl) cadenceEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic is pure in the core).

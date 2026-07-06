@@ -58,6 +58,17 @@
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 
+  /* Cadence cue — a quiet, in-world name for the notable target-cadence you're entering
+     (Far, Climb, Scatter). A run is a *sequence* of cadences that unlock as you climb the
+     stages, so naming the demanding ones as they arrive makes the progression + varied
+     structure legible without clutter. Calm cadences pass silently. */
+  .cadence { position:absolute; left:50%; bottom:15%; transform:translateX(-50%);
+    font-size:12px; font-weight:700; letter-spacing:.3em; text-transform:uppercase;
+    color:#b58aff; text-shadow:0 0 16px rgba(181,138,255,.5);
+    opacity:0; pointer-events:none; transition:opacity .35s ease; white-space:nowrap; }
+  .cadence.show { opacity:.9; }
+  @media (prefers-reduced-motion: reduce){ .cadence{ transition:opacity .2s ease } }
+
   /* Stage chip — quiet HUD readout of the run's current stage + progress (Growth L1). */
   #stageChip {
     position:absolute; top:20px; left:50%; transform:translateX(-50%);
@@ -100,7 +111,7 @@
     <div class="sub">An echo expands from the centre. Click, tap, or press Space the instant it
       crosses the green band. Nail it and the band tightens; miss it — or let the echo escape —
       and you lose one of three lives.</div>
-    <div class="tips">Tip: catch on the band's leading edge — don't wait until you see it cross. A <b>perfect</b> centre hit builds a combo, up to <b>×5</b>. It speeds up as you go, through the <b>stages</b> (Whisper → Resonance → Harmonic → Overtone); feats earn <b>badges</b> that stick across runs.</div>
+    <div class="tips">Tip: catch on the band's leading edge — don't wait until you see it cross. A <b>perfect</b> centre hit builds a combo, up to <b>×5</b>. It speeds up as you go, through the <b>stages</b> (Whisper → Resonance → Harmonic → Overtone) — and each stage unlocks trickier target <b>cadences</b> (Near, Far, Climb, Scatter), so no two runs play the same. Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Click / Space to begin</div>
   </div>
 
@@ -115,6 +126,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="cadence" id="cadence"></div>
 </div>
 
 <!-- The game logic core + render shell are external modules; this is the
