@@ -1,0 +1,26 @@
+/* home.css — landing page: game grid + "Recently updated" strip.
+   Built entirely on the shared design tokens in styles.css. */
+
+/* Game cards reuse the hub's project-card styling; tags are plain .tag chips. */
+.game-card { --pc: var(--violet); display:flex; flex-direction:column; }
+.game-card .play { margin-top:auto; padding-top:.5rem; font-weight:650; color:var(--accent); }
+.game-card .tags { gap:.4rem; }
+/* Per-game icon sits left of the title in a small header row. */
+.game-card .card-head { display:flex; align-items:center; gap:.75rem; margin-bottom:.15rem; }
+.game-card .card-head h3 { margin:0; }
+.game-card .game-icon { width:56px; height:56px; border-radius:14px; flex:0 0 auto;
+  box-shadow:0 2px 8px rgba(0,0,0,.35); }
+/* "Updated <date>" line — quiet, above the Play affordance; filled by home.js. */
+.game-card .card-updated { margin-top:.6rem; font-size:.72rem; letter-spacing:.02em;
+  opacity:.5; font-variant-numeric:tabular-nums; cursor:default; }
+
+/* Recently-updated strip — a quiet pulse of the latest changes, from the shared
+   changelog data. Hidden until home.js populates it (JS-off shows nothing). */
+.recent-list { display:flex; flex-direction:column; gap:.6rem; margin-top:1rem; }
+.recent-item { display:flex; gap:.85rem; align-items:baseline; }
+.recent-item .r-date { flex:0 0 auto; width:92px; font-size:.74rem; color:var(--text-faint);
+  font-variant-numeric:tabular-nums; cursor:default; }
+.recent-item .r-text { color:var(--text-soft); font-size:.93rem; line-height:1.5;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.recent-item .r-text b { color:var(--text); font-weight:650; }
+.recent-more { margin-top:1.05rem; font-size:.86rem; }

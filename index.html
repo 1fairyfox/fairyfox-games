@@ -5,6 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
+
+<!-- Reader ("Aa") menu: apply the saved theme / accent / text size before first paint
+     (no flash). Deliberately inline — an external file would defeat the no-FOUC point.
+     Versioned origin-wide key (fairyfox:reader:b), shared across every fairyfox.io site;
+     kept in sync with assets/reader.js. -->
+<script>
+(function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
+S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
+if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
+if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
+if(p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
+if(p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);
+if(p.accent){var h=p.accent,ink="color-mix(in srgb, "+h+", var(--text) 42%)";
+r.style.setProperty("--accent",h);r.style.setProperty("--violet",h);
+r.style.setProperty("--violet-deep","color-mix(in srgb, "+h+", #000 12%)");
+r.style.setProperty("--accent-ink",ink);r.style.setProperty("--link",ink);
+r.style.setProperty("--link-hover","color-mix(in srgb, "+h+", var(--text) 26%)");
+r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}catch(e){}})();
+</script>
+
 <title>Fairy Fox Games · an AI-managed game farm</title>
 <meta name="description" content="An AI-managed game farm: small, simple browser games planted and tended by AI. New games are sown regularly and the ones already here keep growing deeper. Quick to pick up, easy to lose a few minutes to — jump in and play.">
 
@@ -19,42 +39,17 @@
      party). See assets/fonts/ and the legal pages. -->
 <link rel="stylesheet" href="./assets/fonts/fonts.css">
 
-<!-- The fairyfox.io theme, vendored verbatim from the hub docs-site design system. -->
+<!-- The fairyfox.io theme, vendored verbatim from the hub docs-site design system,
+     plus a small focused page stylesheet. All browser-imported (no inline CSS). -->
 <link rel="stylesheet" href="./assets/styles.css">
-<style>
-  /* Game cards reuse the hub's project-card styling; tags are plain .tag chips,
-     exactly as the hub renders them. */
-  .game-card { --pc: var(--violet); display:flex; flex-direction:column; }
-  .game-card .play { margin-top:auto; padding-top:.5rem; font-weight:650; color:var(--accent); }
-  .game-card .tags { gap:.4rem; }
-  /* Per-game icon sits left of the title in a small header row. */
-  .game-card .card-head { display:flex; align-items:center; gap:.75rem; margin-bottom:.15rem; }
-  .game-card .card-head h3 { margin:0; }
-  .game-card .game-icon { width:56px; height:56px; border-radius:14px; flex:0 0 auto;
-    box-shadow:0 2px 8px rgba(0,0,0,.35); }
-  /* "Updated <date>" line — quiet, sits just above the Play affordance. Rendered by the
-     script below from each card's data-updated, which also orders the grid newest-first. */
-  .game-card .card-updated { margin-top:.6rem; font-size:.72rem; letter-spacing:.02em;
-    opacity:.5; font-variant-numeric:tabular-nums; cursor:default; }
-
-  /* Recently-updated strip — a quiet feed of the latest changes, rendered from the shared
-     changelog data. Gives the homepage an at-a-glance "it's growing" pulse, and links to
-     the full changelog. Hidden until the script populates it (so JS-off shows nothing). */
-  .recent-list { display:flex; flex-direction:column; gap:.6rem; margin-top:1rem; }
-  .recent-item { display:flex; gap:.85rem; align-items:baseline; }
-  .recent-item .r-date { flex:0 0 auto; width:92px; font-size:.74rem; color:var(--text-faint);
-    font-variant-numeric:tabular-nums; cursor:default; }
-  .recent-item .r-text { color:var(--text-soft); font-size:.93rem; line-height:1.5;
-    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-  .recent-item .r-text b { color:var(--text); font-weight:650; }
-  .recent-more { margin-top:1.05rem; font-size:.86rem; }
-</style>
+<link rel="stylesheet" href="./assets/home.css">
 </head>
 <body>
 
 <!-- Header: an outright copy of the fairyfox.io site header (brand, logo, colours,
      nav style). The brand on the left is the way home. "Games" sits right of
-     Projects, matching the hub's own nav. -->
+     Projects, matching the hub's own nav. The reader ("Aa") button is injected by
+     assets/reader.js just after the nav, exactly as on every fairyfox.io page. -->
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="https://fairyfox.io/">
@@ -71,7 +66,6 @@
       <a href="https://fairyfox.io/projects/">Projects</a>
       <a href="#games" class="active">Games</a>
       <a href="https://fairyfox.io/docs/">Docs</a>
-      <a href="https://fairyfox.io/downloads/">Downloads</a>
       <a href="https://fairyfox.io/blog/">Updates</a>
       <a href="https://fairyfox.io/about/">About</a>
     </nav>
@@ -111,7 +105,7 @@
   </section>
 
   <!-- Recently updated — a quiet pulse of the latest changes, from the shared changelog
-       data. Hidden until the script fills it, so a JS-off visitor sees no empty band. -->
+       data. Hidden until home.js fills it, so a JS-off visitor sees no empty band. -->
   <section class="band band-alt band-tight" id="recent" hidden>
     <div class="wrap">
       <div class="section-head">
@@ -242,7 +236,8 @@
 </main>
 
 <!-- Footer: the shared fairyfox.io site footer, copied so the page reads as one site.
-     Mirrors the hub's _includes/footer.html (Liquid resolved to absolute links). -->
+     Mirrors the hub's _includes/footer.html (Liquid resolved to absolute links); the
+     Projects column links straight to each project's own page on the domain. -->
 <footer class="site-footer">
   <div class="wrap">
     <div class="footer-brand">
@@ -256,17 +251,16 @@
       <h4>Explore</h4>
       <a href="https://fairyfox.io/projects/">Projects</a>
       <a href="https://fairyfox.io/docs/">Documentation</a>
-      <a href="https://fairyfox.io/downloads/">Downloads</a>
       <a href="https://fairyfox.io/blog/">Updates</a>
       <a href="https://fairyfox.io/about/">About</a>
     </div>
     <div class="footer-col">
       <h4>Projects</h4>
-      <a href="https://fairyfox.io/projects/pokered-save-editor-2/">Pokered Save Editor 2</a>
-      <a href="https://fairyfox.io/projects/random-ai-prompt/">Random AI Prompt</a>
-      <a href="https://fairyfox.io/projects/pokered-save-editor/">Pokered Save Editor</a>
-      <a href="https://fairyfox.io/projects/fairyfox-games/">Fairy Fox Games</a>
-      <a href="https://fairyfox.io/projects/fairyfox-io/">fairyfox.io</a>
+      <a href="https://fairyfox.io/pokered-save-editor-2/">Pokered Save Editor 2</a>
+      <a href="https://fairyfox.io/random-ai-prompt/">Random AI Prompt</a>
+      <a href="https://github.com/junebug12851/pokered-save-editor">Pokered Save Editor</a>
+      <a href="https://fairyfox.io/fairyfox-games/">Fairy Fox Games</a>
+      <a href="https://fairyfox.io/docs/">fairyfox.io</a>
     </div>
     <div class="footer-col">
       <h4>Elsewhere</h4>
@@ -284,87 +278,9 @@
   </div>
 </footer>
 
-<!-- Header nav behaviour, mirrored from the hub's nav.js (hamburger + Escape). -->
-<script>
-  (function () {
-    "use strict";
-    var header = document.querySelector(".site-header");
-    if (!header) return;
-    var toggle = header.querySelector(".nav-toggle");
-    if (toggle) {
-      toggle.addEventListener("click", function () {
-        var open = header.classList.toggle("nav-open");
-        toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      });
-    }
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && header.classList.contains("nav-open")) {
-        header.classList.remove("nav-open");
-        if (toggle) toggle.setAttribute("aria-expanded", "false");
-      }
-    });
-  })();
-</script>
-
-<!-- Shared changelog data + the relative-date helper (plain scripts, no build step). -->
-<script src="./assets/reldate.js"></script>
-<script src="./assets/changelog.js"></script>
-
-<!-- Game grid: render a quiet "Updated <relative date>" on each card (exact date in a
-     tooltip), and order the grid most-recently-updated first. Static + progressive: with
-     JS off the cards still show (in source order, without the date line). -->
-<script>
-  (function () {
-    "use strict";
-    var rel = (window.FFG && FFG.relDate) || function (s) { return s; };
-    var full = (window.FFG && FFG.fullDate) || function (s) { return s; };
-    var grid = document.getElementById("game-grid");
-    if (grid) {
-      var cards = Array.prototype.slice.call(grid.querySelectorAll(".game-card"));
-      cards.forEach(function (c) {
-        var iso = c.getAttribute("data-updated");
-        if (!iso) return;
-        var line = document.createElement("div");
-        line.className = "card-updated";
-        line.textContent = "Updated " + rel(iso);
-        line.title = full(iso);           // exact date on hover
-        var play = c.querySelector(".play");
-        if (play) c.insertBefore(line, play); else c.appendChild(line);
-      });
-      // Stable sort: newest data-updated first; equal dates keep their source order.
-      cards.slice().sort(function (a, b) {
-        var av = a.getAttribute("data-updated") || "", bv = b.getAttribute("data-updated") || "";
-        return av < bv ? 1 : (av > bv ? -1 : 0);
-      }).forEach(function (c) { grid.appendChild(c); });
-    }
-
-    // Recently-updated strip — the latest few changelog entries, newest first. Games
-    // only (entries tied to an actual game via `slug`); site-wide notes are excluded here
-    // and live on the full changelog page.
-    var section = document.getElementById("recent");
-    var list = document.getElementById("recent-list");
-    var data = (window.FFG_CHANGELOG || []).filter(function (e) { return e && e.slug; });
-    if (section && list && data.length) {
-      data.slice(0, 4).forEach(function (e) {
-        var item = document.createElement("div");
-        item.className = "recent-item";
-        var d = document.createElement("span");
-        d.className = "r-date";
-        d.textContent = rel(e.date);
-        d.title = full(e.date);
-        var t = document.createElement("span");
-        t.className = "r-text";
-        var b = document.createElement("b");
-        b.textContent = e.game + " — ";
-        t.appendChild(b);
-        t.appendChild(document.createTextNode(e.text));
-        item.appendChild(d);
-        item.appendChild(t);
-        list.appendChild(item);
-      });
-      section.hidden = false;
-    }
-  })();
-</script>
+<!-- Chrome behaviour + reader menu (shared, browser-imported), then the page module. -->
+<script src="./assets/nav.js" defer></script>
+<script src="./assets/reader.js" defer></script>
+<script type="module" src="./assets/home.js"></script>
 </body>
 </html>

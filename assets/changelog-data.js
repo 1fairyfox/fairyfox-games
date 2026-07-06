@@ -11,8 +11,14 @@
  *   slug  — games/<slug>/ folder for a "Play" link, or null for non-game entries
  *   kind  — "new" (a brand-new game) | "grow" (an existing game got deeper) | "site"
  *   text  — one or two sentences, player-facing
+ *
+ * ES module: the homepage strip and the changelog page `import { CHANGELOG }`.
  */
-window.FFG_CHANGELOG = [
+export const CHANGELOG = [
+  {
+    date: "2026-07-06", game: "The site", slug: null, kind: "site",
+    text: "New reading menu: tap the “Aa” button in the header to switch theme (light, sepia, or dark), pick an accent colour, and set the text size — the site remembers your choice, and it carries across the whole of fairyfox.io. The pages now match the main site's look, seamlessly."
+  },
   {
     date: "2026-07-05", game: "The farm", slug: null, kind: "site",
     text: "Fairy Fox Games is now an AI-managed game farm: new games are planted (a fresh one every few days) and the ones already here keep growing deeper, on their own, over time. Same games you love — a clearer promise."
