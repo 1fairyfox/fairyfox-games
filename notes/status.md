@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.17.0` (single source of truth: repo-root `VERSION`).
+**Version:** `0.17.1` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -27,11 +27,15 @@ sole host), plus each game at `…/games/<game>/`.
 **Games so far (10):**
 
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
-  your trail. **On the Growth Architecture**: escalation (ink speeds up with score) +
-  **prism motes as a greed call** (×3 points but ×3 growth), a **stage arc** (Seed →
-  Sprout → Tendril → Bloom → Cosmic bloom) with HUD chip + tinted wall frame, and
-  **meta-progression** (`inkbloom.meta`: lifetime motes/prisms + 8 badges, run-report) —
-  legacy best preserved. Pure core + 34 tests.
+  your trail. **On Varied Structure + Growth**: each run is a seeded **sequence of mote
+  spawn patterns** (Scatter · Drift · Vine · Ring · Thicket · Spectrum) that **unlock as you
+  climb the stages** (progression drives the variety; notable ones flash a name cue) —
+  `FORMATIONS`/`pickFormation`/`loadFormation`, `spawnMote` pulls from a per-formation queue,
+  `tick` emits a `formation` cue. Plus escalation (ink speeds up with score) + **prism motes
+  as a greed call** (×3 points but ×3 growth), a **stage arc** (Seed → Sprout → Tendril →
+  Bloom → Cosmic bloom) with HUD chip + tinted wall frame, and **meta-progression**
+  (`inkbloom.meta`: lifetime motes/prisms + 8 badges, run-report) — legacy best preserved.
+  Pure core + 44 tests. **(3rd game on varied structure.)**
 - **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band. **On
   Varied Structure + Growth**: each run is a seeded **sequence of target cadences** (Even ·
   Pulse · Near · Far · Climb · Scatter) that **unlock as you climb the stages** (progression
@@ -110,10 +114,21 @@ sole host), plus each game at `…/games/<game>/`.
 - **Loft** grew this run: a **near-miss** line (`nearMissLine`) now nudges "N points short of
   your best — so close!" on non-record runs (Growth Wave 2). Loft 31 → 32 tests.
 
-**Tests:** 316/316 green across the collection.
+**Tests:** 326/326 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.17.1 (2026-07-06) — Ink Bloom onto varied structure (the 3rd game on the pattern).**
+  Ink Bloom's single-mote spawn is now a seeded **sequence of named spawn patterns** — Scatter,
+  Drift, Vine, Ring, Thicket, and a rare prism **Spectrum** crescendo — pulled from a
+  stage-weighted `FORMATIONS` pool (`pickFormation`/`loadFormation`; `spawnMote` refactored to
+  pull from a per-formation queue). Climbing the stages opens the pool and leans on the meaner
+  patterns late (progression drives the variety); notable formations flash a quiet `#formCue`.
+  Pure core copied in shape from Polarity, self-contained. +10 pure-core tests (34 → 44); player
+  changelog entry + `data-updated` bump. Chrome-previewed (start panel, gameplay, homepage
+  strip), no console errors. Released `dev → main` by default on green. **Rollout: 3 of 10 games
+  on varied structure (Polarity, Echo Chamber, Ink Bloom); the GROW farm converts one more per
+  day, lowest-coverage first.**
 - **v0.17.0 (2026-07-06) — Seamless chrome refresh + the shared Reader ("Aa") menu + modular
   docs pages.** Ran the fairyfox check/adopt flow: hub clone refreshed v0.12.1 → **v0.14.3**
   (clean ff), then adopted the current docs-site chrome so gh-pages reads as one site again.
@@ -186,7 +201,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 316/316 across 10 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 326/326 across 10 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

@@ -70,6 +70,17 @@
   @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
   @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
 
+  /* Formation cue — a quiet name that flashes as a notable spawn pattern arrives
+     (varied-structure layer). Peripheral; the calm patterns pass silently. */
+  #formCue {
+    position:absolute; top:62px; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; font-weight:600;
+    color:#d8b6ff; opacity:0; pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
+
   /* Game-over run report (Growth L2). */
   .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
   .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
@@ -92,12 +103,13 @@
     <div id="stageName">Seed</div>
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
+  <div id="formCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Ink Bloom</div>
     <div class="sub">Steer the bloom with your mouse (or finger). Drink the glowing motes to grow.
       Your own trail is solid — don't touch it. The longer you live, the less room you leave yourself.</div>
-    <div class="tips">Tip: bank space along the walls early, and aim for the gaps in your bloom — never the body. Rare <b>prism</b> motes are worth triple — but grow you three times as fast, so they're a real greed call. It speeds up through the <b>stages</b> (Seed → Sprout → Tendril → Bloom → Cosmic bloom); feats earn <b>badges</b> that stick across runs.</div>
+    <div class="tips">Tip: bank space along the walls early, and aim for the gaps in your bloom — never the body. Rare <b>prism</b> motes are worth triple — but grow you three times as fast, so they're a real greed call. No two runs are alike: motes arrive in shifting <b>patterns</b> — a sweeping Vine, a wide Ring, a tight Thicket, a rare prism Spectrum — and the meaner ones unlock as you climb the <b>stages</b> (Seed → Sprout → Tendril → Bloom → Cosmic bloom). Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Move to begin</div>
   </div>
 

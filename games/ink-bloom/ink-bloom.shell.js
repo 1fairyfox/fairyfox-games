@@ -40,6 +40,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -61,6 +62,17 @@ function checkMilestone(prev, now) {
     const m = Ink.milestoneAt(s);
     if (m) { showToast(m); break; }
   }
+}
+
+// Formation cue — a quiet name that flashes as a notable spawn pattern begins (the
+// varied-structure layer). Peripheral by design; the calm patterns pass silently.
+let formCueTimer = 0;
+function showFormCue(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = '◇ ' + name;
+  formCueEl.classList.add('show');
+  clearTimeout(formCueTimer);
+  formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
@@ -167,6 +179,7 @@ function onDeath() {
   burst(game.head.x, game.head.y, game.hue);
   shake = 16;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -223,6 +236,7 @@ function update(now) {
       const prev = game.score;
       const r = Ink.tick(game, { target });
       if (r.ate) { burst(game.mote.x, game.mote.y, game.hue); shake = Math.min(shake + 5, 12); }
+      if (r.formation) showFormCue(r.formation);   // a notable spawn pattern just began
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
       if (game.score !== prev) {
