@@ -27,13 +27,17 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Assemble the publishable site
-        # Same file set the deploys publish — the actual static site only.
-        run: |
-          mkdir -p _site
-          cp index.html _site/
-          cp -r assets games legal _site/
-          [ -f .nojekyll ] && cp .nojekyll _site/ || true
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Build the site with Jekyll
+        # The same build the Pages deploy publishes — packaged here for provenance.
+        run: bundle exec jekyll build
+        env:
+          JEKYLL_ENV: production
 
       - name: Package the site
         run: |

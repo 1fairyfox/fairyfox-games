@@ -1,0 +1,37 @@
+---
+layout: default
+title: "Browse by mechanic · Fairy Fox Games"
+description: "Browse the Fairy Fox Games collection by mechanic — reflex, timing, physics, precision, and more. Each game is a distinct experiment; the tags mesh the ones that share a feel."
+section: overview
+styles: [home]
+permalink: /tags/
+---
+<main>
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="label">
+          <h2>Browse by mechanic</h2>
+        </div>
+      </div>
+      <p style="color:var(--text-soft);max-width:var(--maxw-text);margin:.3rem 0 1.2rem">
+        Every game is a distinct experiment, but some share a feel. Jump to a mechanic to see the
+        games that share it.
+      </p>
+
+      {% assign tags = site.games | map: "tags" | join: "," | split: "," | uniq | sort %}
+      <div class="tag-index" style="display:flex;flex-wrap:wrap;gap:.5rem">
+        {% for tag in tags %}<a class="tag" href="#{{ tag | slugify }}">{{ tag }}</a>{% endfor %}
+      </div>
+
+      {% for tag in tags %}
+      <div class="tag-group" style="margin-top:2.4rem">
+        <h3 id="{{ tag | slugify }}" style="margin:0 0 1rem;scroll-margin-top:5rem">{{ tag }}</h3>
+        <div class="grid cols-3">
+          {% for g in site.games %}{% if g.tags contains tag %}{% include game-card.html game=g %}{% endif %}{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>

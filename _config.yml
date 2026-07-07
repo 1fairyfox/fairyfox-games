@@ -1,0 +1,41 @@
+# ── Fairy Fox Games — Jekyll site config ─────────────────────────────────────
+# The playable games under games/<slug>/ have no front matter, so Jekyll copies
+# them through verbatim. Jekyll generates the landing, changelog, tag pages, and
+# shared chrome. Served at fairyfox.io/fairyfox-games/.
+
+title: Fairy Fox Games
+description: >-
+  An AI-managed game farm — small, simple browser games, planted and tended by
+  AI. New games are sown regularly and the ones already here keep growing deeper.
+url: "https://fairyfox.io"
+baseurl: "/fairyfox-games"
+lang: en
+
+# Game metadata as a single source of truth. output:false — the playable game
+# already lives at games/<slug>/; these docs drive the landing + tag pages.
+collections:
+  games:
+    output: false
+
+# Don't publish repo scaffolding / notes / secrets / vendored clones.
+exclude:
+  - notes/
+  - scripts/
+  - assets/references/
+  - .github/
+  - CLAUDE.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - README.md
+  - LICENSE
+  - VERSION
+  - package.json
+  - package-lock.json
+  - Gemfile
+  - Gemfile.lock
+  - .gitattributes
+  - .gitignore
+  - .env
+  - .env.example
+  - node_modules/
+  - vendor/

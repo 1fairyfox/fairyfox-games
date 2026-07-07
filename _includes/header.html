@@ -1,0 +1,40 @@
+<!-- Header: a copy of the fairyfox.io site header (brand, logo, colours, nav style).
+     The brand on the left is the way home. "Games" sits right of Projects, matching the
+     hub. The reader ("Aa") button is injected by assets/reader.js just after the nav. -->
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="https://fairyfox.io/">
+      <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
+      <span class="brand-name">Fairy&nbsp;Fox</span>
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="nav" aria-label="Primary">
+      <a href="https://fairyfox.io/">Home</a>
+      <a href="https://fairyfox.io/projects/">Projects</a>
+      <a href="{{ '/' | relative_url }}" class="active">Games</a>
+      <a href="https://fairyfox.io/docs/">Docs</a>
+      <a href="https://fairyfox.io/blog/">Updates</a>
+      <a href="https://fairyfox.io/about/">About</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Subproject section bar. The primary nav above goes to the fairyfox.io homepage; this
+     row navigates within Fairy Fox Games and names the project you're in. -->
+<nav class="subnav" aria-label="Fairy Fox Games section">
+  <div class="wrap">
+    <a class="sub-brand" href="{{ '/' | relative_url }}">Fairy Fox Games</a>
+    <a href="{{ '/' | relative_url }}"{% if page.section == 'overview' %} class="active"{% endif %}>Overview</a>
+    <a href="{{ '/changelog/' | relative_url }}"{% if page.section == 'changelog' %} class="active"{% endif %}>Changelog</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a href="{{ '/legal/privacy/' | relative_url }}"{% if page.section == 'privacy' %} class="active"{% endif %}>Privacy</a>
+    <a href="{{ '/legal/terms/' | relative_url }}"{% if page.section == 'terms' %} class="active"{% endif %}>Terms</a>
+    <a href="{{ '/legal/cookies/' | relative_url }}"{% if page.section == 'cookies' %} class="active"{% endif %}>Cookies</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a class="ext" href="https://github.com/junebug12851/fairyfox-games">Source ↗</a>
+  </div>
+</nav>

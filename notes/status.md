@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.18.2` (single source of truth: repo-root `VERSION`).
+**Version:** `0.19.0` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -130,6 +130,15 @@ sole host), plus each game at `…/games/<game>/`.
 
 ## In flight / awaiting
 
+- **v0.19.0 (2026-07-06) — MILESTONE: the site is now a Jekyll build (a mesh layer over static
+  games).** Owner authorised Jekyll + a build step + URL changes, retiring the AI-added "buildless"
+  rule. Each game's metadata lives once in `_games/<slug>.md` → the landing cards, count, and a new
+  `/tags/` browse-by-mechanic page generate from it; shared chrome moved into `_layouts`/`_includes`
+  (changelog + legal pages too), with **pretty URLs** + dark `redirect_from` stubs; the changelog is
+  now `_data/changelog.json` (JS module generated from it). `pages.yml`/`release.yml`/CI build Jekyll
+  (SHA-pinned). Playable games under `games/<slug>/` pass through **verbatim** — unchanged, still
+  liftable. Privacy unchanged; **361/361** tests green; Chrome-previewed. Built against
+  `plans/2026-07-06-adopt-jekyll-meshing.md`.
 - **v0.18.2 (2026-07-06) — Fix (the real one): white flash on the games/docs chrome pages.**
   v0.18.1 hardened the wrong pages (the game *shells*); the flash the owner sees is on the shared
   **chrome** pages (games landing, changelog, 3 legal), whose dark bg lives only in the external

@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
-# The games are fully static (HTML + canvas + ES modules). Publish the repo as-is.
-# `.nojekyll` (committed at the root) tells Pages to serve files verbatim — no Jekyll
-# processing — so the games' folders and module scripts are served untouched.
+# Builds the Jekyll site (our own `bundle exec jekyll build`, so any Jekyll version /
+# plugins in the Gemfile are fine) and deploys it to GitHub Pages on every push to
+# `main`. The playable games under games/<slug>/ have no front matter, so Jekyll copies
+# them through untouched; Jekyll generates the landing, changelog, tag pages, and chrome.
 
 on:
   push:
@@ -19,7 +20,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true   # bundle install + gem cache
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Build with Jekyll
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          JEKYLL_ENV: production
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
   deploy:
+    needs: build
     permissions:
       contents: read
       pages: write
@@ -29,10 +52,5 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: '.'
       - id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

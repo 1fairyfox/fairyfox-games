@@ -33,10 +33,20 @@ the shared living-notes standard. Highlights:
 - **Real tests, not token ones.** Each game ships a `*.core.test.js` with multi-layer
   coverage (math, state transitions, win/lose, plus a regression test for any fixed
   bug). `node --test`, zero dependencies. A bug fix lands with its failing-case test.
-- **Games are self-contained + liftable.** One folder under `games/<slug>/`, relative
-  paths only, no reaching across games. A game folder could be extracted on its own.
-- **The site is static.** No server, no build step for the games themselves; GitHub
-  Pages serves them. `.nojekyll` is present so Pages serves files verbatim.
+- **Games are self-contained — a default, not a hard rule.** Keeping each game in one
+  folder under `games/<slug>/` with relative paths and no cross-game reaching keeps them
+  easy to reason about and move, so prefer it *by default*. But Fairy Fox has not mandated
+  strict "liftability"; it's a nicety, not a constraint — loosen it where shared code, a
+  build step, or a better structure is worth more.
+- **The site is built with Jekyll (as of v0.19.0); the games stay static.** Jekyll is a
+  **mesh layer** — a `_games` collection + `_layouts`/`_includes` generate the landing cards,
+  `/tags/` pages, the changelog, and the shared chrome from one source each. The **playable
+  games under `games/<slug>/` have no front matter, so Jekyll copies them through verbatim** —
+  they don't change and stay individually liftable. `.nojekyll` is removed; GitHub Actions
+  runs `bundle exec jekyll build` and deploys `_site` (see `pages.yml`/`release.yml`). Privacy
+  posture is **unchanged**: Jekyll outputs static HTML, fonts stay self-hosted, no tracking.
+  (This adoption was the owner's call — the old "buildless / served-verbatim" rule was never
+  authorized.)
 - **Keep the legal docs accurate** (`legal/{privacy,terms,cookies}.html`, per
   `notes/reference/legal-docs.md`). They must match what the site *actually* does — no
   accounts, best scores in `localStorage` only, no cookies/analytics/tracking,
@@ -87,10 +97,15 @@ which mangles line endings and can't touch `.git` on this machine. **Execute** t
 CRLF "modified" noise.
 
 ```sh
-# play a game locally (ES modules need HTTP, not file://)
+# the site is a Jekyll build (mesh layer over static games)
+bundle install
+bundle exec jekyll serve        # local preview at http://127.0.0.1:4000/fairyfox-games/
+bundle exec jekyll build        # production build → _site/ (what Pages/Actions deploy)
+
+# a single game is plain static; serve over HTTP (ES modules need it, not file://)
 python -m http.server 8000      # open http://localhost:8000/games/<slug>/
 
-# test (zero deps, Node built-in runner)
+# test (zero deps, Node built-in runner) — unaffected by Jekyll
 npm test                        # all games, from repo root
 cd games/<slug> && node --test  # one game
 ```
@@ -151,7 +166,7 @@ The notes are a living document — keep them current as you work, by default.
 | Made / rejected a decision | `notes/decisions/architecture.md` / `rejected.md` |
 | A change warrants a version | Bump `VERSION`, same commit |
 | Changed the site's data practices / added a user-facing surface | Update `legal/*.html` + the "Last updated" date, same change (accuracy discipline) |
-| Added a new game | New `games/<slug>/` (core + test + shell + README), list it in the root README + the site's `_data/games.yml` |
+| Added a new game | New `games/<slug>/` (core + test + shell + README) **and** a `_games/<slug>.md` metadata doc (title · slug · tags · updated · tagline) — the landing cards, `/tags/` pages, and the count all generate from it. Add a player-facing entry atop `_data/changelog.json`. (A root README table entry is optional.) |
 
 ## Cross-project standards & checking the fairyfox system for updates
 

@@ -1,81 +1,14 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#ef6149" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#191116" media="(prefers-color-scheme: dark)">
-<meta name="robots" content="noindex">
-
-<!-- Reader ("Aa") menu: apply the saved theme / accent / text size before first paint
-     (no flash). Deliberately inline — an external file would defeat the no-FOUC point.
-     Versioned origin-wide key (fairyfox:reader:b); kept in sync with assets/reader.js. -->
-<script>
-(function(){try{var p=JSON.parse(localStorage.getItem("fairyfox:reader:b")||"{}"),r=document.documentElement,
-S=[15,16.5,18,20,22],L={tight:1.5,normal:1.65,relaxed:1.9},W={narrow:"38rem",normal:"46rem",wide:"58rem"};
-if(p.theme&&p.theme!=="system")r.setAttribute("data-theme",p.theme);
-r.style.background=({light:"#efe4d1",sepia:"#f1e3c2",dark:"#181017"})[(p.theme&&p.theme!=="system")?p.theme:(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark")]||"#181017";
-if(p.size!=null)r.style.fontSize=S[Math.max(0,Math.min(S.length-1,p.size|0))]+"px";
-if(p.lh)r.style.setProperty("--reading-lh",String(L[p.lh]||L.normal));
-if(p.width)r.style.setProperty("--reading-width",W[p.width]||W.normal);
-if(p.accent){var h=p.accent,ink="color-mix(in srgb, "+h+", var(--text) 42%)";
-r.style.setProperty("--accent",h);r.style.setProperty("--violet",h);
-r.style.setProperty("--violet-deep","color-mix(in srgb, "+h+", #000 12%)");
-r.style.setProperty("--accent-ink",ink);r.style.setProperty("--link",ink);
-r.style.setProperty("--link-hover","color-mix(in srgb, "+h+", var(--text) 26%)");
-r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}catch(e){}})();
-</script>
-
-<title>Privacy Policy — Fairy Fox Games</title>
-
-<link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
-<link rel="icon" type="image/svg+xml" href="https://fairyfox.io/favicon.svg">
-<link rel="apple-touch-icon" sizes="180x180" href="https://fairyfox.io/apple-touch-icon.png">
-
-<!-- Same self-hosted mesh typography + shared fairyfox theme, plus the shared legal
-     stylesheet. All browser-imported (no inline CSS). -->
-<link rel="stylesheet" href="../assets/fonts/fonts.css">
-<link rel="stylesheet" href="../assets/styles.css">
-<link rel="stylesheet" href="../assets/legal.css">
-</head>
-<body>
-
-<header class="site-header">
-  <div class="wrap">
-    <a class="brand" href="https://fairyfox.io/">
-      <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
-      <span class="brand-name">Fairy&nbsp;Fox</span>
-    </a>
-    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-    <nav class="nav" aria-label="Primary">
-      <a href="https://fairyfox.io/">Home</a>
-      <a href="https://fairyfox.io/projects/">Projects</a>
-      <a href="../" class="active">Games</a>
-      <a href="https://fairyfox.io/docs/">Docs</a>
-      <a href="https://fairyfox.io/blog/">Updates</a>
-      <a href="https://fairyfox.io/about/">About</a>
-    </nav>
-  </div>
-</header>
-
-<!-- Subproject section bar: names the project these legal pages belong to and
-     navigates within Fairy Fox Games. -->
-<nav class="subnav" aria-label="Fairy Fox Games section">
-  <div class="wrap">
-    <a class="sub-brand" href="../">Fairy Fox Games</a>
-    <a href="../">Overview</a>
-    <a href="../changelog.html">Changelog</a>
-    <span class="sep" aria-hidden="true"></span>
-    <a href="privacy.html" class="active">Privacy</a>
-    <a href="terms.html">Terms</a>
-    <a href="cookies.html">Cookies</a>
-    <span class="sep" aria-hidden="true"></span>
-    <a class="ext" href="https://github.com/junebug12851/fairyfox-games">Source ↗</a>
-  </div>
-</nav>
-
+---
+layout: default
+title: "Privacy Policy — Fairy Fox Games"
+description: "How the Fairy Fox Games collection handles information — no accounts, no analytics, no cookies; best scores and reading preferences saved only in your own browser; self-hosted fonts."
+section: privacy
+styles: [legal]
+noindex: true
+permalink: /legal/privacy/
+redirect_from:
+  - /legal/privacy.html
+---
 <main class="legal-main">
   <p class="eyebrow">Fairy Fox Games · Legal</p>
   <h1>Privacy Policy</h1>
@@ -138,7 +71,7 @@ r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}cat
   <h2>Cookies</h2>
   <p>The Service does <strong>not use cookies</strong>. It uses your browser&rsquo;s local storage for
     your best scores and preferences as described above, which is not a tracking cookie and is not
-    transmitted to us. See our <a href="cookies.html">Cookies Policy</a> for details.</p>
+    transmitted to us. See our <a href="{{ '/legal/cookies/' | relative_url }}">Cookies Policy</a> for details.</p>
 
   <h2>Children&rsquo;s privacy</h2>
   <p>Fairy Fox Games is a general-audience collection of simple, non-violent games suitable for all
@@ -182,50 +115,3 @@ r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}cat
     within the wider Fairy Fox site. Fairy Fox Games is free, open-source software released under
     the MIT license.</p>
 </main>
-
-<!-- Shared fairyfox.io site footer (copied so the page reads as one site). -->
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="footer-brand">
-      <a class="brand" href="https://fairyfox.io/">
-        <img class="brand-logo" src="https://fairyfox.io/assets/icons/fox.png" alt="" aria-hidden="true">
-        <span class="brand-name">Fairy Fox</span>
-      </a>
-      <p>The project hub and documentation library for Fairy Fox's software work.</p>
-    </div>
-    <div class="footer-col">
-      <h4>Explore</h4>
-      <a href="https://fairyfox.io/projects/">Projects</a>
-      <a href="https://fairyfox.io/docs/">Documentation</a>
-      <a href="https://fairyfox.io/blog/">Updates</a>
-      <a href="https://fairyfox.io/about/">About</a>
-    </div>
-    <div class="footer-col">
-      <h4>Projects</h4>
-      <a href="https://fairyfox.io/pokered-save-editor-2/">Pokered Save Editor 2</a>
-      <a href="https://fairyfox.io/random-ai-prompt/">Random AI Prompt</a>
-      <a href="https://github.com/junebug12851/pokered-save-editor">Pokered Save Editor</a>
-      <a href="https://fairyfox.io/fairyfox-games/">Fairy Fox Games</a>
-      <a href="https://fairyfox.io/docs/">fairyfox.io</a>
-    </div>
-    <div class="footer-col">
-      <h4>Elsewhere</h4>
-      <a href="https://github.com/junebug12851">GitHub ↗</a>
-      <a href="https://fairyfox.io/feed.xml">Atom feed</a>
-    </div>
-  </div>
-  <div class="footer-bar">
-    <div class="wrap">
-      <span>© 2026 Fairy Fox</span>
-      <span>Built with Jekyll · deployed on GitHub Pages</span>
-      <span class="spacer"></span>
-      <a href="https://github.com/junebug12851">@junebug12851</a>
-    </div>
-  </div>
-</footer>
-
-<!-- Chrome behaviour + reader menu (shared, browser-imported). -->
-<script src="../assets/nav.js" defer></script>
-<script src="../assets/reader.js" defer></script>
-</body>
-</html>

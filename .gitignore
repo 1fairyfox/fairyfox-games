@@ -4,6 +4,11 @@
 assets/references/*
 !assets/references/README.md
 
+# ── Jekyll build output (generated; never commit) ────────────────────────────
+_site/
+.jekyll-cache/
+.jekyll-metadata
+
 # ── Node ─────────────────────────────────────────────────────────────────────
 node_modules/
 
