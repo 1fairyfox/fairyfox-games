@@ -33,10 +33,19 @@ the shared living-notes standard. Highlights:
 - **Real tests, not token ones.** Each game ships a `*.core.test.js` with multi-layer
   coverage (math, state transitions, win/lose, plus a regression test for any fixed
   bug). `node --test`, zero dependencies. A bug fix lands with its failing-case test.
-- **Games are self-contained + liftable.** One folder under `games/<slug>/`, relative
-  paths only, no reaching across games. A game folder could be extracted on its own.
-- **The site is static.** No server, no build step for the games themselves; GitHub
-  Pages serves them. `.nojekyll` is present so Pages serves files verbatim.
+- **Games are self-contained — a default, not a hard rule.** Keeping each game in one
+  folder under `games/<slug>/` with relative paths and no cross-game reaching keeps them
+  easy to reason about and move, so prefer it *by default*. But Fairy Fox has not mandated
+  strict "liftability"; it's a nicety, not a constraint — loosen it where shared code, a
+  build step, or a better structure is worth more.
+- **Hosting is GitHub Pages, and a build step is fine.** Fairy Fox is happy to use
+  **Jekyll** here (as on other fairyfox.io sites) — a build step costs nothing on Pages or
+  locally, and is welcome where it earns its keep (e.g. collections/tags to mesh the games,
+  shared templating). The site is *currently* plain static with `.nojekyll`, but that
+  "buildless / served-verbatim" framing was an AI-added constraint the owner never
+  authorized as a rule — it is **not** binding. If/when Jekyll (or any build) is adopted,
+  revisit `.nojekyll` and any "pure static" assumptions in the notes. (Privacy posture is
+  unchanged either way: Jekyll still outputs static HTML, self-hosted fonts, no tracking.)
 - **Keep the legal docs accurate** (`legal/{privacy,terms,cookies}.html`, per
   `notes/reference/legal-docs.md`). They must match what the site *actually* does — no
   accounts, best scores in `localStorage` only, no cookies/analytics/tracking,
