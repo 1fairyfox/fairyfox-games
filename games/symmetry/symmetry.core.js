@@ -53,7 +53,7 @@ export const CONFIG = Object.freeze({
   SPAWN_BASE: 72,       // ticks between spawns at stage 0
   SPAWN_MIN: 33,        // spawn interval floor (thickest the field ever gets)
   SPAWN_STEP: 9,        // ticks shaved off the interval per stage
-  TWIN_CHANCE: 0.30,    // chance a spawn is a mirrored PAIR (same lane, both sides)
+  SPAWN_GAP_FLOOR: 12,  // hard floor on any scheduled gap (ticks) — keeps tight bursts sane
   TWIN_BONUS: 1,        // extra points for completing a twin (both halves caught)
   LIVES: 3,             // misses allowed before the run ends
   // Stages — the readable arc of the "calm → panic" curve (Growth Architecture
@@ -64,6 +64,31 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 28, name: 'Twin',         tint: '#7aa8ff' }),
     Object.freeze({ at: 48, name: 'Kaleidoscope', tint: '#c48cff' }),
     Object.freeze({ at: 72, name: 'Singularity',  tint: '#ff8fc0' }),
+  ]),
+  // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
+  // Instead of every spawn coming from one flat rule (a coin-flip twin-or-single), a run is
+  // a different *sequence* of these named spawn cadences, so no two runs share a skeleton.
+  // Each is a short figure with its own character — a calm Mirror on-ramp, a rewarding
+  // Reflection of twins, a rhythmic Cascade, a swinging Weave, a snap-decision Split, a
+  // dense Kaleidoscope crescendo. `minStage` gates when a cadence first appears (climbing
+  // the stages opens the pool — progression drives the variety); `weight(stageIndex)` biases
+  // selection so later stages lean on the demanding cadences; `notable` cadences earn a
+  // quiet in-world name cue as they arrive (the calm ones pass silently). `build(ctx)` is
+  // PURE given `ctx.rng` and returns the cadence as `{kind,side?,lane,gapMul}` spawn specs —
+  // see the buildFormation* fns below. New cadences can be added here over time; ids stable.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'mirror',     name: 'Mirror',       minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildMirror }),
+    Object.freeze({ id: 'reflection', name: 'Reflection',   minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildReflection }),
+    Object.freeze({ id: 'cascade',    name: 'Cascade',      minStage: 0, notable: true,
+      weight: () => 2, build: buildCascade }),
+    Object.freeze({ id: 'weave',      name: 'Weave',        minStage: 1, notable: true,
+      weight: (s) => s, build: buildWeave }),
+    Object.freeze({ id: 'split',      name: 'Split',        minStage: 1, notable: true,
+      weight: (s) => s, build: buildSplit }),
+    Object.freeze({ id: 'kaleido',    name: 'Kaleidoscope', minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildKaleido }),
   ]),
 });
 
@@ -202,6 +227,7 @@ export function createGame(width, height, opts = {}) {
     combo: 0, bestCombo: 0,
     lives: cfg.LIVES, t: 0,
     nextSpawn: cfg.SPAWN_FIRST, pairSeq: 0,
+    formSpawns: [], formId: null, formName: null, formNotable: false,  // current cadence
   };
   reset(g);
   return g;
@@ -226,6 +252,10 @@ export function reset(g) {
   g.t = 0;
   g.nextSpawn = g.cfg.SPAWN_FIRST;
   g.pairSeq = 0;
+  g.formSpawns = [];     // no cadence loaded yet; the first scheduled spawn pulls one
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
   return g;
 }
 
@@ -241,36 +271,210 @@ export function start(g) {
 }
 
 /**
- * A random lane in [LANE_MIN, LANE_MAX] using the injected RNG. Pure w.r.t. IO.
+ * Clamp a lane into the legal [LANE_MIN, LANE_MAX] band. Pure.
+ * @param {SymmetryConfig} cfg
+ * @param {number} v
+ * @returns {number}
+ */
+export function clampLane(cfg, v) {
+  return clamp(v, cfg.LANE_MIN, cfg.LANE_MAX);
+}
+
+/**
+ * A random lane in [LANE_MIN, LANE_MAX] from a raw rng. Pure w.r.t. IO.
+ * @param {SymmetryConfig} cfg
+ * @param {() => number} rng
+ * @returns {number}
+ */
+function laneRnd(cfg, rng) {
+  return cfg.LANE_MIN + rng() * (cfg.LANE_MAX - cfg.LANE_MIN);
+}
+
+/**
+ * A random lane in [LANE_MIN, LANE_MAX] using the game's injected RNG. Pure w.r.t. IO.
  * @param {GameState} g
  * @returns {number}
  */
 export function randomLane(g) {
-  const { cfg } = g;
-  return cfg.LANE_MIN + g.rng() * (cfg.LANE_MAX - cfg.LANE_MIN);
+  return laneRnd(g.cfg, g.rng);
+}
+
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng`; it returns an array of spawn specs. A spec is a
+// single "beat": `{ kind:'single'|'twin', side?, lane, gapMul }`, where `lane` sits inside
+// [LANE_MIN, LANE_MAX] and `gapMul` scales the current stage's spawn interval to time the
+// NEXT beat (so <1 is a tight burst, >1 a breather). `ctx` = { rng, stage, cfg }. Names and
+// behaviours are Symmetry's mirror flavour; the *shape* — a pool of stage-weighted, seeded
+// cadences — is the reusable varied-structure standard (copied in shape from Polarity).
+
+/** A random side, -1 (left) or +1 (right). */
+function sideRnd(rng) { return rng() < 0.5 ? -1 : 1; }
+
+/** Mirror — the calm on-ramp: gentle alternating singles around the mid lanes, roomy. */
+function buildMirror(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 2);            // 3..4 beats
+  let side = sideRnd(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const lane = clampLane(cfg, 0.35 + rng() * 0.35);   // gentle 0.35..0.70
+    out.push({ kind: 'single', side, lane, gapMul: 1.1 });
+    side = -side;
+  }
+  return out;
+}
+
+/** Reflection — a rewarding breather: a short run of twins (mirrored pairs) to sweep up. */
+function buildReflection(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 3 + Math.floor(rng() * 2);            // 3..4 twins
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ kind: 'twin', lane: laneRnd(cfg, rng), gapMul: 1.15 });
+  return out;
+}
+
+/** Cascade — a rhythmic stream: alternating-side singles at a steadily tightening beat. */
+function buildCascade(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 3);            // 4..6 beats
+  let side = sideRnd(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    out.push({ kind: 'single', side, lane: laneRnd(cfg, rng), gapMul: 1.0 - 0.2 * t }); // 1.0 → 0.8
+    side = -side;
+  }
+  return out;
+}
+
+/** Weave — flowing spread swings: alternating singles whose lanes sweep centre↔edge. */
+function buildWeave(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 2);            // 4..5 beats
+  let side = sideRnd(rng);
+  const phase = rng() * Math.PI * 2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const s = (Math.sin(phase + i * 0.9) + 1) / 2;      // 0..1
+    const lane = clampLane(cfg, cfg.LANE_MIN + s * (cfg.LANE_MAX - cfg.LANE_MIN));
+    out.push({ kind: 'single', side, lane, gapMul: 0.95 });
+    side = -side;
+  }
+  return out;
+}
+
+/** Split — the signature tradeoff as a snap decision: a near-centre orb then a fast
+ *  opposite-side edge orb, so you commit a quick spread swing across the mirror. */
+function buildSplit(ctx) {
+  const { rng, cfg } = ctx;
+  const pairs = 2 + Math.floor(rng() * 2);        // 2..3 snaps
+  const out = [];
+  for (let p = 0; p < pairs; p++) {
+    const near = clampLane(cfg, cfg.LANE_MIN + rng() * 0.18);   // ~centre
+    const far = clampLane(cfg, cfg.LANE_MAX - rng() * 0.18);    // ~edge
+    const first = sideRnd(rng);
+    out.push({ kind: 'single', side: first,  lane: near, gapMul: 0.42 }); // tight into the snap
+    out.push({ kind: 'single', side: -first, lane: far,  gapMul: 1.2 });  // then recover
+  }
+  return out;
+}
+
+/** Kaleidoscope — the late-run crescendo: dense rounds of a rewarding twin then a fast
+ *  near/edge snap, all at tight spacing. The run's peak. */
+function buildKaleido(ctx) {
+  const { rng, cfg } = ctx;
+  const rounds = 3 + Math.floor(rng() * 2);       // 3..4 rounds × 3 beats = 9..12
+  const out = [];
+  for (let r = 0; r < rounds; r++) {
+    out.push({ kind: 'twin', lane: laneRnd(cfg, rng), gapMul: 0.72 });
+    const first = sideRnd(rng);
+    out.push({ kind: 'single', side: first,  lane: clampLane(cfg, cfg.LANE_MIN + rng() * 0.2), gapMul: 0.4 });
+    out.push({ kind: 'single', side: -first, lane: clampLane(cfg, cfg.LANE_MAX - rng() * 0.2), gapMul: 0.7 });
+  }
+  return out;
 }
 
 /**
- * Spawn the next orb(s): with TWIN_CHANCE a mirrored PAIR at one lane on both sides
- * (a completable twin), otherwise a single orb on a random side and lane. All fresh
- * orbs share the current stage's fall speed. Appends to `g.orbs`.
+ * Choose the next cadence for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of cadences differ while still escalating (later stages
+ * weight toward the demanding ones, and gate the meaner cadences in via minStage).
+ * @param {SymmetryConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the cadence just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next cadence into `g.formSpawns` (resolved spawn specs, the first marked as the
+ * cadence head), and record its identity on `g.formId`/`g.formName`/`g.formNotable`. Pure
+ * logic over the game's rng. Called by {@link spawnNext} when the current cadence is spent.
  * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const specs = f.build({ rng: g.rng, stage, cfg });
+  if (specs.length) specs[0].head = true;         // the leading beat carries the name cue
+  g.formSpawns = specs;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+}
+
+/**
+ * Spawn one beat's orb(s) from a spec — a mirrored twin pair (same lane, opposite sides,
+ * shared pair id) or a single orb on one side. All fresh orbs take the current stage's fall
+ * speed. Appends to `g.orbs`. Pure w.r.t. IO.
+ * @param {GameState} g
+ * @param {{kind:'single'|'twin', side?:number, lane:number}} spec
  * @returns {Orb[]} the orb(s) just spawned
  */
-export function spawnOrbs(g) {
+export function spawnSpec(g, spec) {
   const vy = fallSpeedOf(g);
-  const lane = randomLane(g);
+  const lane = clampLane(g.cfg, spec.lane);
   const made = [];
-  if (g.rng() < g.cfg.TWIN_CHANCE) {
+  if (spec.kind === 'twin') {
     const pair = ++g.pairSeq;
     made.push({ side: -1, lane, y: 0, vy, pair, born: g.t });
     made.push({ side: +1, lane, y: 0, vy, pair, born: g.t });
   } else {
-    const side = g.rng() < 0.5 ? -1 : 1;
+    const side = spec.side < 0 ? -1 : 1;
     made.push({ side, lane, y: 0, vy, pair: 0, born: g.t });
   }
   for (const o of made) g.orbs.push(o);
   return made;
+}
+
+/**
+ * Pull and spawn the next beat from the current cadence (loading a fresh cadence when the
+ * queue is spent), then schedule the following spawn from the beat's `gapMul` scaled by the
+ * current stage interval (floored so tight bursts stay sane). Returns the cadence name when
+ * a *notable* cadence's head beat just spawned (for the HUD cue), else null. Pure given the
+ * game's rng, so a seeded run reproduces the same sequence of cadences.
+ * @param {GameState} g
+ * @returns {?string} notable cadence name that just began, or null
+ */
+export function spawnNext(g) {
+  if (!g.formSpawns || g.formSpawns.length === 0) loadFormation(g);
+  const spec = g.formSpawns.shift();
+  spawnSpec(g, spec);
+  const gap = Math.max(g.cfg.SPAWN_GAP_FLOOR, Math.round(spawnInterval(g) * (spec.gapMul || 1)));
+  g.nextSpawn = g.t + gap;
+  return (spec.head && g.formNotable) ? g.formName : null;
 }
 
 /**
@@ -286,7 +490,9 @@ export function wouldCatch(g, orb) {
 
 /**
  * Result of a single {@link tick}.
- * @typedef {{died:boolean, caught:number, missed:number, twins:number}} TickResult
+ * @typedef {{died:boolean, caught:number, missed:number, twins:number, formation:?string}} TickResult
+ *   `formation` is the name of a notable cadence whose head beat spawned this tick (for the
+ *   HUD cue), else null.
  */
 
 /**
@@ -301,17 +507,17 @@ export function wouldCatch(g, orb) {
  * @returns {TickResult}
  */
 export function tick(g, input = {}) {
-  if (g.phase !== 'play') return { died: false, caught: 0, missed: 0, twins: 0 };
+  if (g.phase !== 'play') return { died: false, caught: 0, missed: 0, twins: 0, formation: null };
   g.t++;
 
   // Ease the catchers toward the commanded spread (a little weight).
   const want = typeof input.spread === 'number' ? clamp(input.spread, 0, 1) : g.spread;
   g.spread += (want - g.spread) * g.cfg.SPREAD_LERP;
 
-  // Spawn on schedule.
+  // Spawn on schedule, pulling the next beat from the current cadence (varied structure).
+  let formation = null;
   if (g.t >= g.nextSpawn) {
-    spawnOrbs(g);
-    g.nextSpawn = g.t + spawnInterval(g);
+    formation = spawnNext(g);
   }
 
   // Fall.
@@ -355,9 +561,9 @@ export function tick(g, input = {}) {
 
   if (g.lives <= 0) {
     g.phase = 'dead';
-    return { died: true, caught, missed, twins };
+    return { died: true, caught, missed, twins, formation };
   }
-  return { died: false, caught, missed, twins };
+  return { died: false, caught, missed, twins, formation };
 }
 
 /**

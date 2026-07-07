@@ -21,6 +21,26 @@ with a gold ring. Line up one spread and you catch **both** — and completing a
 pays a bonus point. So the moment-to-moment read is: *hold for the twin, or chase this
 single and sacrifice the far side?*
 
+## Varied structure — shifting cadences
+
+A run is not one flat spawn rule — it's a seeded **sequence of named cadences**
+(`FORMATIONS`/`pickFormation`/`loadFormation`/`spawnNext`), so no two runs share a
+skeleton and a returning player meets new shapes:
+
+- **Mirror** — the calm on-ramp: gentle alternating singles around the mid lanes.
+- **Reflection** — a rewarding breather: a short run of twins to sweep up.
+- **Cascade** — a rhythmic, tightening stream of alternating-side singles.
+- **Weave** — flowing spread swings as the lanes sweep centre ↔ edge.
+- **Split** — the signature tradeoff as a *snap*: a near-centre orb then a fast
+  opposite-side edge orb, so you commit a quick swing across the mirror.
+- **Kaleidoscope** — the late-run crescendo: dense twin + snap rounds at tight spacing.
+
+**Progression drives the variety:** each cadence is gated by `minStage`, so climbing the
+stages *opens the pool* — early runs stay in the calm Mirror/Reflection/Cascade set, and
+the meaner Weave/Split/Kaleidoscope enter as you get deeper, weighted to dominate late.
+The notable cadences flash a quiet name cue as they begin; the calm ones pass silently.
+Same seed → identical run; different seed → a differently-built one (all pure + tested).
+
 ## How it grows
 
 Symmetry ships to the shared **Growth Architecture**
@@ -29,6 +49,8 @@ Symmetry ships to the shared **Growth Architecture**
 - **Core-fun (the mirror tradeoff).** The linked, mirrored catchers make every pair of
   orbs a real decision; twins are the skill-rewarding counter-play, and a **combo**
   builds while you keep catching (a miss breaks it, and brightens/dims the catchers).
+- **Varied structure (see above).** The run's *skeleton* — its sequence of cadences —
+  varies every play and widens as you climb, so replays feel fresh.
 - **Escalation.** Orbs **fall faster** and **spawn thicker** as the score climbs
   (`fallSpeedOf`, `spawnInterval`, stepped by stage) — no late plateau.
 - **Stages (the run's arc).** Mirror → Reflection → Twin → Kaleidoscope → Singularity —
@@ -52,7 +74,8 @@ symmetry/
 ```
 
 All the rules live in `symmetry.core.js` as plain data and pure functions
-(`createGame`, `tick`, `spawnOrbs`, `wouldCatch`, `fallSpeedOf`, `spawnInterval`, …).
+(`createGame`, `tick`, `spawnNext`, `spawnSpec`, `pickFormation`, `wouldCatch`,
+`fallSpeedOf`, `spawnInterval`, …).
 The shell never decides game logic — it reads state and draws it, feeds the commanded
 spread in, and calls `tick()` on a fixed 60 Hz timestep.
 
@@ -76,14 +99,16 @@ node --test          # from this folder (Node 18+, zero dependencies)
 
 The suite covers the pure helpers (clamp, stage lookups, fall/spawn escalation),
 construction/reset invariants (including the frame-one guard), spawning (single vs
-mirrored twin, lane bounds, determinism), catching/missing (tolerance, score/combo up,
+mirrored twin, lane bounds/clamping), catching/missing (tolerance, score/combo up,
 life loss + combo reset), twins (both halves in a tick → bonus; a half-caught twin pays
-nothing), death on running out of lives, a full deterministic scripted run, stages, and
-the whole meta layer (normalize, applyRun, achievements, newlyEarned, near-miss).
+nothing), death on running out of lives, a full deterministic scripted run, stages, the
+**varied-structure** layer (pool well-formed, stage-gated + deterministic `pickFormation`,
+distinct-seeds → distinct skeletons, value bounds, the queue never starving, notable-only
+cues), and the whole meta layer (normalize, applyRun, achievements, newlyEarned, near-miss).
 
 ## Tuning
 
 All feel constants live in `CONFIG` at the top of `symmetry.core.js` — spread easing,
-fall speed and its per-stage ramp, catch tolerance, lane bounds, spawn cadence, twin
-chance and bonus, and lives. They're injectable per game instance, which is also how
-the tests stay deterministic.
+fall speed and its per-stage ramp, catch tolerance, lane bounds, spawn cadence and gap
+floor, the twin bonus, the stage arc, and the `FORMATIONS` pool. They're injectable per
+game instance, which is also how the tests stay deterministic.

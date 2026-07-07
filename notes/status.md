@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.19.2` (single source of truth: repo-root `VERSION`).
+**Version:** `0.19.3` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -93,13 +93,17 @@ sole host), plus each game at `…/games/<game>/`.
   on non-record runs (Growth Wave 2).
 - **Symmetry** (`games/symmetry/`) — a **mirror-coordination** game: one control (the
   *spread*) drives two catchers locked in a mirror about a centre line, so you often
-  can't save both sides at once — a forced tradeoff. **On the Growth Architecture**:
-  gold-ringed **twins** (a mirrored pair; one spread catches both for a bonus) as the
-  skill counter-play, a catch **combo**, escalation (orbs fall faster + spawn thicker by
-  stage), a **stage arc** (Mirror → Reflection → Twin → Kaleidoscope → Singularity) with
-  HUD chip + field tint, and **meta-progression** (`symmetry.meta`: lifetime
-  catches/twins/best-combo + 9 badges, run-report + near-miss) — legacy best preserved.
-  Pure core (normalised lanes/spread, seedable RNG) + 23 tests.
+  can't save both sides at once — a forced tradeoff. **On Varied Structure + Growth**: each
+  run is a seeded **sequence of named spawn cadences** (Mirror · Reflection · Cascade · Weave ·
+  Split · Kaleidoscope) that **unlock as you climb the stages** (progression drives the variety;
+  notable cadences flash a name cue) — `FORMATIONS`/`pickFormation`/`loadFormation`, `spawnNext`
+  pulls each beat from a per-cadence queue, `tick` emits a `formation` cue. Plus gold-ringed
+  **twins** (a mirrored pair; one spread catches both for a bonus) as the skill counter-play, a
+  catch **combo**, escalation (orbs fall faster + spawn thicker by stage), a **stage arc** (Mirror
+  → Reflection → Twin → Kaleidoscope → Singularity) with HUD chip + field tint, and
+  **meta-progression** (`symmetry.meta`: lifetime catches/twins/best-combo + 9 badges, run-report +
+  near-miss) — legacy best preserved. Pure core (normalised lanes/spread, seedable RNG) + 31 tests.
+  **(5th game on varied structure.)**
 - **Arc** (`games/arc/`) — a **charge-and-release power lob**: a launcher fires at a fixed
   45°; **hold to build power, release to lob**, and land the shot on the target pad. The
   single control is *how long you charge* (judge the distance, dial the power) — no aim, no
@@ -126,10 +130,23 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** 361/361 green across the collection.
+**Tests:** 369/369 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.19.3 (2026-07-07) — GROW: Symmetry onto varied structure (5th game on the pattern).**
+  Symmetry's flat coin-flip spawn (twin-or-single at a random lane) is now a seeded **sequence of
+  named cadences** from a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`/
+  `spawnNext`, copied in shape from Polarity into its own core): Mirror (calm on-ramp), Reflection
+  (a run of twins), Cascade (a tightening stream), Weave (centre↔edge swings), Split (the mirror
+  tradeoff as a near→edge snap), Kaleidoscope (the dense late crescendo). `minStage` gates each, so
+  climbing the stages **opens the pool** (progression drives the variety) and weights toward the
+  meaner cadences late; notable cadences flash a quiet `#formCue`, the calm ones stay silent. Spawn
+  timing moved to per-beat `gapMul × spawnInterval` (floored) so the stage speed-up still holds;
+  removed the now-unused `TWIN_CHANCE`, retired `spawnOrbs`. +8 pure-core tests (23 → 31);
+  collection **369/369** green; Chrome-previewed (start copy, twin cadence, HUD — no console
+  errors). Player changelog + `_games` date + README re-gen. Released `dev → main` by default on
+  green (PATCH). **5 of 11 games on varied structure.**
 - **v0.19.0 (2026-07-06) — MILESTONE: the site is now a Jekyll build (a mesh layer over static
   games).** Owner authorised Jekyll + a build step + URL changes, retiring the AI-added "buildless"
   rule. Each game's metadata lives once in `_games/<slug>.md` → the landing cards, count, and a new
@@ -250,7 +267,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 361/361 across 11 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 369/369 across 11 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

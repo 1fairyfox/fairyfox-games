@@ -39,6 +39,7 @@ const scoreEl = el('score'), bestEl = el('bestVal'), finalEl = el('finalScore');
 const newbestEl = el('newbest'), overTitle = el('overTitle');
 const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('overSub');
 const toastEl = el('toast');
+const formCueEl = el('formCue');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
 
@@ -61,6 +62,17 @@ function checkMilestone(prev, now) {
     const m = Symmetry.milestoneAt(s);
     if (m) { showToast(m); break; }
   }
+}
+
+// Formation cue — a quiet name flash as a NOTABLE cadence begins (varied structure). The
+// calm cadences pass silently (the core only returns a name for the notable ones).
+let formTimer = 0;
+function showForm(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = name;
+  formCueEl.classList.add('show');
+  clearTimeout(formTimer);
+  formTimer = setTimeout(() => formCueEl.classList.remove('show'), reduceMotion ? 900 : 1300);
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
@@ -130,6 +142,7 @@ function beginRun() {
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   scoreEl.textContent = '0';
   updateStageChip();
 }
@@ -215,6 +228,7 @@ function paddleX(side) { return cx + side * game.spread * halfW; }
 function onDeath() {
   shake = 16;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -289,6 +303,7 @@ function update(now) {
         }
       }
       if (r.twins) { shake = Math.max(shake, 6); }
+      if (r.formation) showForm(r.formation);
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
       if (game.score !== prev) {

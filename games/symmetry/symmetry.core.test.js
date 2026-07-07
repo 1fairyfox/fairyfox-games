@@ -18,9 +18,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, clamp, stageIndexAt, stageAt, stageProgress,
+  CONFIG, clamp, clampLane, stageIndexAt, stageAt, stageProgress,
   fallSpeedOf, spawnInterval,
-  createGame, reset, start, randomLane, spawnOrbs, wouldCatch, tick, milestoneAt,
+  createGame, reset, start, randomLane, spawnSpec, spawnNext,
+  pickFormation, loadFormation, wouldCatch, tick, milestoneAt,
   ACHIEVEMENTS, normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './symmetry.core.js';
 
@@ -114,23 +115,30 @@ test('randomLane stays within [LANE_MIN, LANE_MAX]', () => {
   }
 });
 
-test('a twin spawns a mirrored pair: same lane, opposite sides, shared pair id', () => {
-  // Force twins: TWIN_CHANCE 1 so every spawn is a pair.
-  const g = createGame(W, H, { rng: seeded(3), config: { TWIN_CHANCE: 1 } });
-  start(g);
-  const made = spawnOrbs(g);
+test('spawnSpec of a twin makes a mirrored pair: same lane, opposite sides, shared pair id', () => {
+  const g = newGame(); start(g);
+  const made = spawnSpec(g, { kind: 'twin', lane: 0.5 });
   assert.equal(made.length, 2);
   assert.equal(made[0].lane, made[1].lane, 'twin halves share a lane');
   assert.equal(made[0].side + made[1].side, 0, 'twin halves are on opposite sides');
   assert.ok(made[0].pair > 0 && made[0].pair === made[1].pair, 'twin halves share a pair id');
 });
 
-test('a single spawns exactly one unpaired orb', () => {
-  const g = createGame(W, H, { rng: seeded(3), config: { TWIN_CHANCE: 0 } });
-  start(g);
-  const made = spawnOrbs(g);
+test('spawnSpec of a single makes exactly one unpaired orb on the asked side', () => {
+  const g = newGame(); start(g);
+  const made = spawnSpec(g, { kind: 'single', side: 1, lane: 0.7 });
   assert.equal(made.length, 1);
   assert.equal(made[0].pair, 0);
+  assert.equal(made[0].side, 1);
+  assert.equal(made[0].lane, 0.7);
+});
+
+test('spawnSpec clamps an out-of-band lane into [LANE_MIN, LANE_MAX]', () => {
+  const g = newGame(); start(g);
+  const hi = spawnSpec(g, { kind: 'single', side: -1, lane: 5 })[0];
+  const lo = spawnSpec(g, { kind: 'single', side: -1, lane: -5 })[0];
+  assert.equal(hi.lane, CONFIG.LANE_MAX);
+  assert.equal(lo.lane, CONFIG.LANE_MIN);
 });
 
 // ── 4. Catching / missing ────────────────────────────────────────────────────
@@ -211,7 +219,7 @@ test('tick is a no-op once the run is over', () => {
   g.phase = 'dead';
   const before = JSON.stringify(g.orbs);
   const r = tick(g, { spread: 0.5 });
-  assert.deepEqual(r, { died: false, caught: 0, missed: 0, twins: 0 });
+  assert.deepEqual(r, { died: false, caught: 0, missed: 0, twins: 0, formation: null });
   assert.equal(JSON.stringify(g.orbs), before);
 });
 
@@ -294,4 +302,127 @@ test('nearMissLine nudges close runs and stays quiet otherwise', () => {
   assert.equal(nearMissLine(18, 20), '2 points short of your best — so close!');
   assert.equal(nearMissLine(25, 20), null);                                 // a record
   assert.equal(nearMissLine(10, 20), null);                                 // not close enough
+});
+
+// ── 10. Formations (varied structure) ──────────────────────────────────────────
+// A run is a seeded *sequence* of named spawn cadences, gated by stage (climbing opens the
+// pool), so no two runs share a skeleton but a seed reproduces one exactly. Mirrors the
+// Polarity reference build, in Symmetry's own core.
+
+// The ordered list of cadence ids LOADED across a run — a structural signature. A load is
+// detected on the tick where the cadence queue refills (its length grows).
+function loadSequence(seed, ticks = 1400) {
+  const g = createGame(W, H, { rng: seeded(seed), config: { LIVES: 1e9 } });
+  start(g);
+  const seq = [];
+  let prev = g.formSpawns.length;
+  for (let i = 0; i < ticks; i++) {
+    tick(g, { spread: 0.5 });
+    if (g.formSpawns.length > prev) seq.push(g.formId);
+    prev = g.formSpawns.length;
+  }
+  return seq;
+}
+
+test('the FORMATIONS pool is well-formed', () => {
+  const F = CONFIG.FORMATIONS;
+  assert.ok(F.length >= 4, 'a real pool, not a token one');
+  const ids = new Set(), names = new Set();
+  let lastMin = 0;
+  for (const f of F) {
+    assert.equal(typeof f.id, 'string');
+    assert.equal(typeof f.name, 'string');
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.ok(!ids.has(f.id), 'ids are unique');
+    assert.ok(!names.has(f.name), 'names are unique');
+    ids.add(f.id); names.add(f.name);
+    assert.ok(f.minStage >= lastMin, 'minStage is non-decreasing');
+    lastMin = f.minStage;
+  }
+  assert.ok(F.some(f => f.minStage === 0), 'at least one cadence is available from stage 0');
+});
+
+test('every build yields ≥1 spec, all lanes in-band, gapMul positive', () => {
+  const rng = seeded(9);
+  for (const f of CONFIG.FORMATIONS) {
+    for (let s = 0; s < CONFIG.STAGES.length; s++) {
+      for (let rep = 0; rep < 30; rep++) {
+        const specs = f.build({ rng, stage: s, cfg: CONFIG });
+        assert.ok(Array.isArray(specs) && specs.length >= 1, f.id + ' yields ≥1 spec');
+        for (const sp of specs) {
+          assert.ok(sp.kind === 'single' || sp.kind === 'twin', f.id + ' spec kind');
+          assert.ok(sp.lane >= CONFIG.LANE_MIN - 1e-9 && sp.lane <= CONFIG.LANE_MAX + 1e-9,
+            f.id + ' lane in-band');
+          assert.ok(sp.gapMul > 0, f.id + ' gapMul positive');
+          if (sp.kind === 'single') assert.ok(sp.side === -1 || sp.side === 1, f.id + ' side');
+        }
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible cadences and is deterministic', () => {
+  // Stage 0 pool excludes the min-stage-1+ cadences (weave/split/kaleido).
+  const stage0 = new Set();
+  for (let i = 0; i < 400; i++) stage0.add(pickFormation(CONFIG, 0, seeded(i), null).id);
+  assert.ok(!stage0.has('weave') && !stage0.has('split') && !stage0.has('kaleido'),
+    'no gated cadence appears at stage 0');
+  // Deep stages open the meaner cadences.
+  const deep = new Set();
+  for (let i = 0; i < 400; i++) deep.add(pickFormation(CONFIG, 4, seeded(i), null).id);
+  assert.ok(deep.has('kaleido'), 'the crescendo appears deep');
+  // Deterministic under a seed.
+  const a = pickFormation(CONFIG, 2, seeded(123), null).id;
+  const b = pickFormation(CONFIG, 2, seeded(123), null).id;
+  assert.equal(a, b);
+});
+
+test('climbing the stages introduces new cadences (progression drives variety)', () => {
+  const early = loadSequence(3, 300).slice(0, 8);   // shallow slice — early stages only
+  assert.ok(early.every(id => ['mirror', 'reflection', 'cascade'].includes(id)),
+    'early run stays in the calm/stage-0 pool');
+  // Over a long, deep run the gated cadences do show up.
+  const full = new Set(loadSequence(3, 8000));
+  assert.ok(full.has('split') || full.has('weave'), 'stage-1 cadences enter as the run climbs');
+});
+
+test('distinct seeds give distinct run structures; the same seed reproduces one', () => {
+  assert.deepEqual(loadSequence(42), loadSequence(42), 'same seed → identical skeleton');
+  assert.notDeepEqual(loadSequence(42), loadSequence(7), 'different seed → different skeleton');
+});
+
+test('the cadence queue never starves across a long run; frame one loads nothing', () => {
+  const g = newGame();
+  start(g);
+  // Frame one: nothing spawns and no cadence has loaded yet (the regression guard).
+  tick(g, { spread: 0.5 });
+  assert.equal(g.formId, null, 'no cadence loads on frame one');
+  // A long survivable run: the scheduler must always have a beat to pull.
+  {
+    const gg = createGame(W, H, { rng: seeded(5), config: { LIVES: 1e9 } });
+    start(gg);
+    for (let i = 0; i < 4000; i++) {
+      tick(gg, { spread: 0.5 });
+      assert.ok(Array.isArray(gg.formSpawns), 'the queue is always a valid array');
+    }
+    assert.equal(gg.phase, 'play', 'stayed alive with padded lives');
+    assert.ok(gg.catches > 0, 'orbs kept flowing and were caught');
+    assert.ok(gg.formId !== null, 'a cadence is loaded deep into the run');
+  }
+});
+
+test('only NOTABLE cadences flash a name cue; the calm ones stay silent', () => {
+  const g = createGame(W, H, { rng: seeded(11), config: { LIVES: 1e9 } });
+  start(g);
+  const cues = new Set();
+  for (let i = 0; i < 4000; i++) {
+    const r = tick(g, { spread: 0.5 });
+    if (r.formation) cues.add(r.formation);
+  }
+  const notableNames = new Set(CONFIG.FORMATIONS.filter(f => f.notable).map(f => f.name));
+  assert.ok(cues.size >= 1, 'at least one notable cadence announced itself');
+  for (const name of cues) assert.ok(notableNames.has(name), name + ' is a notable cadence');
+  assert.ok(!cues.has('Mirror') && !cues.has('Reflection'), 'calm cadences never cue');
 });

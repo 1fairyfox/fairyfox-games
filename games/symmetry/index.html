@@ -57,6 +57,17 @@
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 
+  /* Formation cue — a quiet name flash as a NOTABLE cadence begins (varied structure).
+     Peripheral by design: it names the run's shifting patterns without stealing focus. */
+  #formCue {
+    position:absolute; top:66%; left:50%; transform:translate(-50%,-50%);
+    font-size:13px; letter-spacing:.32em; text-transform:uppercase; font-weight:600;
+    color:#8ab4ff; opacity:0; pointer-events:none; white-space:nowrap;
+    transition:opacity .3s ease;
+  }
+  #formCue.show { opacity:.85; }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .15s ease } }
+
   /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
   #stageChip {
     position:absolute; top:20px; left:50%; transform:translateX(-50%);
@@ -98,7 +109,7 @@
     <div class="title">Symmetry</div>
     <div class="sub">One control, two catchers — locked in a mirror. Move your pointer left or right (or the arrow keys);
       the pair spreads apart or draws together around the centre line. Catch the falling orbs on both sides.</div>
-    <div class="tips">Because the catchers mirror, you often can't save both sides at once — read ahead and choose. A gold-ringed <b>twin</b> falls as a matched pair: line up one spread and you catch both for a <b>bonus</b>. Missing an orb costs a life; three misses ends the run. Runs speed up through the <b>stages</b> (Mirror → Reflection → Twin → Kaleidoscope → Singularity), and feats earn <b>badges</b> that stick across runs.</div>
+    <div class="tips">Because the catchers mirror, you often can't save both sides at once — read ahead and choose. A gold-ringed <b>twin</b> falls as a matched pair: line up one spread and you catch both for a <b>bonus</b>. Missing an orb costs a life; three misses ends the run. Every run is built from shifting <b>cadences</b> — a calm Mirror, a Cascade, a swinging Weave, a snap Split, a dense Kaleidoscope — and climbing the <b>stages</b> (Mirror → Reflection → Twin → Kaleidoscope → Singularity) speeds the fall and unlocks the meaner patterns. Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Move to begin</div>
   </div>
 
@@ -113,6 +124,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div id="formCue"></div>
 </div>
 
 <!-- The game logic core + render shell are external modules; this is the
