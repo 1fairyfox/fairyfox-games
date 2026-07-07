@@ -82,19 +82,23 @@ CI runs the full suite on every push and pull request.
 
 ## The games
 
+<!-- GAMES:START — generated from _games/ by scripts/gen-readme.js; run `node scripts/gen-readme.js` after adding or editing a game. Do not hand-edit between the markers. -->
+
 | Game | What you do | Folder |
 |------|-------------|--------|
-| **Ink Bloom** | Steer a growing line, eat motes, don't cross your own trail. | [`games/ink-bloom/`](games/ink-bloom/) |
-| **Echo Chamber** | Catch the expanding echo as it crosses the target band; the window keeps tightening. | [`games/echo-chamber/`](games/echo-chamber/) |
-| **Orbit Slingshot** | Hold to thrust your probe around a planet's gravity; sweep the targets, don't crash or escape. | [`games/orbit-slingshot/`](games/orbit-slingshot/) |
-| **Polarity** | Flip your charge to match each incoming gate; clash and you're destroyed. It speeds up. | [`games/polarity/`](games/polarity/) |
-| **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. | [`games/ricochet/`](games/ricochet/) |
-| **Skyline** | Drop a sliding slab onto your tower — the overhang is sliced off, so only precision keeps it climbing. | [`games/skyline/`](games/skyline/) |
-| **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it up; you can only strike on the way down, and more orbs keep joining. | [`games/loft/`](games/loft/) |
-| **Poise** | Tilt a beam to balance a rolling ball; roll it over the target to score without letting it slip off either end. It grows twitchier as you go. | [`games/poise/`](games/poise/) |
-| **Symmetry** | One control, two mirrored catchers — spread them around the centre to catch orbs on both sides. You can't always save both, so read ahead and chase the twin pairs. | [`games/symmetry/`](games/symmetry/) |
-| **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |
-| **Sluice** | Send each falling spark into the channel that matches its colour — but the channels keep rearranging. Route early for a combo; three misses end it. | [`games/sluice/`](games/sluice/) |
+| **Ink Bloom** | Steer a growing line, drink glowing motes to grow, and don't cross your own trail. The longer you live, the less room you leave yourself. | [`games/ink-bloom/`](games/ink-bloom/) |
+| **Sluice** | Coloured sparks fall one at a time — send each into the channel that matches its colour before it lands. The channels keep rearranging, so read the row and route early for a combo. | [`games/sluice/`](games/sluice/) |
+| **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the bright centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |
+| **Echo Chamber** | An echo ring expands from the centre — catch it the instant it crosses the target band. Every hit tightens the window. Three lives. | [`games/echo-chamber/`](games/echo-chamber/) |
+| **Polarity** | Charged gates rush in — flip your charge, cyan or magenta, to match each one and phase through. Clash and it's over. The stream keeps speeding up. | [`games/polarity/`](games/polarity/) |
+| **Symmetry** | One control, two catchers locked in a mirror — spread them around the centre to catch falling orbs on both sides. You can't always save both, so read ahead and chase the twins. | [`games/symmetry/`](games/symmetry/) |
+| **Poise** | Tilt the beam to balance a rolling ball — roll it over the glowing target to score, without letting it slip off either end. It grows twitchier the longer you last. | [`games/poise/`](games/poise/) |
+| **Skyline** | Drop a sliding slab onto your tower — only the overlap stays, so the overhang is sliced off. Flush drops keep the full width; precision is the only way up. | [`games/skyline/`](games/skyline/) |
+| **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it back up. You can only strike on the way down, and every few points another orb joins the air. | [`games/loft/`](games/loft/) |
+| **Orbit Slingshot** | Your probe orbits a planet. Hold to fire a prograde thrust and bend your path through the targets — without crashing or flying off into space. | [`games/orbit-slingshot/`](games/orbit-slingshot/) |
+| **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. Bank several in one shot — a shot that hits nothing costs a life. | [`games/ricochet/`](games/ricochet/) |
+
+<!-- GAMES:END -->
 
 _(A new one joins most days.)_
 

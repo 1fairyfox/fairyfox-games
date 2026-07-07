@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Fairy Fox daily games — a one-mechanic, beat-your-own-score canvas game collection.",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "gen:readme": "node scripts/gen-readme.js"
   },
   "license": "MIT",
   "repository": {
