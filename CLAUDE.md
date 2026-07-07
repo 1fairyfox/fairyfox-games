@@ -166,7 +166,7 @@ The notes are a living document — keep them current as you work, by default.
 | Made / rejected a decision | `notes/decisions/architecture.md` / `rejected.md` |
 | A change warrants a version | Bump `VERSION`, same commit |
 | Changed the site's data practices / added a user-facing surface | Update `legal/*.html` + the "Last updated" date, same change (accuracy discipline) |
-| Added a new game | New `games/<slug>/` (core + test + shell + README) **and** a `_games/<slug>.md` metadata doc (title · slug · tags · updated · tagline) — the landing cards, `/tags/` pages, and the count all generate from it. Add a player-facing entry atop `_data/changelog.json`. (A root README table entry is optional.) |
+| Added a new game | New `games/<slug>/` (core + test + shell + README) **and** a `_games/<slug>.md` metadata doc (title · slug · tags · updated · tagline) — the landing cards, `/tags/` pages, and the count all generate from it. Add a player-facing entry atop `_data/changelog.json`, then run `npm run gen:readme` to sync the root README table from `_games/`. |
 
 ## Cross-project standards & checking the fairyfox system for updates
 
