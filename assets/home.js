@@ -50,3 +50,22 @@ if (section && list && data.length) {
   });
   section.hidden = false;
 }
+
+// Tag filter — filter the grid in place by mechanic. Progressive enhancement: the bar
+// is hidden until this wires it, so a JS-off visitor simply sees every game.
+const filterBar = document.getElementById("game-filter");
+if (grid && filterBar) {
+  const fcards = Array.prototype.slice.call(grid.querySelectorAll(".game-card"));
+  const fbtns = Array.prototype.slice.call(filterBar.querySelectorAll("[data-filter]"));
+  filterBar.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-filter]");
+    if (!btn) return;
+    const tag = btn.getAttribute("data-filter");
+    fcards.forEach((c) => {
+      const tags = (c.getAttribute("data-tags") || "").split(/\s+/);
+      c.hidden = !(tag === "*" || tags.indexOf(tag) !== -1);
+    });
+    fbtns.forEach((b) => b.classList.toggle("is-on", b === btn));
+  });
+  filterBar.hidden = false;
+}

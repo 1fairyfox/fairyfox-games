@@ -48,6 +48,11 @@ permalink: /
       <!-- One card per game, generated from the _games collection (sorted newest-first).
            Add or update a game by editing its _games/<slug>.md front matter. -->
       {% assign games = site.games | sort: "updated" | reverse %}
+      {% assign filter_tags = site.games | map: "tags" | join: "," | split: "," | uniq | sort %}
+      <div class="game-filter" id="game-filter" hidden aria-label="Filter games by mechanic">
+        <button type="button" class="tag is-on" data-filter="*">All</button>
+        {% for tag in filter_tags %}<button type="button" class="tag" data-filter="{{ tag }}">{{ tag }}</button>{% endfor %}
+      </div>
       <div class="grid cols-3" id="game-grid">
         {% for g in games %}{% include game-card.html game=g %}{% endfor %}
       </div>
