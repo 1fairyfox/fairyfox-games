@@ -2,7 +2,7 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.19.3` (single source of truth: repo-root `VERSION`).
+**Version:** `0.19.4` (single source of truth: repo-root `VERSION`).
 
 ## Current state (read this first)
 
@@ -46,12 +46,17 @@ sole host), plus each game at `…/games/<game>/`.
   8 badges, run-report) — legacy best preserved. Pure core + 40 tests. **(2nd game on varied
   structure.)**
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
-  sweep targets; **close-pass skim bonus** is the risk/reward. **On the Growth
-  Architecture**: escalation (targets creep nearer the planet + pickup radius shrinks by
-  stage — no flat difficulty), a **stage arc** (Suborbital → Low orbit → Geostationary →
-  Deep space) with HUD chip + planet-halo tint, and **meta-progression**
-  (`orbitslingshot.meta`: lifetime targets/skims/best-bonus + 8 badges, run-report) —
-  legacy best preserved. Pure core (symplectic Euler) + 30 tests.
+  sweep targets; **close-pass skim bonus** is the risk/reward. **On Varied Structure +
+  Growth**: each run is a seeded **sequence of named target formations** (Belt · Cluster ·
+  Ring · Ladder · Perihelion · Swarm) that **unlock as you climb the stages** (progression
+  drives the variety; notable ones flash a name cue) — `FORMATIONS`/`pickFormation`/
+  `loadFormation`, `pickTarget` pulls each target from a per-formation queue (specs are
+  `{ang, rFrac}` over the current stage-tightened annulus), `tick` emits a `formation` cue.
+  Plus escalation (targets creep nearer the planet + pickup radius shrinks by stage — no
+  flat difficulty), a **stage arc** (Suborbital → Low orbit → Geostationary → Deep space)
+  with HUD chip + planet-halo tint, and **meta-progression** (`orbitslingshot.meta`:
+  lifetime targets/skims/best-bonus + 8 badges, run-report) — legacy best preserved. Pure
+  core (symplectic Euler) + 39 tests. **(6th game on varied structure.)**
 - **Polarity** (`games/polarity/`) — a **precision-combo** runner: flip cyan/magenta to
   match each gate, but land the flip at the *last instant* to grow a **multiplier**
   (×2…×9) — flip early/safe and it breaks to ×1. **Reference build for both the Growth
@@ -130,10 +135,29 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** 369/369 green across the collection.
+**Tests:** 378/378 green across the collection.
 
 ## In flight / awaiting
 
+- **v0.19.4 (2026-07-08) — GROW: Orbit Slingshot onto varied structure (6th game on the pattern).**
+  Orbit Slingshot's flat one-target-at-a-time spawn (a random point in the annulus per pickup) is
+  now a seeded **sequence of named formations** from a stage-weighted pool (`FORMATIONS`/
+  `pickFormation`/`loadFormation`, copied in shape from Polarity into its own core; `pickTarget`
+  pulls each target from a per-formation queue): Belt (calm scatter on-ramp), Cluster (a bunched
+  easy sweep), Ring (a marching lap round the planet), Ladder (targets stepping outward), Perihelion
+  (planet-hugging targets — a crash risk that pays the close-pass bonus), Swarm (the dense late
+  crescendo). `minStage` gates each, so climbing the stages **opens the pool** (progression drives
+  the variety) and weights toward the daring formations late; notable ones flash a quiet `#formCue`,
+  the calm ones stay silent. Specs are `{ang, rFrac}` — `rFrac` maps across the current
+  stage-tightened annulus, so the existing per-stage inward pull + pickup-radius shrink still layer
+  on top. +9 pure-core tests (30 → 39); collection **378/378** green; start copy + game README
+  updated. **Chrome preview MCP was unavailable this run** — validated instead with a headless
+  core-driven smoke (7,400+ ticks over 40 runs, no exceptions/queue-starves; a forced top-stage
+  frozen-probe run resolves all six formations and cues only the four notable ones). **Eyeball the
+  live game in a real browser at the next opportunity.** Player changelog + `_games` date + README
+  re-gen. Released `dev → main` by default on green (PATCH). **6 of 11 games on varied structure**
+  (Polarity, Echo Chamber, Ink Bloom, Sluice, Symmetry, Orbit Slingshot; remaining: Ricochet,
+  Skyline, Loft, Poise, Arc).
 - **v0.19.3 (2026-07-07) — GROW: Symmetry onto varied structure (5th game on the pattern).**
   Symmetry's flat coin-flip spawn (twin-or-single at a random lane) is now a seeded **sequence of
   named cadences** from a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`/
@@ -267,7 +291,7 @@ sole host), plus each game at `…/games/<game>/`.
 | Area | Status |
 |------|--------|
 | Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 369/369 across 11 games (scope local runs to `games/`) |
+| Tests (`node --test`) | ✅ 378/378 across 11 games (scope local runs to `games/`) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

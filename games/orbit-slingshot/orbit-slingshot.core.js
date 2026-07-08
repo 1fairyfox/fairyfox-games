@@ -58,6 +58,33 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 60,  name: 'Geostationary', tint: '#a98cff' }),
     Object.freeze({ at: 120, name: 'Deep space',    tint: '#ff8f6a' }),
   ]),
+  // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer;
+  // Polarity is the reference build). Instead of every target being one flat random point
+  // in the annulus, a run is a different *sequence* of these named target patterns, so no
+  // two runs trace the same skeleton of sweeps. Each is a short queue of targets with its
+  // own character — a scattered Belt, a bunched Cluster, a marching Ring, an outward Ladder,
+  // a planet-hugging Perihelion, a dense late Swarm. `minStage` gates when a pattern first
+  // appears (so climbing the stages opens the pool — progression drives the variety);
+  // `weight(stageIndex)` biases selection (later stages lean on the demanding ones);
+  // `notable` patterns earn a quiet name-cue as they arrive (the calm ones pass silently).
+  // `build(ctx)` is PURE given `ctx.rng` and returns targets as {ang, rFrac} specs — ang in
+  // radians, rFrac a 0..1 position across the CURRENT (stage-tightened) annulus, so the
+  // per-stage inward pull still applies on top of the pattern. See the buildFormation* fns.
+  // New formations can be added over time for players to discover; ids are stable forever.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'belt',       name: 'Belt',       minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildBelt }),
+    Object.freeze({ id: 'cluster',    name: 'Cluster',    minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildCluster }),
+    Object.freeze({ id: 'ring',       name: 'Ring',       minStage: 0, notable: true,
+      weight: () => 2, build: buildRing }),
+    Object.freeze({ id: 'ladder',     name: 'Ladder',     minStage: 1, notable: true,
+      weight: (s) => s, build: buildLadder }),
+    Object.freeze({ id: 'perihelion', name: 'Perihelion', minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildPerihelion }),
+    Object.freeze({ id: 'swarm',      name: 'Swarm',      minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildSwarm }),
+  ]),
 });
 
 /**
@@ -137,6 +164,7 @@ export function createGame(width, height, opts = {}) {
     pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 },
     target: { x: 0, y: 0 },
     score: 0, targets: 0, skims: 0, bestBonus: 0, minDist: Infinity, t: 0, thrusting: false, cause: null,
+    formTargets: [], formId: null, formName: null, formNotable: false, // current formation
   };
   reset(g);
   return g;
@@ -161,6 +189,10 @@ export function reset(g) {
   g.t = 0;
   g.thrusting = false;
   g.cause = null;
+  g.formTargets = [];   // no formation loaded yet; the first pickTarget pulls one
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
   pickTarget(g);
   return g;
 }
@@ -236,20 +268,161 @@ export function targetRadius(g) {
 }
 
 /**
- * Place a fresh target at a random angle and radius in the reachable annulus. As the
- * stage climbs the inner edge pulls toward the planet, so later targets demand riskier
- * dives (escalation). At stage 0 the annulus is exactly [TARGET_MIN_R, TARGET_MAX_R].
+ * The reachable annulus [minR, maxR] for the current stage. As the stage climbs the inner
+ * edge pulls toward the planet (escalation), so later targets demand riskier dives; the
+ * outer edge is fixed. At stage 0 it is exactly [TARGET_MIN_R, TARGET_MAX_R]. Pure.
  * @param {GameState} g
- * @returns {Vec} the new target position
+ * @returns {[number, number]} [minR, maxR] px from the planet centre
+ */
+export function targetAnnulus(g) {
+  const stage = stageIndexAt(g.cfg, g.score);
+  const minR = Math.max(g.cfg.STAGE_MIN_FLOOR, g.cfg.TARGET_MIN_R - stage * g.cfg.STAGE_MIN_PULL);
+  return [minR, g.cfg.TARGET_MAX_R];
+}
+
+/**
+ * Place the next target, pulling one spec from the current formation's queue (loading a
+ * fresh formation when the queue is spent). The spec's `rFrac` (0..1) maps across the
+ * current stage-tightened annulus, so the per-stage inward pull still applies on top of
+ * the pattern. The placed target carries its formation's name and a `formHead` flag on the
+ * first target of a *notable* formation, so the shell can announce the pattern as it
+ * arrives. Pure given the game's rng, so a seeded run reproduces the same sequence.
+ * @param {GameState} g
+ * @returns {Vec} the new target position (also stored on g.target)
  */
 export function pickTarget(g) {
   const p = planet(g);
-  const stage = stageIndexAt(g.cfg, g.score);
-  const minR = Math.max(g.cfg.STAGE_MIN_FLOOR, g.cfg.TARGET_MIN_R - stage * g.cfg.STAGE_MIN_PULL);
-  const ang = g.rng() * Math.PI * 2;
-  const rr = minR + g.rng() * (g.cfg.TARGET_MAX_R - minR);
-  g.target = { x: p.x + Math.cos(ang) * rr, y: p.y + Math.sin(ang) * rr };
+  if (!g.formTargets || g.formTargets.length === 0) loadFormation(g);
+  const spec = g.formTargets.shift();
+  const [minR, maxR] = targetAnnulus(g);
+  const rr = minR + Math.max(0, Math.min(1, spec.rFrac)) * (maxR - minR);
+  g.target = {
+    x: p.x + Math.cos(spec.ang) * rr,
+    y: p.y + Math.sin(spec.ang) * rr,
+    form: g.formName,
+    formHead: spec.head === true && g.formNotable === true, // cue only the notable ones
+  };
   return g.target;
+}
+
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng`; it returns an array of target specs {ang, rFrac}
+// — `ang` an absolute angle (radians) around the planet, `rFrac` a 0..1 position across the
+// current annulus (pickTarget clamps as belt-and-braces). `ctx` = { rng, stage, cfg }.
+// Names/behaviours are Orbit Slingshot's spacefaring flavour; the *shape* — a pool of
+// stage-weighted, seeded patterns — is the reusable varied-structure standard.
+
+const TAU = Math.PI * 2;
+
+/** Belt — the calm baseline: a handful of targets scattered around the mid-to-outer band. */
+function buildBelt(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 3);           // 3..5 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ ang: rng() * TAU, rFrac: 0.35 + rng() * 0.65 });
+  return out;
+}
+
+/** Cluster — a bunch: a few targets packed near one bearing and radius, an easy consecutive
+ *  sweep once you're pointed at them. Roomy, calm. */
+function buildCluster(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 2);           // 3..4 targets
+  const base = rng() * TAU, r0 = 0.4 + rng() * 0.5;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ang: base + (rng() - 0.5) * 0.6, rFrac: r0 + (rng() - 0.5) * 0.15 });
+  }
+  return out;
+}
+
+/** Ring — a lap: targets march around the planet at a roughly constant radius, pulling you
+ *  into a long circling sweep. Notable. */
+function buildRing(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);           // 4..6 targets
+  const start = rng() * TAU, dir = rng() < 0.5 ? 1 : -1;
+  const step = (TAU / n) * (0.8 + rng() * 0.4), r = 0.45 + rng() * 0.4;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ang: start + dir * step * i, rFrac: r + (rng() - 0.5) * 0.06 });
+  }
+  return out;
+}
+
+/** Ladder — a climb: targets step steadily outward in radius across spread bearings, so you
+ *  chase the orbit wider and wider. Notable; leans in from mid stages. */
+function buildLadder(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);           // 4..6 targets
+  const start = rng() * TAU, spread = 0.6 + rng() * 0.8;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;           // 0..1 outward
+    out.push({ ang: start + i * spread + (rng() - 0.5) * 0.3, rFrac: 0.15 + t * 0.8 });
+  }
+  return out;
+}
+
+/** Perihelion — the daring one: targets hug the planet (low rFrac → near the surface after
+ *  the stage pull), rewarding a close-pass skim but courting a crash. Notable; late. */
+function buildPerihelion(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 3);           // 3..5 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ ang: rng() * TAU, rFrac: rng() * 0.28 });
+  return out;
+}
+
+/** Swarm — the late crescendo: a dense scatter of targets all around, near and far at once,
+ *  a relentless sweep with no rest. Notable; the deep-run peak. */
+function buildSwarm(ctx) {
+  const { rng } = ctx;
+  const n = 6 + Math.floor(rng() * 4);           // 6..9 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ ang: rng() * TAU, rFrac: rng() });
+  return out;
+}
+
+/**
+ * Choose the next formation for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of structures differ while still escalating (later stages
+ * weight toward the demanding formations).
+ * @param {OrbitConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the formation just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next formation into `g.formTargets` (resolved {ang, rFrac} specs, the first
+ * marked as the formation head), and record its identity on `g.formId`/`g.formName`. Pure
+ * logic over the game's rng. Called by {@link pickTarget} when the current formation is spent.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const specs = f.build({ rng: g.rng, stage, cfg });
+  if (specs.length) specs[0].head = true;        // the leading target carries the name cue
+  g.formTargets = specs;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
 }
 
 /**
@@ -306,7 +479,9 @@ export function outOfBounds(g) {
 
 /**
  * Result of a single {@link tick}.
- * @typedef {{scored:boolean, bonus?:number, died:boolean, cause:(null|'crash'|'escape')}} TickResult
+ * @typedef {{scored:boolean, bonus?:number, died:boolean, cause:(null|'crash'|'escape'), formation:?string}} TickResult
+ * @property {?string} formation name of a notable formation whose head target just appeared
+ *   this tick (for the HUD cue), else null
  */
 
 /**
@@ -319,7 +494,7 @@ export function outOfBounds(g) {
  * @returns {TickResult}
  */
 export function tick(g, input = {}) {
-  if (g.phase !== 'play') return { scored: false, died: false, cause: null };
+  if (g.phase !== 'play') return { scored: false, died: false, cause: null, formation: null };
   g.t++;
   const thrust = !!input.thrust;
   g.thrusting = thrust;
@@ -340,10 +515,10 @@ export function tick(g, input = {}) {
   const skim = distToPlanet(g);
   if (skim < g.minDist) g.minDist = skim;
 
-  if (hitPlanet(g)) { g.phase = 'dead'; g.cause = 'crash'; return { scored: false, died: true, cause: 'crash' }; }
-  if (outOfBounds(g)) { g.phase = 'dead'; g.cause = 'escape'; return { scored: false, died: true, cause: 'escape' }; }
+  if (hitPlanet(g)) { g.phase = 'dead'; g.cause = 'crash'; return { scored: false, died: true, cause: 'crash', formation: null }; }
+  if (outOfBounds(g)) { g.phase = 'dead'; g.cause = 'escape'; return { scored: false, died: true, cause: 'escape', formation: null }; }
 
-  let scored = false, bonus = 0;
+  let scored = false, bonus = 0, formation = null;
   if (Math.hypot(g.pos.x - g.target.x, g.pos.y - g.target.y) < targetRadius(g) + g.cfg.PROBE_R) {
     bonus = closePassBonus(g);   // reward a risky skim past the planet
     g.score += 1 + bonus;
@@ -354,9 +529,11 @@ export function tick(g, input = {}) {
     }
     scored = true;
     g.minDist = Infinity;        // fresh skim window for the next target
-    pickTarget(g);
+    pickTarget(g);               // pull the next target from the formation queue
+    // If the fresh target is the head of a *notable* formation, a new pattern just began.
+    if (g.target.formHead) formation = g.target.form;
   }
-  return { scored, bonus, died: false, cause: null };
+  return { scored, bonus, died: false, cause: null, formation };
 }
 
 /**

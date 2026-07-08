@@ -37,6 +37,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -49,6 +50,15 @@ function showToast(text) {
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+}
+let formCueTimer = 0;
+// Flash a notable formation's name as its pattern arrives (varied-structure cue).
+function showFormCue(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = '◇ ' + name;
+  formCueEl.classList.add('show');
+  clearTimeout(formCueTimer);
+  formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
 }
 // Show a crossed score milestone; returns true if one was shown.
 function showMilestone(prev, now) {
@@ -145,6 +155,7 @@ window.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
 function onDeath() {
   shake = 18;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -234,6 +245,7 @@ function update(now) {
         if (si !== stageIdx) enterStage(si);
         updateStageChip();
       }
+      if (r.formation) showFormCue(r.formation);   // a notable target pattern just began
       if (r.died) onDeath();
     }
     stepFx();

@@ -20,6 +20,7 @@ import {
   CONFIG, planet, createGame, reset, start, pickTarget,
   gravityAt, speed, distToPlanet, hitPlanet, outOfBounds, tick, closePassBonus, milestoneAt,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, targetRadius, normalizeMeta, applyRun, newlyEarned,
+  targetAnnulus, pickFormation, loadFormation,
 } from './orbit-slingshot.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -143,13 +144,13 @@ test('a dead game ignores further ticks', () => {
   const g = newGame();
   start(g);
   g.phase = 'dead';
-  assert.deepEqual(tick(g, { thrust: true }), { scored: false, died: false, cause: null });
+  assert.deepEqual(tick(g, { thrust: true }), { scored: false, died: false, cause: null, formation: null });
 });
 
 test('tick is a no-op before the run starts', () => {
   const g = newGame(); // menu
   const posBefore = { ...g.pos };
-  assert.deepEqual(tick(g, { thrust: true }), { scored: false, died: false, cause: null });
+  assert.deepEqual(tick(g, { thrust: true }), { scored: false, died: false, cause: null, formation: null });
   assert.deepEqual(g.pos, posBefore);
 });
 
@@ -367,4 +368,139 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── 13. Varied structure — formations (the run's skeleton varies) ─────────────────
+const FORM_IDS = new Set(CONFIG.FORMATIONS.map(f => f.id));
+const FORM_NAMES = new Set(CONFIG.FORMATIONS.map(f => f.name));
+
+test('FORMATIONS pool is well-formed and has a calm, non-notable option at stage 0', () => {
+  let stage0 = 0, lastMin = -1;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.equal(typeof f.id, 'string');
+    assert.equal(typeof f.name, 'string');
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.ok(f.minStage >= lastMin, 'minStage is non-decreasing through the pool');
+    lastMin = f.minStage;
+    if (f.minStage === 0) stage0++;
+  }
+  assert.ok(stage0 >= 1, 'at least one formation available from stage 0');
+  // ids are unique
+  assert.equal(FORM_IDS.size, CONFIG.FORMATIONS.length, 'unique formation ids');
+  // the opening pool has a calm (non-notable) on-ramp
+  assert.ok(CONFIG.FORMATIONS.some(f => f.minStage === 0 && !f.notable),
+    'a calm on-ramp formation exists at stage 0');
+});
+
+test('every formation builds ≥1 spec with in-range ang/rFrac', () => {
+  const rng = seeded(11);
+  for (const f of CONFIG.FORMATIONS) {
+    for (let s = 0; s < CONFIG.STAGES.length; s++) {
+      const specs = f.build({ rng, stage: s, cfg: CONFIG });
+      assert.ok(Array.isArray(specs) && specs.length >= 1, `${f.id} yields ≥1 spec`);
+      for (const sp of specs) {
+        assert.ok(Number.isFinite(sp.ang), `${f.id} ang finite`);
+        // rFrac need not pre-clamp, but should be a finite number in a sane band
+        assert.ok(Number.isFinite(sp.rFrac), `${f.id} rFrac finite`);
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible formations and is deterministic', () => {
+  // Stage 0: only minStage-0 formations are eligible (no ladder/perihelion/swarm).
+  const gated = new Set(CONFIG.FORMATIONS.filter(f => f.minStage > 0).map(f => f.id));
+  const a = seeded(5), b = seeded(5);
+  const seen0 = new Set();
+  for (let i = 0; i < 200; i++) {
+    const fa = pickFormation(CONFIG, 0, a, null);
+    const fb = pickFormation(CONFIG, 0, b, null);
+    assert.equal(fa.id, fb.id, 'same seed → same pick');
+    assert.ok(!gated.has(fa.id), 'gated formations never appear at stage 0');
+    seen0.add(fa.id);
+  }
+  assert.ok(seen0.size >= 2, 'stage 0 still varies among the calm formations');
+
+  // The demanding, late formations become available at the top stage.
+  const topStage = CONFIG.STAGES.length - 1;
+  const seenTop = new Set();
+  const c = seeded(9);
+  for (let i = 0; i < 300; i++) seenTop.add(pickFormation(CONFIG, topStage, c, null).id);
+  assert.ok(seenTop.has('perihelion') || seenTop.has('swarm'), 'stage-gated formations appear late');
+});
+
+test('loadFormation fills the queue, marks the head, and sets formId/formName', () => {
+  const g = createGame(W, H, { rng: seeded(3) });
+  g.formTargets = []; g.formId = null;
+  loadFormation(g);
+  assert.ok(FORM_IDS.has(g.formId), 'formId set to a real formation');
+  assert.ok(FORM_NAMES.has(g.formName), 'formName set');
+  assert.ok(g.formTargets.length >= 1, 'queue filled');
+  assert.equal(g.formTargets[0].head, true, 'first spec is the formation head');
+});
+
+test('targetAnnulus tightens its inner edge with stage, outer edge fixed', () => {
+  const g = createGame(W, H, { rng: seeded(1) });
+  g.score = 0;
+  const [lo0, hi0] = targetAnnulus(g);
+  assert.equal(lo0, CONFIG.TARGET_MIN_R);
+  assert.equal(hi0, CONFIG.TARGET_MAX_R);
+  g.score = CONFIG.STAGES[CONFIG.STAGES.length - 1].at;   // top stage
+  const [loTop, hiTop] = targetAnnulus(g);
+  assert.ok(loTop < lo0, 'inner edge pulls in at higher stages');
+  assert.ok(loTop >= CONFIG.STAGE_MIN_FLOOR - 1e-9, 'inner edge bounded by the floor');
+  assert.equal(hiTop, CONFIG.TARGET_MAX_R, 'outer edge unchanged');
+});
+
+test('distinct seeds produce distinct target sequences; same seed reproduces it', () => {
+  function seq(seed) {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g); g.score = 3;                 // a couple stages of pool available
+    const out = [];
+    for (let i = 0; i < 40; i++) { pickTarget(g); out.push(Math.round(g.target.x) + ',' + Math.round(g.target.y)); }
+    return out.join('|');
+  }
+  assert.notEqual(seq(1), seq(2), 'different seeds → different structure');
+  assert.equal(seq(7), seq(7), 'same seed → identical structure (determinism preserved)');
+});
+
+test('the target queue never empties across a long scripted run (GM:0 frozen probe)', () => {
+  const g = createGame(W, H, { rng: seeded(4), config: { GM: 0 } });
+  start(g);
+  for (let i = 0; i < 200; i++) {
+    g.target = { x: g.pos.x, y: g.pos.y };   // plant on the frozen probe → guaranteed pickup
+    const r = tick(g, { thrust: false });
+    assert.equal(r.scored, true, `pickup ${i} scored`);
+    assert.ok(g.target && Number.isFinite(g.target.x), 'a fresh target is always placed');
+    assert.ok(FORM_NAMES.has(g.target.form), 'the fresh target carries a formation name');
+  }
+  assert.ok(g.targets >= 200);
+});
+
+test('tick surfaces the name of a freshly-entered notable formation, only notable ones', () => {
+  const g = createGame(W, H, { rng: seeded(2), config: { GM: 0 } });
+  start(g);
+  g.score = CONFIG.STAGES[CONFIG.STAGES.length - 1].at;   // top stage: notable formations eligible
+  let sawNotable = false, sawSilentCalm = false;
+  for (let i = 0; i < 400; i++) {
+    g.formTargets = [];                    // force a fresh formation load on each pickup
+    g.target = { x: g.pos.x, y: g.pos.y };
+    const r = tick(g, { thrust: false });
+    assert.equal(r.scored, true);
+    if (g.target.formHead) { assert.equal(r.formation, g.target.form, 'notable formation announced'); sawNotable = true; }
+    else { assert.equal(r.formation, null, 'calm formations pass silently'); sawSilentCalm = true; }
+  }
+  assert.ok(sawNotable, 'saw at least one notable formation head announced');
+  assert.ok(sawSilentCalm, 'saw at least one calm/non-head pickup pass silently');
+});
+
+test('REGRESSION: a seeded fresh run survives frame one with a formation loaded', () => {
+  const g = createGame(W, H, { rng: seeded(1) });
+  start(g);
+  assert.ok(FORM_IDS.has(g.formId), 'a formation is loaded from the first placement');
+  const r = tick(g, { thrust: false });
+  assert.equal(r.died, false, 'must not crash or escape on the first tick');
+  assert.equal(g.phase, 'play');
 });

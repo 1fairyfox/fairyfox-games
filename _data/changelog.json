@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-08",
+    "game": "Orbit Slingshot",
+    "slug": "orbit-slingshot",
+    "kind": "grow",
+    "text": "Orbit Slingshot runs no longer scatter targets one at a time — each run now threads a shifting sequence of named target patterns, so no two plays trace the same path. You'll sweep a loose Belt, chase a bunched Cluster, chase a marching Ring around the planet, climb an outward Ladder, brave a planet-hugging Perihelion for close-pass bonuses, and get buried in a dense Swarm. Climbing the stages opens the pool: early runs stay gentle, and the daring patterns unlock and take over as you get deeper. The notable ones flash their name as they arrive."
+  },
+  {
     "date": "2026-07-07",
     "game": "Symmetry",
     "slug": "symmetry",

@@ -57,6 +57,17 @@
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 
+  /* Formation cue — a quiet name that flashes as a notable target pattern arrives
+     (varied-structure layer). Peripheral; the calm patterns pass silently. */
+  #formCue {
+    position:absolute; top:72px; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; font-weight:600;
+    color:#a6ccff; opacity:0; pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
+
   /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
   #stageChip {
     position:absolute; top:20px; left:50%; transform:translateX(-50%);
@@ -92,13 +103,14 @@
     <div id="stageName">Suborbital</div>
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
+  <div id="formCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Orbit Slingshot</div>
     <div class="sub">Your probe orbits the planet. Hold the mouse, tap, or press Space to fire a
       prograde thrust — adding energy widens the orbit; let go and gravity reels you back.
       Sweep through the glowing targets. Don't crash, and don't fly off into deep space.</div>
-    <div class="tips">Tip: short taps shape the orbit — don't just hold. Skim close past the planet for a <b>close-pass bonus</b> (a perfect skim is worth up to +3), but mind the surface. It gets harder through the <b>stages</b> (Suborbital → Low orbit → Geostationary → Deep space) — targets creep nearer the planet and shrink. Feats earn <b>badges</b> that stick across runs.</div>
+    <div class="tips">Tip: short taps shape the orbit — don't just hold. Skim close past the planet for a <b>close-pass bonus</b> (a perfect skim is worth up to +3), but mind the surface. Each run threads a different sequence of <b>target patterns</b> — Belt, Cluster, Ring, Ladder, Perihelion, Swarm — that open up as you climb the <b>stages</b> (Suborbital → Low orbit → Geostationary → Deep space), where targets creep nearer the planet and shrink. Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Hold to thrust — press to begin</div>
   </div>
 

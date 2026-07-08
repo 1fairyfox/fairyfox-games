@@ -14,6 +14,15 @@ bonus** (up to +3 for a dead-on skim) — the risk/reward heart of the game.
 Orbit Slingshot follows the shared **Growth Architecture**
 (`notes/reference/growth-architecture.md`):
 
+- **Varied structure (no two runs alike).** Targets are no longer one flat random point
+  at a time — each run threads a seeded **sequence of named target patterns**
+  (`FORMATIONS`, `pickFormation`, `loadFormation`; `pickTarget` pulls from a per-formation
+  queue): a scattered **Belt**, a bunched **Cluster**, a marching **Ring**, an outward
+  **Ladder**, a planet-hugging **Perihelion**, and a dense late **Swarm**. Each pattern
+  gates on `minStage`, so climbing the stages opens the pool and leans on the daring
+  patterns late (progression drives the variety); notable ones flash a quiet name cue as
+  they arrive. Copied in shape from Polarity, in this game's own core. See
+  `notes/reference/varied-structure.md`.
 - **Escalation (the core-fun fix).** The base game never got harder over a run. Now, as
   you climb the stages, targets **spawn nearer the planet** (riskier dives) and the
   **pickup radius shrinks** (`targetRadius`, `pickTarget`) — threading gets genuinely
@@ -61,5 +70,7 @@ cd games/orbit-slingshot && node --test     # zero dependencies, Node 18+
 
 Covers the circular-orbit seed, deterministic target placement, gravity direction
 and centre-softening, that prograde thrust adds speed, **long-run orbit stability**
-(600 coasting ticks stay bounded), crash/escape deaths, scoring, and the frame-one
-survival regression.
+(600 coasting ticks stay bounded), crash/escape deaths, scoring, the **varied-structure
+formations** (well-formed stage-gated pool, deterministic `pickFormation`, distinct
+seeds → distinct sequences, the queue never starves, only notable patterns cue), and
+the frame-one survival regression.
