@@ -29,11 +29,24 @@ r.style.setProperty("--glow","color-mix(in srgb, "+h+" 40%, transparent)");}}cat
 <meta name="description" content="{{ page.description | default: site.description | strip_newlines }}">
 {% if page.noindex %}<meta name="robots" content="noindex, follow">
 {% endif %}
-<!-- Same favicon/tab identity as fairyfox.io -->
-<link rel="icon" type="image/png" href="https://fairyfox.io/favicon-96x96.png" sizes="96x96">
-<link rel="icon" type="image/svg+xml" href="https://fairyfox.io/favicon.svg">
-<link rel="shortcut icon" href="https://fairyfox.io/favicon.ico">
-<link rel="apple-touch-icon" sizes="180x180" href="https://fairyfox.io/apple-touch-icon.png">
+<!-- The games collection's own tab identity — the self-hosted game-farm mark (assets/icon.png).
+     Note: this is the favicon only. The header brand logo (top-left) deliberately stays the shared
+     fairyfox.io fox — the hub identity — see _includes/header.html. -->
+<link rel="icon" type="image/png" href="{{ '/assets/icon.png' | relative_url }}">
+<link rel="apple-touch-icon" href="{{ '/assets/icon.png' | relative_url }}">
+
+<!-- Social-share card (Open Graph + Twitter) — the same game-farm mark. Absolute URLs so
+     scrapers resolve the image off-page; portrait logo → the compact `summary` card. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.title }}">
+<meta property="og:title" content="{{ page.title | default: site.title }}">
+<meta property="og:description" content="{{ page.description | default: site.description | strip_newlines }}">
+<meta property="og:image" content="{{ '/assets/icon.png' | absolute_url }}">
+<meta property="og:url" content="{{ page.url | absolute_url }}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ page.title | default: site.title }}">
+<meta name="twitter:description" content="{{ page.description | default: site.description | strip_newlines }}">
+<meta name="twitter:image" content="{{ '/assets/icon.png' | absolute_url }}">
 
 <!-- Mesh typography — Fraunces / Inter / JetBrains Mono, self-hosted from this site's own
      origin (no Google Fonts request, so no visitor IP is sent to a third party). -->

@@ -2,7 +2,10 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.19.4` (single source of truth: repo-root `VERSION`).
+**Version:** `0.19.6` (single source of truth: repo-root `VERSION`) — released and live. The two
+releases this run: **v0.19.5** (Arc onto varied structure — completes the 7-of-11 rollout, the
+deferred 07-09 WIP, finished once PowerShell/`gh` were available) and **v0.19.6** (the collection's
+own icon — favicon + social-share card + landing masthead logo).
 
 ## Current state (read this first)
 
@@ -112,14 +115,19 @@ sole host), plus each game at `…/games/<game>/`.
 - **Arc** (`games/arc/`) — a **charge-and-release power lob**: a launcher fires at a fixed
   45°; **hold to build power, release to lob**, and land the shot on the target pad. The
   single control is *how long you charge* (judge the distance, dial the power) — no aim, no
-  bounce. **On the Growth Architecture**: a **precision combo** as the core-fun hook — a
-  centre **bullseye** pays double and consecutive lands grow a ×1…×6 multiplier, while a
-  miss breaks the streak *and* costs one of three lives; a **stage arc** (Ranging → Volley →
-  Barrage → Siege → Dead-eye, each shrinking the pad + widening the spread) with HUD chip +
-  field tint, and **meta-progression** (`arc.meta`: lifetime lands/points/bullseyes + best
-  combo + 9 badges, run-report + near-miss) — legacy `arc.best` preserved. Pure core (the
-  45° range formula `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 26
-  tests.
+  bounce. **On Varied Structure + Growth**: each run is a seeded **sequence of named "range"
+  formations** (Drift · Ladder · Bracket · Groove · Reach · Fusillade) that **unlock as you climb
+  the stages** (progression drives the variety; notable ones flash a name cue) — `FORMATIONS`/
+  `pickFormation`/`loadFormation`, `spawnTarget` pulls each pad from a per-formation queue (specs
+  are a `{f}` distance-fraction across the current stage window, so pads stay on-field + reachable),
+  `lob` emits a `formation` cue. Plus a **precision combo** as the core-fun hook — a centre
+  **bullseye** pays double and consecutive lands grow a ×1…×6 multiplier, while a miss breaks the
+  streak *and* costs one of three lives; a **stage arc** (Ranging → Volley → Barrage → Siege →
+  Dead-eye, each shrinking the pad + widening the spread) with HUD chip + field tint, and
+  **meta-progression** (`arc.meta`: lifetime lands/points/bullseyes + best combo + 9 badges,
+  run-report + near-miss) — legacy `arc.best` preserved. Pure core (the 45° range formula
+  `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 31 tests. **(7th game on
+  varied structure.)**
 - **Sluice** (`games/sluice/`) — a **colour-sorting** game (a genuinely new verb:
   *sort/route*): coloured sparks fall one at a time and you route each into the **channel**
   that matches its colour (press **1–4** or tap) before it lands. The twist that makes it a
@@ -135,10 +143,36 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** 378/378 green across the collection.
+**Tests:** **384/384** green, released. ⚠ **Local gotcha:** the bare `node --test` from repo root now
+also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
+scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
+git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 ## In flight / awaiting
 
+- **✅ v0.19.6 (2026-07-10) — SITE: the collection gets its own icon (`assets/icon.png`, owner-provided).**
+  The game-farm mark (a sprout rising from a game-controller cube over furrows) now serves the whole
+  Jekyll chrome from one self-hosted file via `_includes/head.html`: **favicon / browser-tab icon**
+  (replacing the hotlinked fairyfox.io fox favicon — self-hosted, no 3rd-party request), an **Open
+  Graph + Twitter `summary` social-share card** (was absent — links had no preview image), and a
+  **masthead logo** on the landing hero (`index.html` fills the pre-existing `.mast-logo` slot; a
+  `home.css` override makes it a rounded-square `object-fit:contain` tile matching the game-card
+  icons). **Header brand logo (top-left) deliberately UNCHANGED — stays the shared fairyfox.io fox
+  (hub identity), per the owner.** 11 standalone games untouched (kept liftable). Build clean; landing
+  headless-previewed in Chromium (light+dark, desktop+mobile — logo reads, no crop/overflow); 384/384
+  green. Released `dev → main` (PATCH), tagged `v0.19.6`, back-merged.
+- **✅ v0.19.5 (2026-07-09→released 2026-07-10) — GROW: Arc onto varied structure (7th game on the
+  pattern — completes the aim/precision line).** Arc's flat one-random-distance pad spawn is now a
+  seeded **sequence of named "range" formations** (Drift · Ladder · Bracket · Groove · Reach ·
+  Fusillade) from a stage-weighted pool, `minStage`-gated so climbing the stages opens the pool;
+  notable ones flash a `#formCue`. `spawnTarget` pulls from a per-formation queue; `lob` emits a
+  `formation` cue; removed the obsolete `MIN_TARGET_DIST`/`TARGET_TRIES` guard. +5 net pure-core tests
+  (26 → 31). This was the 07-09 run's complete-but-unreleasable WIP (that run lacked PowerShell/`gh`);
+  **finished this run** once the tooling was available: deleted the temp probe files, ran the full
+  suite **384/384 green**, headless-previewed Arc in Chromium (start panel + run-report render, stage
+  label + formations live, no console errors), committed (author `Twilight`), released `dev → main`
+  (PR #32) → tagged `v0.19.5` → back-merged. **7 of 11 games on varied structure** (remaining:
+  Ricochet, Skyline, Loft, Poise).
 - **v0.19.4 (2026-07-08) — GROW: Orbit Slingshot onto varied structure (6th game on the pattern).**
   Orbit Slingshot's flat one-target-at-a-time spawn (a random point in the annulus per pickup) is
   now a seeded **sequence of named formations** from a stage-weighted pool (`FORMATIONS`/
@@ -290,8 +324,8 @@ sole host), plus each game at `…/games/<game>/`.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ |
-| Tests (`node --test`) | ✅ 378/378 across 11 games (scope local runs to `games/`) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.19.6 release (tagged); working tree carries only the fresh session notes |
+| Tests (`node --test`) | ✅ **384/384** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

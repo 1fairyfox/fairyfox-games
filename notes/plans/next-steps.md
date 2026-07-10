@@ -2,6 +2,21 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
+> ## ✅ RESOLVED 2026-07-10 — Arc v0.19.5 released; icon shipped as v0.19.6
+>
+> The deferred 07-09 Arc → varied-structure WIP was **finished and released this run** (PowerShell/`gh`
+> were available): probe files deleted, full suite **384/384 green**, Arc headless-previewed in Chromium,
+> `dev → main` PR #32 → tag `v0.19.5` → back-merged. Then shipped **v0.19.6** — the collection's own
+> icon (favicon + social-share card + landing masthead; header brand fox left unchanged per the owner).
+> **7 of 11 games on varied structure.**
+>
+> **Still open / next:**
+> - **Remaining varied-structure conversions** (lowest-coverage-first): **Ricochet, Skyline, Poise** —
+>   and **Loft**, but **Loft is a poor fit** for the spawn-cadence model (only ~5 orbs/run, on score
+>   thresholds); reshape its unit (named *entry* patterns per new orb) or pick another game — don't
+>   force a queue that never drains.
+> - **Deferred maintenance:** triage open issues/PRs — `gh issue list` / `gh pr list` on a tooled run.
+
 > **Hard lesson from v0.10.1 (Polarity playtest): meta-progression can't rescue a dull
 > core.** Stages/badges are a scoreboard *around* the loop; if the second-to-second
 > decision isn't tense, the game is still boring. So Wave 1 for each game now leads with a

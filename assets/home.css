@@ -35,3 +35,11 @@
   border-color:color-mix(in srgb, var(--violet) 45%, transparent); color:var(--text); }
 /* .game-card is display:flex, which would beat the default [hidden] rule. */
 .game-card[hidden] { display:none; }
+
+/* Masthead logo — the collection's game-farm mark (assets/icon.png). Overrides the shared
+   circular avatar (.mast-logo in the vendored styles.css) to a rounded square with
+   object-fit:contain, so the whole illustration reads instead of being cropped to a circle —
+   matching the game-card icon treatment. Scales down a touch on narrow screens. */
+.masthead .mast-logo { width:72px; height:72px; border-radius:16px; object-fit:contain;
+  border:none; box-shadow:0 2px 10px rgba(0,0,0,.28); }
+@media (max-width:560px){ .masthead .mast-logo { width:56px; height:56px; } }
