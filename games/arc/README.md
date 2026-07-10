@@ -40,6 +40,27 @@ Arc follows the shared **Growth Architecture**
   (`nearMissLine`) nudges "N points short of your best — so close!" on non-record runs.
   Skill-safe: badges and cosmetics, never power. Legacy `arc.best` preserved.
 
+## Varied structure (no two runs range the same)
+
+The pads no longer land at a flat random distance one after another. A run is a seeded
+**sequence of named "range" formations** pulled from a stage-weighted pool
+(`FORMATIONS` / `pickFormation` / `loadFormation`, copied in shape from Polarity/Symmetry
+into Arc's own core; `spawnTarget` pulls each pad from a per-formation queue):
+
+- **Drift** — the calm on-ramp: gentle, well-separated mid-range pads.
+- **Ladder** — a rangefinder: pads stepping steadily outward (or inward), a rung at a time.
+- **Bracket** — near↔far: alternating close and far pads that whip your charge around.
+- **Groove** — dial it in: a tight cluster at nearly one distance, rewarding a repeated power.
+- **Reach** — the long call: pads pressed toward the far edge (the max-power judgment).
+- **Fusillade** — the late-run crescendo: dense rounds of near-snap, far-whip, mid-recover.
+
+`minStage` gates each formation, so **climbing the stages opens the pool** (progression
+drives the variety) and weights the pick toward the demanding formations late; the notable
+ones flash a quiet name cue as they arrive, the calm ones pass silently. Each pad's
+distance is a fraction across the current stage window, so every pad stays on the field and
+inside full-charge range (winnable) and the per-stage shrink/spread still layers on top.
+Pure + tested; see `notes/reference/varied-structure.md`.
+
 **Controls:** hold **mouse / touch / Space** to charge, release to fire. After a run,
 click or press **Space** to play again. Your best score is saved locally in
 `localStorage`.
@@ -65,5 +86,7 @@ node --test        # from this folder
 `arc.core.test.js` covers the helpers (the power↔distance round-trip), construction/reset
 invariants, deterministic in-bounds pad spawning, stages + the combo multiplier, the
 `lob` loop (land, bullseye, combo growth/reset, lives, frame-exact death), determinism
-under a seed, a self-play winnability run, and the full meta layer (achievements,
-near-miss). Zero dependencies.
+under a seed, a self-play winnability run, the **varied-structure formations** (pool
+well-formed + stage-gated, deterministic `pickFormation`, distinct seeds → distinct pad
+sequences, reachability + the queue never starving, notable-cue surfacing), and the full
+meta layer (achievements, near-miss). Zero dependencies.

@@ -62,6 +62,18 @@
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 
+  /* Formation cue — a quiet name flash as a NOTABLE "range" formation begins (varied
+     structure). Peripheral by design: it names the run's shifting pad patterns without
+     stealing focus. */
+  #formCue {
+    position:absolute; top:64%; left:50%; transform:translate(-50%,-50%);
+    font-size:13px; letter-spacing:.32em; text-transform:uppercase; font-weight:600;
+    color:#8ab4ff; opacity:0; pointer-events:none; white-space:nowrap;
+    transition:opacity .3s ease;
+  }
+  #formCue.show { opacity:.85; }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .15s ease } }
+
   /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
   #stageChip {
     position:absolute; top:20px; left:50%; transform:translateX(-50%);
@@ -102,6 +114,8 @@
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
 
+  <div id="formCue"></div>
+
   <div class="panel" id="start">
     <div class="title">Arc</div>
     <div class="sub">Hold to build power, release to lob the shot. It always fires at 45° —
@@ -109,8 +123,10 @@
     <div class="tips">Tip: watch the <b>power bar</b> and learn the feel — a near pad needs a short
       charge, a far one a long one. Land in the pad's bright <b>centre</b> for a <b>bullseye</b>
       (double points), and keep landing to grow your <b>combo</b> multiplier. A miss breaks the
-      streak and costs one of three lives. Pads shrink through the <b>stages</b> (Ranging → Volley →
-      Barrage → Siege → Dead-eye); feats earn <b>badges</b> that stick across runs.</div>
+      streak and costs one of three lives. Pads arrive in shifting <b>range formations</b>
+      (Ladder, Bracket, Groove, Reach…) that vary every run and open up as you climb, so no two
+      runs range the same. Pads shrink through the <b>stages</b> (Ranging → Volley → Barrage →
+      Siege → Dead-eye); feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Hold &amp; release to fire</div>
   </div>
 

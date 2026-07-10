@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import {
   CONFIG, ACHIEVEMENTS, clamp, speedFor, landingX, powerForDistance,
   createGame, reset, start, spawnTarget, stageIndexAt, stageAt, stageProgress,
-  multiplierFor, lob, milestoneAt,
+  multiplierFor, lob, milestoneAt, pickFormation, loadFormation,
   normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './arc.core.js';
 
@@ -112,15 +112,10 @@ test('pad placement is deterministic under a seeded rng', () => {
   assert.deepEqual(a.target, b.target);
 });
 
-test('a fresh pad is kept away from the previous one (variety)', () => {
+test('the opening pad is placed from a formation (a real target at menu)', () => {
   const g = newGame();
-  let moved = 0, n = 40;
-  for (let i = 0; i < n; i++) {
-    const prev = g.target.cx;
-    spawnTarget(g);
-    if (Math.abs(g.target.cx - prev) >= CONFIG.MIN_TARGET_DIST) moved++;
-  }
-  assert.ok(moved >= n - 2, 'nearly every respawn clears the min-distance gap');
+  assert.ok(g.formName, 'a formation is loaded on reset');
+  assert.ok(g.target.hw > 0 && g.target.cx >= g.target.hw, 'a real opening pad');
 });
 
 // ── 4. Stages + multiplier ───────────────────────────────────────────────────
@@ -312,4 +307,82 @@ test('nearMissLine nudges only on an honest near miss, never on a record', () =>
   assert.equal(nearMissLine(45, 50), '5 points short of your best — so close!');
   assert.equal(nearMissLine(44, 50), '6 points short of your best — so close!', 'at the margin');
   assert.equal(nearMissLine(43, 50), null, 'beyond the default margin');
+});
+
+// ── 8. Formations (varied structure) ──────────────────────────────────────────
+test('FORMATIONS pool is well-formed and gated from stage 0', () => {
+  const F = CONFIG.FORMATIONS;
+  assert.ok(F.length >= 5, 'a real pool');
+  const ids = new Set();
+  let prevMin = 0;
+  for (const f of F) {
+    assert.ok(typeof f.id === 'string' && f.id.length, 'has an id');
+    assert.ok(!ids.has(f.id), 'ids are unique'); ids.add(f.id);
+    assert.ok(typeof f.name === 'string' && f.name.length, 'has a name');
+    assert.equal(typeof f.build, 'function', 'has a build fn');
+    assert.equal(typeof f.weight, 'function', 'has a weight fn');
+    assert.equal(typeof f.notable, 'boolean', 'notable is boolean');
+    assert.ok(f.minStage >= prevMin, 'minStage is non-decreasing'); prevMin = f.minStage;
+  }
+  assert.ok(F.some(f => f.minStage === 0), 'at least one formation is available from stage 0');
+});
+
+test('every formation builds ≥1 spec with fractions in [0,1]', () => {
+  for (const f of CONFIG.FORMATIONS) {
+    for (let seed = 0; seed < 40; seed++) {
+      const specs = f.build({ rng: seeded(seed), stage: 4, cfg: CONFIG });
+      assert.ok(Array.isArray(specs) && specs.length >= 1, `${f.id} yields specs`);
+      for (const s of specs) assert.ok(s.f >= 0 && s.f <= 1, `${f.id} fraction stays in [0,1]`);
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible formations and is deterministic', () => {
+  const stage0 = new Set();
+  for (let i = 0; i < 400; i++) stage0.add(pickFormation(CONFIG, 0, seeded(i), null).id);
+  for (const id of stage0) {
+    const f = CONFIG.FORMATIONS.find(x => x.id === id);
+    assert.equal(f.minStage, 0, 'a stage-0 pick is always a minStage-0 formation');
+  }
+  const deep = new Set();
+  for (let i = 0; i < 400; i++) deep.add(pickFormation(CONFIG, 4, seeded(i), null).id);
+  assert.ok(deep.size > stage0.size, 'the deep pool is wider than the opening pool (progression opens it)');
+  const a = pickFormation(CONFIG, 3, seeded(123), null).id;
+  const b = pickFormation(CONFIG, 3, seeded(123), null).id;
+  assert.equal(a, b, 'same seed → same pick');
+});
+
+test('a pad is always placed and stays reachable across a long formation-driven run', () => {
+  const g = createGame(W, H, { rng: seeded(9) }); start(g);
+  const maxRange = landingX(CONFIG, 1);   // farthest a full charge can reach
+  for (let i = 0; i < 300 && g.phase === 'play'; i++) {
+    assert.ok(g.target && g.target.hw > 0, 'a pad exists every shot');
+    assert.ok(g.target.cx >= g.target.hw && g.target.cx <= CONFIG.FIELD - g.target.hw, 'pad on the field');
+    assert.ok(g.target.cx <= maxRange, 'pad within full-charge range (winnable)');
+    lob(g, centrePower(g));               // a perfect aimer never dies
+  }
+  assert.equal(g.phase, 'play', 'the formation queue never starved and the aimer survived');
+});
+
+test('distinct seeds build distinct pad sequences; a seed reproduces its run', () => {
+  const seq = (seed) => {
+    const g = createGame(W, H, { rng: seeded(seed) }); start(g);
+    const out = [];
+    for (let i = 0; i < 30; i++) { out.push(Math.round(g.target.cx)); lob(g, centrePower(g)); }
+    return out;
+  };
+  assert.notDeepEqual(seq(1), seq(2), 'different seeds → different-shaped runs');
+  assert.deepEqual(seq(5), seq(5), 'same seed → identical run (determinism preserved)');
+});
+
+test('a notable formation names itself as it begins; cues are always real notable names', () => {
+  const g = createGame(W, H, { rng: seeded(4) }); start(g);
+  const cues = new Set();
+  for (let i = 0; i < 150 && g.phase === 'play'; i++) {
+    const r = lob(g, centrePower(g));
+    if (r.formation) cues.add(r.formation);
+  }
+  assert.ok(cues.size >= 1, 'over a long climbing run, notable formations surface a name cue');
+  const notableNames = new Set(CONFIG.FORMATIONS.filter(f => f.notable).map(f => f.name));
+  for (const c of cues) assert.ok(notableNames.has(c), `${c} is a real notable formation`);
 });

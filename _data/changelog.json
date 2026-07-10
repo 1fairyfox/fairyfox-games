@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-09",
+    "game": "Arc",
+    "slug": "arc",
+    "kind": "grow",
+    "text": "Arc no longer drops target pads at random distances one after another — each run now walks a shifting sequence of named range formations, so no two plays range the same. You'll ease through a calm Drift, walk a Ladder of pads stepping out (or back) a rung at a time, whip your power near-then-far across a Bracket, settle into a Groove that dares you to dial one distance in and repeat it, press to the far edge on a Reach, and weather a dense Fusillade crescendo. Climbing the stages opens the pool: early runs stay gentle, and the demanding formations unlock and take over as you get deeper. The notable ones flash their name as they arrive."
+  },
+  {
     "date": "2026-07-08",
     "game": "Orbit Slingshot",
     "slug": "orbit-slingshot",

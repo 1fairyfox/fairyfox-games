@@ -55,8 +55,6 @@ export const CONFIG = Object.freeze({
   MAX_MULT: 6,          // combo multiplier cap
   HIT_PTS: 1,           // base points for landing on the pad
   BULLSEYE_PTS: 2,      // base points for a centre (bullseye) land — precision reward
-  MIN_TARGET_DIST: 90,  // keep a fresh pad at least this far from the last one (variety)
-  TARGET_TRIES: 24,     // attempts to satisfy MIN_TARGET_DIST before giving up
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on lands.
   // Each stage carries its own pad half-width `hw` and distance window [dmin,dmax], so
   // difficulty escalates cleanly: the pad shrinks and the spread widens as you climb.
@@ -66,6 +64,34 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 14, name: 'Barrage',  tint: '#8ab4ff', hw: 50, dmin: 130, dmax: 900 }),
     Object.freeze({ at: 26, name: 'Siege',    tint: '#c48cff', hw: 40, dmin: 120, dmax: 940 }),
     Object.freeze({ at: 42, name: 'Dead-eye', tint: '#ff8fb0', hw: 32, dmin: 120, dmax: 960 }),
+  ]),
+  // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
+  // Instead of every fresh pad landing at a flat random distance in the stage window, a run
+  // is a different *sequence* of these named "range" formations, so no two runs share a
+  // skeleton — a returning player sees the shape of the challenge change shot to shot. Each
+  // is a short figure with its own character: a calm Drift on-ramp, a rangefinding Ladder,
+  // a near↔far Bracket that whips your power around, a Groove that dares you to dial one
+  // distance in, a Reach that pushes to the far edge, and a dense Fusillade crescendo.
+  // `minStage` gates when a formation first appears (climbing the stages opens the pool —
+  // progression drives the variety); `weight(stageIndex)` biases selection so later stages
+  // lean on the demanding formations; `notable` formations earn a quiet in-world name cue as
+  // they arrive (the calm ones pass silently). `build(ctx)` is PURE given `ctx.rng` and
+  // returns the formation as `{f}` specs — `f` is the pad's distance as a fraction across the
+  // current stage window (see buildFormation* below). New formations can be added here over
+  // time; ids stay stable.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'drift',     name: 'Drift',     minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildDrift }),
+    Object.freeze({ id: 'ladder',    name: 'Ladder',    minStage: 0, notable: true,
+      weight: () => 2, build: buildLadder }),
+    Object.freeze({ id: 'bracket',   name: 'Bracket',   minStage: 1, notable: true,
+      weight: (s) => s, build: buildBracket }),
+    Object.freeze({ id: 'groove',    name: 'Groove',    minStage: 1, notable: true,
+      weight: () => 2, build: buildGroove }),
+    Object.freeze({ id: 'reach',     name: 'Reach',     minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildReach }),
+    Object.freeze({ id: 'fusillade', name: 'Fusillade', minStage: 3, notable: true,
+      weight: (s) => Math.max(0, s - 2) * 2, build: buildFusillade }),
   ]),
 });
 
@@ -111,6 +137,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} bullseyes           centre lands this run
  * @property {number} t                   ticks elapsed this run
  * @property {{cx:number, hw:number}} target  active pad: centre x + half-width
+ * @property {Array<{f:number,head?:boolean}>} formSpecs  remaining pad specs of the current formation
+ * @property {?string} formId             current formation id (varied structure)
+ * @property {?string} formName           current formation display name
+ * @property {boolean} formNotable        whether the current formation announces itself
  */
 
 /**
@@ -212,6 +242,7 @@ export function createGame(width, height, opts = {}) {
     score: 0, landed: 0, lives: cfg.LIVES,
     combo: 0, bestCombo: 0, bullseyes: 0, t: 0,
     target: { cx: 0, hw: 0 },
+    formSpecs: [], formId: null, formName: null, formNotable: false,  // current formation
   };
   reset(g);
   return g;
@@ -231,7 +262,11 @@ export function reset(g) {
   g.bestCombo = 0;
   g.bullseyes = 0;
   g.t = 0;
-  spawnTarget(g);
+  g.formSpecs = [];       // no formation loaded yet; the opening spawnTarget pulls the first
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
+  spawnTarget(g);         // place the opening pad (loads the first, calm formation)
   return g;
 }
 
@@ -246,27 +281,161 @@ export function start(g) {
   return g;
 }
 
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng`; it returns an array of pad specs. A spec is a
+// single pad `{ f }`, where `f` is the pad's target distance as a fraction (0..1) across the
+// current stage's distance window — `spawnTarget` maps it onto real ground units, so the
+// per-stage shrink/spread still layers on top and every pad stays reachable. `ctx` =
+// { rng, stage, cfg }. Names and behaviours are Arc's artillery flavour; the *shape* — a
+// pool of stage-weighted, seeded formations — is the reusable varied-structure standard
+// (copied in shape from Polarity/Symmetry).
+
+/** Drift — the calm on-ramp: gentle, well-separated mid-window pads (alternating halves). */
+function buildDrift(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 2);            // 3..4 pads
+  let hi = rng() < 0.5;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const f = hi ? 0.55 + rng() * 0.25 : 0.20 + rng() * 0.25;  // upper 0.55..0.80 / lower 0.20..0.45
+    out.push({ f });
+    hi = !hi;
+  }
+  return out;
+}
+
+/** Ladder — a rangefinder: pads stepping steadily outward (or inward), so you walk the
+ *  power up (or down) a rung at a time. */
+function buildLadder(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 2);            // 4..5 rungs
+  const outward = rng() < 0.5;
+  const start = outward ? 0.08 + rng() * 0.12 : 0.80 + rng() * 0.12;
+  const end   = outward ? 0.80 + rng() * 0.12 : 0.08 + rng() * 0.12;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    out.push({ f: clamp(start + (end - start) * t, 0, 1) });
+  }
+  return out;
+}
+
+/** Bracket — near↔far: alternating close and far pads, whipping your charge between a short
+ *  tap and a long haul each shot. */
+function buildBracket(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);            // 4..6 swings
+  let far = rng() < 0.5;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const f = far ? 0.78 + rng() * 0.16 : 0.06 + rng() * 0.14;
+    out.push({ f: clamp(f, 0, 1) });
+    far = !far;
+  }
+  return out;
+}
+
+/** Groove — dial it in: a tight cluster of pads at nearly one distance, rewarding a player
+ *  who finds the exact power and repeats it (and keeps the combo alive). */
+function buildGroove(ctx) {
+  const { rng } = ctx;
+  const c = 0.28 + rng() * 0.5;                   // cluster centre 0.28..0.78
+  const n = 3 + Math.floor(rng() * 3);            // 3..5 near-repeats
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ f: clamp(c + (rng() - 0.5) * 0.1, 0, 1) });
+  return out;
+}
+
+/** Reach — the long call: successive pads pressed toward the far edge, the max-power
+ *  judgment where over-charging sails off the field. */
+function buildReach(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 2);            // 3..4 long shots
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    out.push({ f: clamp(0.78 + t * 0.2 + (rng() - 0.5) * 0.06, 0, 1) });
+  }
+  return out;
+}
+
+/** Fusillade — the late-run crescendo: dense rounds of a near snap, a far whip, and a mid
+ *  recover, all in quick succession. The run's peak. */
+function buildFusillade(ctx) {
+  const { rng } = ctx;
+  const rounds = 2 + Math.floor(rng() * 2);       // 2..3 rounds × 3 = 6..9 pads
+  const out = [];
+  for (let r = 0; r < rounds; r++) {
+    out.push({ f: clamp(0.05 + rng() * 0.12, 0, 1) });        // snap near
+    out.push({ f: clamp(0.82 + rng() * 0.14, 0, 1) });        // whip far
+    out.push({ f: clamp(0.40 + (rng() - 0.5) * 0.30, 0, 1) }); // mid recover
+  }
+  return out;
+}
+
 /**
- * Place a fresh target pad: half-width from the current stage, centre within the
- * stage's distance window and (best-effort) at least MIN_TARGET_DIST from the last
- * pad so consecutive throws aren't identical. The centre is kept inside
- * [hw, FIELD-hw] so the pad never runs off the field.
+ * Choose the next formation for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of formations differ while still escalating (later stages
+ * weight toward the demanding ones, and gate the meaner formations in via minStage).
+ * @param {ArcConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the formation just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next formation into `g.formSpecs` (resolved pad specs, the first marked as the
+ * formation head), and record its identity on `g.formId`/`g.formName`/`g.formNotable`. Pure
+ * logic over the game's rng. Called by {@link spawnTarget} when the current formation is
+ * spent. Keyed on the stage the current land count sits in.
  * @param {GameState} g
- * @returns {{cx:number, hw:number}} the new pad
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.landed);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const specs = f.build({ rng: g.rng, stage, cfg });
+  if (specs.length) specs[0].head = true;         // the leading pad carries the name cue
+  g.formSpecs = specs;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+}
+
+/**
+ * Place a fresh target pad by pulling the next spec from the current formation (loading a
+ * fresh formation when the queue is spent). The pad's distance is the spec's fraction mapped
+ * across the current stage's window `[max(dmin,hw), min(dmax, FIELD-hw)]`, so the pad always
+ * stays on the field AND inside the full-charge range (winnable), and the per-stage
+ * shrink/spread still applies. Returns the formation name when a *notable* formation's head
+ * pad was just placed (for the HUD cue), else null. Pure given the game's rng, so a seeded
+ * run reproduces the same sequence of formations.
+ * @param {GameState} g
+ * @returns {?string} notable formation name that just began, or null
  */
 export function spawnTarget(g) {
+  if (!g.formSpecs || g.formSpecs.length === 0) loadFormation(g);
+  const spec = g.formSpecs.shift();
   const { cfg } = g;
   const st = stageAt(cfg, g.landed);
   const lo = Math.max(st.dmin, st.hw);
   const hi = Math.min(st.dmax, cfg.FIELD - st.hw);
-  const prev = g.target ? g.target.cx : -1e9;
-  let cx = lo, tries = 0;
-  do {
-    cx = lo + g.rng() * (hi - lo);
-    tries++;
-  } while (tries < cfg.TARGET_TRIES && Math.abs(cx - prev) < cfg.MIN_TARGET_DIST);
+  const cx = lo + clamp(spec.f, 0, 1) * (hi - lo);
   g.target = { cx, hw: st.hw };
-  return g.target;
+  return (spec.head && g.formNotable) ? g.formName : null;
 }
 
 /**
@@ -280,6 +449,8 @@ export function spawnTarget(g) {
  * @property {number} mult        combo multiplier applied (0 on a miss)
  * @property {boolean} lostLife   a life was spent (a miss)
  * @property {boolean} dead       the run ended on this throw
+ * @property {?string} formation  name of a notable formation whose head pad was just placed
+ *                                 (for the HUD cue), else null
  */
 
 /**
@@ -296,7 +467,7 @@ export function spawnTarget(g) {
  */
 export function lob(g, power) {
   if (g.phase !== 'play') {
-    return { hit: false, bullseye: false, landingX: 0, dx: 0, gained: 0, mult: 0, lostLife: false, dead: false };
+    return { hit: false, bullseye: false, landingX: 0, dx: 0, gained: 0, mult: 0, lostLife: false, dead: false, formation: null };
   }
   g.t++;
   const { cfg } = g;
@@ -313,16 +484,17 @@ export function lob(g, power) {
     const base = bullseye ? cfg.BULLSEYE_PTS : cfg.HIT_PTS;
     const gained = base * mult;
     g.score += gained;
-    spawnTarget(g);
-    return { hit: true, bullseye, landingX: lx, dx, gained, mult, lostLife: false, dead: false };
+    const formation = spawnTarget(g);
+    return { hit: true, bullseye, landingX: lx, dx, gained, mult, lostLife: false, dead: false, formation };
   }
   // Miss.
   g.combo = 0;
   g.lives -= 1;
   const dead = g.lives <= 0;
+  let formation = null;
   if (dead) { g.phase = 'dead'; }
-  else { spawnTarget(g); }
-  return { hit: false, bullseye: false, landingX: lx, dx, gained: 0, mult: 0, lostLife: true, dead };
+  else { formation = spawnTarget(g); }
+  return { hit: false, bullseye: false, landingX: lx, dx, gained: 0, mult: 0, lostLife: true, dead, formation };
 }
 
 /**

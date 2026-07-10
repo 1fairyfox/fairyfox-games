@@ -42,6 +42,7 @@ const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast'
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
 const livesEl = el('lives');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -62,6 +63,18 @@ function checkMilestone(prev, now) {
     const m = Arc.milestoneAt(s);
     if (m) { showToast(m); break; }
   }
+}
+
+// Formation cue — a quiet name flash as a NOTABLE "range" formation begins (varied
+// structure). The calm on-ramp passes silently (the core only returns a name for the
+// notable ones). Peripheral by design; honours prefers-reduced-motion.
+let formTimer = 0;
+function showForm(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = name;
+  formCueEl.classList.add('show');
+  clearTimeout(formTimer);
+  formTimer = setTimeout(() => formCueEl.classList.remove('show'), reduceMotion ? 900 : 1300);
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
@@ -133,6 +146,7 @@ function beginRun() {
   charging = false; power = 0; flying = false; flight = null;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   scoreEl.textContent = '0';
   updateLives();
   updateStageChip();
@@ -208,11 +222,13 @@ function onFlightEnd() {
   const si = Arc.stageIndexAt(game.cfg, game.landed);
   if (si !== stageIdx) enterStage(si);
   updateStageChip();
+  if (res.formation) showForm(res.formation);  // a notable range formation just began
   if (res.dead) onDeath();
 }
 
 function onDeath() {
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   const stageIndex = Arc.stageIndexAt(game.cfg, game.landed);
