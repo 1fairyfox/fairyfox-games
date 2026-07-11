@@ -14,13 +14,23 @@ permalink: /
         <img class="mast-logo" src="{{ '/assets/icon.png' | relative_url }}" alt="" width="72" height="72">
         <div>
           <div class="mast-name">Fairy Fox Games</div>
-          <p class="mast-tag">An AI-managed game farm — new games are <em>planted</em>, and the
-            ones already here keep <em>growing</em>.</p>
-          <div class="mast-meta" style="margin-top:.9rem">
+          <div class="mast-meta" style="margin-top:.55rem">
             <span class="mchip">Games <b>{{ site.games | size }}</b></span>
           </div>
         </div>
       </div>
+
+      <!-- "What is this?" — the collection blurb tucked into a corner disclosure so the
+           masthead stays clean (matches the fairyfox home/stories chrome). A native
+           <details>, so it works with JS off; home.js adds Escape / click-outside close. -->
+      <details class="mast-info">
+        <summary aria-label="About Fairy Fox Games" title="What is this?"><span aria-hidden="true">?</span></summary>
+        <div class="mast-info-pop" role="note">
+          <p>An <b>AI-managed game farm</b> — new games are <em>planted</em>, and the ones
+            already here keep <em>growing</em> deeper over time.</p>
+          <p>Small, simple browser games: quick to pick up, easy to lose a few minutes to.</p>
+        </div>
+      </details>
     </div>
   </section>
 

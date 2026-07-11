@@ -26,15 +26,51 @@
 .recent-more { margin-top:1.05rem; font-size:.86rem; }
 
 /* Tag filter — filter the grid by mechanic, in place. Hidden until home.js wires it
-   (a JS-off visitor just sees every game). Buttons reuse the .tag chip look. */
-.game-filter { display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1.5rem; }
-.game-filter .tag { cursor:pointer; font:inherit; line-height:1.2; -webkit-appearance:none;
-  appearance:none; transition:background .15s var(--ease), border-color .15s, color .15s; }
-.game-filter .tag:hover { color:var(--text); border-color:var(--line-2); }
-.game-filter .tag.is-on { background:color-mix(in srgb, var(--violet) 22%, transparent);
-  border-color:color-mix(in srgb, var(--violet) 45%, transparent); color:var(--text); }
+   (a JS-off visitor just sees every game). Roomier pills than the plain .tag chip, with
+   a clear solid-accent "on" state so the active mechanic reads at a glance. */
+.game-filter { display:flex; flex-wrap:wrap; gap:.5rem; margin:0 0 1.6rem; }
+.game-filter .tag { cursor:pointer; font:inherit; font-size:.8rem; font-weight:600;
+  line-height:1; letter-spacing:.01em; padding:.5rem .95rem; border-radius:999px;
+  color:var(--text-soft); background:var(--panel-2); border:1px solid var(--line-2);
+  -webkit-appearance:none; appearance:none;
+  transition:background .15s var(--ease), border-color .15s, color .15s,
+    transform .1s var(--ease), box-shadow .15s; }
+.game-filter .tag:hover { color:var(--text);
+  border-color:color-mix(in srgb, var(--violet) 45%, var(--line-2)); transform:translateY(-1px); }
+.game-filter .tag:active { transform:translateY(0); }
+.game-filter .tag.is-on { color:#fff; background:var(--violet-deep); border-color:transparent;
+  box-shadow:0 6px 16px -8px var(--glow); }
+.game-filter .tag.is-on:hover { background:var(--violet); color:#fff; }
 /* .game-card is display:flex, which would beat the default [hidden] rule. */
 .game-card[hidden] { display:none; }
+
+/* Masthead "?" disclosure — the collection blurb, tucked into the upper-right corner so the
+   hero stays clean. The .wrap is anchored so the button + popover pin to the corner. */
+.masthead > .wrap { position:relative; }
+.mast-info { position:absolute; top:1.1rem; right:0; margin:0; }
+@media (max-width:560px){ .mast-info { top:.7rem; } }
+.mast-info summary { list-style:none; cursor:pointer; width:34px; height:34px; border-radius:50%;
+  display:grid; place-items:center; font-weight:700; font-size:.98rem; color:var(--text-soft);
+  background:var(--panel-2); border:1px solid var(--line-2); -webkit-tap-highlight-color:transparent;
+  transition:color .15s var(--ease), border-color .15s, background .15s, transform .15s; }
+.mast-info summary::-webkit-details-marker { display:none; }
+.mast-info summary::marker { content:""; }
+.mast-info summary:hover { color:var(--text); transform:translateY(-1px);
+  border-color:color-mix(in srgb, var(--violet) 50%, var(--line-2)); }
+.mast-info[open] summary { color:#fff; background:var(--violet-deep); border-color:transparent; }
+.mast-info-pop { position:absolute; top:calc(100% + .55rem); right:0; width:min(21rem,82vw);
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow-lg); padding:1rem 1.15rem; z-index:20; color:var(--text-soft);
+  font-size:.92rem; line-height:1.55; animation:mastInfoIn .16s var(--ease); }
+.mast-info-pop::before { content:""; position:absolute; top:-6px; right:12px; width:11px; height:11px;
+  background:var(--panel); border-left:1px solid var(--line); border-top:1px solid var(--line);
+  transform:rotate(45deg); }
+.mast-info-pop p { margin:0; }
+.mast-info-pop p + p { margin-top:.55rem; }
+.mast-info-pop b { color:var(--text); font-weight:700; }
+.mast-info-pop em { color:var(--accent-ink); font-style:normal; font-weight:600; }
+@keyframes mastInfoIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ .mast-info-pop { animation:none; } }
 
 /* Masthead logo — the collection's game-farm mark (assets/icon.png). Overrides the shared
    circular avatar (.mast-logo in the vendored styles.css) to a rounded square with

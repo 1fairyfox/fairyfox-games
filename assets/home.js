@@ -69,3 +69,19 @@ if (grid && filterBar) {
   });
   filterBar.hidden = false;
 }
+
+// Masthead "About" disclosure — a native <details>, so it toggles fine with JS off. This
+// just adds the expected niceties: close on an outside click or Escape (returning focus).
+const info = document.querySelector(".mast-info");
+if (info) {
+  document.addEventListener("click", (e) => {
+    if (info.open && !info.contains(e.target)) info.open = false;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && info.open) {
+      info.open = false;
+      const s = info.querySelector("summary");
+      if (s) s.focus();
+    }
+  });
+}
