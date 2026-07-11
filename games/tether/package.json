@@ -1,0 +1,11 @@
+{
+  "name": "tether",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tether — a one-mechanic, beat-your-own-score swing/grapple game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

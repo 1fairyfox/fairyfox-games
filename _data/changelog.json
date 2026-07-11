@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-11",
+    "game": "Tether",
+    "slug": "tether",
+    "kind": "new",
+    "text": "A new game — and a new way to move. Anchors hang ahead of you across an endless sky: hold to throw a rope onto one, swing beneath it, and let go. Everything hinges on when you release. Your swing flings you off at whatever angle you're at, so let go near the bottom and you fly fast but flat into the ground; hang on too long and you stall out and drop short. Find the sweet spot partway up the swing — the whip — and you're launched hard and high, straight across the gap, with your multiplier climbing. Stay on the rope to pump the swing higher before a big jump. There's a tighter window hidden inside the good one, and something waiting for anyone who strings enough of them together."
+  },
+  {
+    "date": "2026-07-11",
     "game": "Ricochet",
     "slug": "ricochet",
     "kind": "grow",

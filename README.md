@@ -87,6 +87,7 @@ CI runs the full suite on every push and pull request.
 | Game | What you do | Folder |
 |------|-------------|--------|
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. Bank several in one shot — a shot that hits nothing costs a life. | [`games/ricochet/`](games/ricochet/) |
+| **Tether** | Hold to rope onto an anchor and swing; let go in the glowing arc to whip yourself across the gap. Too early and you fly flat into the ground, too late and you stall — the sweet spot is both your score and your survival. | [`games/tether/`](games/tether/) |
 | **Polarity** | Charged gates rush in — flip your charge, cyan or magenta, to match each one and phase through. Clash and it's over. The deeper you go, the more there is to find. | [`games/polarity/`](games/polarity/) |
 | **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the bright centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |
 | **Orbit Slingshot** | Your probe orbits a planet. Hold to fire a prograde thrust and bend your path through the targets — without crashing or flying off into space. | [`games/orbit-slingshot/`](games/orbit-slingshot/) |
