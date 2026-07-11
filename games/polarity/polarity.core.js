@@ -35,11 +35,21 @@ export const CONFIG = Object.freeze({
   GAP_MIN: 96,       // hard floor on spacing so bursts stay readable (px)
   GATE_W: 26,        // gate thickness, for rendering/feel (px)
   BUFFER: 5,         // how many gates are kept queued ahead at once
+  // Speed is a SMOOTH ASYMPTOTE, not a linear cap that plateaus. The old model hit its
+  // ceiling near 100 gates and then went dead-flat forever — the felt-difficulty death a
+  // deep player runs into. This curve always still creeps upward within any human run
+  // (approaching but never reaching SPEED_CAP), so mastery keeps meeting rising pressure.
   SPEED_BASE: 4.0,   // gate approach speed at 0 cleared (px/tick) — brisk from the off
-  SPEED_INC: 0.055,  // speed added per gate cleared (px/tick)
-  SPEED_MAX: 9.5,    // speed cap (px/tick)
+  SPEED_CAP: 12.0,   // asymptotic ceiling (px/tick) — approached, never actually reached
+  SPEED_K: 90,       // gates-cleared scale of the ramp (larger = gentler climb)
   CLOSE_TICKS: 12,   // a flip that lands a match within this many ticks is "precise"
                      // (a last-moment commit) — the heart of the scoring
+  SNAP_TICKS: 4,     // the tighter INNER window: a flip this close is a "snap" — the
+                     // hidden skill-ceiling tech (razor-timed, worth more). Not taught;
+                     // discovered by cutting flips razor-close. A snap is a stronger precise.
+  SNAP_BONUS: 2,     // flat extra points a snap pays on top of the multiplier
+  OC_STREAK: 6,      // consecutive snaps that trigger Overcharge (the earned surprise)
+  OC_TICKS: 300,     // Overcharge duration in ticks (~5 s at 60fps); gates score double
   MULT_MAX: 9,       // multiplier ceiling
   // Progress milestones: a label flashes the instant `cleared` reaches each threshold.
   // Ordered ascending. Pure feedback — the shell reads these, the sim never branches.
@@ -56,12 +66,17 @@ export const CONFIG = Object.freeze({
   // and an ambient field tint, and it shapes the gate patterns (later stages demand more
   // flips, tighter spacing, more bursts — see spawnGate). `at` is the cleared count to
   // ENTER the stage; ordered ascending.
+  // The last entry (Supernova, index 5) is a SECRET stage: it is not named on the start
+  // panel and almost no one reaches it in a first sitting — the collection's face-down card.
+  // Getting there is a genuine surprise + a badge, a real reason for a dedicated player to
+  // keep pushing past the "end". The stage pipeline (chip/tint) renders it for free.
   STAGES: Object.freeze([
     Object.freeze({ at: 0,   name: 'Drift',         tint: '#35e0ff' }),
     Object.freeze({ at: 25,  name: 'Current',       tint: '#5ea8ff' }),
     Object.freeze({ at: 60,  name: 'Riptide',       tint: '#a98cff' }),
     Object.freeze({ at: 120, name: 'Event horizon', tint: '#ff5cc8' }),
     Object.freeze({ at: 180, name: 'Singularity',   tint: '#ff8f6a' }),
+    Object.freeze({ at: 260, name: 'Supernova',     tint: '#fff2c0' }),  // secret final stage
   ]),
   // Formations — the run's STRUCTURE, not just its noise. This is the "varied-structure"
   // layer: instead of every gate being drawn from one flat rule, a run is a different
@@ -116,6 +131,17 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.gates >= 1000 }),
   Object.freeze({ id: 'regular',      label: 'Regular',         desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth-layer badges (appended; ids stable forever). All discovery-gated + skill-safe —
+  // a badge for a feat, never a power. These reward finding the hidden tech, earning the
+  // Overcharge surprise, and reaching the secret stage.
+  Object.freeze({ id: 'snap',         label: 'Snap',            desc: 'Land a razor-tight snap flip.',
+    test: (s) => (s.perfect | 0) >= 1 }),
+  Object.freeze({ id: 'razor',        label: 'Razor',           desc: 'Land 10 snaps in one run.',
+    test: (s) => (s.perfect | 0) >= 10 }),
+  Object.freeze({ id: 'overcharge',   label: 'Overcharged',     desc: 'Trigger Overcharge in a run.',
+    test: (s) => (s.overcharges | 0) >= 1 }),
+  Object.freeze({ id: 'supernova',    label: 'Supernova',       desc: 'Reach the hidden final stage.',
+    test: (s) => (s.stageIndex | 0) >= 5 }),
 ]);
 
 /**
@@ -163,6 +189,8 @@ export function createGame(width, height, opts = {}) {
     pol: 0, gates: [],
     cleared: 0, score: 0, mult: 1, bestMult: 1,
     clutch: 0, flippedSinceGate: false, flipT: -9999, t: 0,
+    // Depth layer: the snap tech + Overcharge state (see tick / isSnap).
+    snapStreak: 0, snaps: 0, bestSnapStreak: 0, overcharge: 0, overcharges: 0,
     formGates: [], formId: null, formName: null, formNotable: false,  // current formation
   };
   reset(g);
@@ -195,6 +223,11 @@ export function reset(g) {
   g.flippedSinceGate = false;
   g.flipT = -9999;  // "no recent flip" — far enough back that frame-one is never precise
   g.t = 0;
+  g.snapStreak = 0;      // consecutive snaps (feeds Overcharge); resets on any non-snap resolve
+  g.snaps = 0;           // snaps landed this run
+  g.bestSnapStreak = 0;  // longest snap streak this run
+  g.overcharge = 0;      // Overcharge ticks remaining (0 = inactive); gates score double while >0
+  g.overcharges = 0;     // Overcharge windows earned this run
   g.formGates = [];   // no formation loaded yet; the first spawnGate pulls one
   g.formId = null;
   g.formName = null;
@@ -244,12 +277,27 @@ export function isClutch(g) {
 }
 
 /**
- * Current gate approach speed — scales with gates cleared, capped at SPEED_MAX.
+ * Current gate approach speed — a smooth asymptote of gates cleared. Rises fast early and
+ * ever more gently, approaching (never reaching) SPEED_CAP, so the ramp **never goes
+ * dead-flat** the way the old linear cap did. Monotonically non-decreasing. Pure.
  * @param {GameState} g
- * @returns {number} px per tick
+ * @returns {number} px per tick, in [SPEED_BASE, SPEED_CAP)
  */
 export function speedOf(g) {
-  return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED_BASE + g.cleared * g.cfg.SPEED_INC);
+  const { SPEED_BASE, SPEED_CAP, SPEED_K } = g.cfg;
+  const c = Math.max(0, g.cleared);
+  return SPEED_BASE + (SPEED_CAP - SPEED_BASE) * (c / (c + SPEED_K));
+}
+
+/**
+ * Was the player's most recent flip a **snap** — inside the tight SNAP_TICKS window (a
+ * razor-timed commit, tighter than merely "precise")? This is the hidden skill-ceiling
+ * tech: a snap is a stronger precise, worth more and building the Overcharge streak. Pure.
+ * @param {GameState} g
+ * @returns {boolean}
+ */
+export function isSnap(g) {
+  return g.t - g.flipT <= g.cfg.SNAP_TICKS;
 }
 
 /**
@@ -473,7 +521,9 @@ export function spawnGate(g) {
  * @property {boolean} died    the run ended this tick
  * @property {boolean} clutch  a gate passed via a last-moment flip (alias of precise)
  * @property {boolean} precise a precise (combo-growing) hit landed this tick
+ * @property {boolean} snap    a razor-tight snap flip landed this tick (the hidden tech)
  * @property {boolean} broke   the multiplier was reset to 1 by a safe/early flip
+ * @property {boolean} overcharge Overcharge was triggered this tick (an earned snap streak)
  * @property {number}  mult    the multiplier after this tick
  * @property {?string} formation name of a notable formation whose leading gate resolved
  *   this tick (for the HUD cue), else null
@@ -491,12 +541,13 @@ export function spawnGate(g) {
  * @returns {TickResult}
  */
 export function tick(g) {
-  if (g.phase !== 'play') return { passed: false, died: false, clutch: false, precise: false, broke: false, mult: g.mult, formation: null };
+  if (g.phase !== 'play') return { passed: false, died: false, clutch: false, precise: false, snap: false, broke: false, overcharge: false, mult: g.mult, formation: null };
   g.t++;
+  if (g.overcharge > 0) g.overcharge--;   // Overcharge window ticks down (double scoring while >0)
   const speed = speedOf(g);
   for (const gate of g.gates) gate.x -= speed;
 
-  let passed = false, clutch = false, precise = false, broke = false, formation = null;
+  let passed = false, clutch = false, precise = false, snap = false, broke = false, overcharge = false, formation = null;
   // Gates are ordered nearest-first; resolve any that have reached the line.
   while (g.gates.length && g.gates[0].x <= g.cfg.PLAYER_X) {
     const gate = g.gates[0];
@@ -505,23 +556,42 @@ export function tick(g) {
       g.cleared++;
       if (gate.formHead) formation = gate.form;   // a notable formation just began
       if (isClutch(g)) {
+        // A precise (last-moment) flip. Grows the multiplier — as before.
         precise = true; clutch = true; g.clutch++;
         g.mult = Math.min(g.cfg.MULT_MAX, g.mult + 1);
+        if (isSnap(g)) {
+          // …and razor-tight: a SNAP. The hidden tech — pays a flat bonus and builds the
+          // snap streak toward Overcharge. Discovered by cutting flips razor-close.
+          snap = true; g.snaps++; g.snapStreak++;
+          if (g.snapStreak > g.bestSnapStreak) g.bestSnapStreak = g.snapStreak;
+          if (g.snapStreak >= g.cfg.OC_STREAK && g.overcharge <= 0) {
+            g.overcharge = g.cfg.OC_TICKS;   // earn the Overcharge window (double scoring)
+            g.overcharges++;
+            overcharge = true;               // the shell celebrates the surprise
+            g.snapStreak = 0;                // re-earn it to trigger again
+          }
+        } else {
+          g.snapStreak = 0;   // precise, but not tight enough to be a snap → streak resets
+        }
       } else if (g.flippedSinceGate) {
         if (g.mult > 1) broke = true;
         g.mult = 1;
-      } // else: gimme (held correct, no flip) → multiplier unchanged
+        g.snapStreak = 0;
+      } else {
+        g.snapStreak = 0;   // a gimme (held correct, no flip) — multiplier unchanged
+      }
       if (g.mult > g.bestMult) g.bestMult = g.mult;
-      g.score += g.mult;
+      // Scoring: the multiplier, doubled while Overcharged, plus a flat bonus on a snap.
+      g.score += g.mult * (g.overcharge > 0 ? 2 : 1) + (snap ? g.cfg.SNAP_BONUS : 0);
       g.flippedSinceGate = false;
       g.gates.shift();
       spawnGate(g);          // keep the buffer full, pulling from the current formation
     } else {
       g.phase = 'dead';
-      return { passed, died: true, clutch, precise, broke, mult: g.mult, formation };
+      return { passed, died: true, clutch, precise, snap, broke, overcharge, mult: g.mult, formation };
     }
   }
-  return { passed, died: false, clutch, precise, broke, mult: g.mult, formation };
+  return { passed, died: false, clutch, precise, snap, broke, overcharge, mult: g.mult, formation };
 }
 
 // ── Meta-progression (account arc — Growth Architecture Layer 2) ──────────────────
@@ -531,7 +601,7 @@ export function tick(g) {
 /**
  * A finished run distilled to plain data for the meta layer. The shell builds this from
  * the final GameState; the pure fns below consume it.
- * @typedef {{score:number, cleared:number, stageIndex:number, clutch:number, bestMult:number}} RunSummary
+ * @typedef {{score:number, cleared:number, stageIndex:number, clutch:number, bestMult:number, perfect?:number, overcharges?:number, bestSnapStreak?:number}} RunSummary
  */
 
 /**
@@ -562,7 +632,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestMult: src.bestMult | 0,
-    totals: { gates: totals.gates | 0, points: totals.points | 0, clutch: totals.clutch | 0 },
+    totals: { gates: totals.gates | 0, points: totals.points | 0, clutch: totals.clutch | 0, snaps: totals.snaps | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -582,6 +652,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.gates += summary.cleared | 0;
   next.totals.points += summary.score | 0;
   next.totals.clutch += summary.clutch | 0;
+  next.totals.snaps += summary.perfect | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestMult = Math.max(next.bestMult, summary.bestMult | 0);

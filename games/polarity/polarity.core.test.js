@@ -89,14 +89,30 @@ test('toggle flips polarity 0<->1 and records the flip', () => {
   assert.equal(toggle(g), 0);
 });
 
-// ── 3. Speed ──────────────────────────────────────────────────────────────────────
-test('speed starts at SPEED_BASE, scales with gates cleared, and caps at SPEED_MAX', () => {
+// ── 3. Speed (smooth asymptote — never plateaus) ──────────────────────────────────
+test('speed starts at SPEED_BASE, rises monotonically, and approaches but never reaches SPEED_CAP', () => {
   const g = newGame();
   assert.equal(speedOf(g), CONFIG.SPEED_BASE);
-  g.cleared = 10;
-  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED_BASE + 10 * CONFIG.SPEED_INC)) < 1e-9);
-  g.cleared = 100000;
-  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+  // Strictly increasing as gates climb.
+  let prev = speedOf(g);
+  for (const c of [10, 50, 100, 200, 400, 1000, 10000]) {
+    g.cleared = c;
+    const s = speedOf(g);
+    assert.ok(s > prev, `speed rises at ${c} (${s} > ${prev})`);
+    assert.ok(s < CONFIG.SPEED_CAP, `speed stays under the asymptote at ${c}`);
+    prev = s;
+  }
+});
+
+test('REGRESSION: the ramp never goes dead-flat — it is still rising past the old ~100-gate cap', () => {
+  // The bug this whole depth pass fixes: the old linear model capped near 100 gates and then
+  // was flat forever, so a deep run stopped getting harder. The asymptote must still climb.
+  const g = newGame();
+  g.cleared = 100; const at100 = speedOf(g);
+  g.cleared = 180; const at180 = speedOf(g);
+  g.cleared = 300; const at300 = speedOf(g);
+  assert.ok(at180 > at100 + 0.1, 'meaningfully faster at 180 than 100 (no plateau)');
+  assert.ok(at300 > at180 + 0.1, 'still climbing at 300');
 });
 
 // ── 4. Gate motion + spawning ───────────────────────────────────────────────────
@@ -112,9 +128,9 @@ test('tick moves every gate left by the current speed', () => {
 
 test('tick is a full no-op before start and after death', () => {
   const g = newGame();
-  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1, formation: null });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, snap: false, broke: false, overcharge: false, mult: 1, formation: null });
   g.phase = 'dead';
-  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, broke: false, mult: 1, formation: null });
+  assert.deepEqual(tick(g), { passed: false, died: false, clutch: false, precise: false, snap: false, broke: false, overcharge: false, mult: 1, formation: null });
 });
 
 test('spawnGate appends a valid gate within [GAP_MIN, GATE_GAP] of the last, polarity 0|1', () => {
@@ -143,17 +159,34 @@ test('a gimme match (already correct, no flip) scores the current multiplier', (
 });
 
 test('a precise match (last-moment flip) grows the multiplier and scores it', () => {
+  // Flip 8 ticks before resolve: inside CLOSE_TICKS (precise) but outside SNAP_TICKS (not a snap).
   const g = newGame(); start(g);
   g.pol = 0; armNearest(g, 1);   // nearest needs a flip to 1
-  toggle(g);                      // flip to 1 at the last instant
-  assert.equal(g.pol, 1);
+  toggle(g);                      // flip to 1
+  g.flipT = g.t - 8;              // make it precise-but-not-snap
   const r = tick(g);
   assert.equal(r.passed, true);
   assert.equal(r.precise, true);
+  assert.equal(r.snap, false, 'not tight enough to be a snap');
   assert.equal(r.clutch, true);
   assert.equal(g.mult, 2);
-  assert.equal(g.score, 2, 'scored the new multiplier');
+  assert.equal(g.score, 2, 'scored the new multiplier (no snap bonus)');
   assert.equal(g.clutch, 1);
+  assert.equal(g.snapStreak, 0, 'a non-snap precise does not build the snap streak');
+});
+
+test('a snap (razor-tight flip) is a stronger precise: +mult, a flat bonus, and builds the streak', () => {
+  const g = newGame(); start(g);
+  g.pol = 0; armNearest(g, 1);
+  toggle(g);                      // flip to 1 at the last instant (gap 1 tick → a snap)
+  const r = tick(g);
+  assert.equal(r.precise, true);
+  assert.equal(r.snap, true);
+  assert.equal(g.mult, 2);
+  assert.equal(g.score, 2 + CONFIG.SNAP_BONUS, 'multiplier plus the flat snap bonus');
+  assert.equal(g.snaps, 1);
+  assert.equal(g.snapStreak, 1);
+  assert.equal(g.bestSnapStreak, 1);
 });
 
 test('a safe/early flip match breaks the combo back to 1', () => {
@@ -213,6 +246,57 @@ test('bestMult remembers the peak even after the combo breaks', () => {
   g.pol = 1; armNearest(g, 1); g.flippedSinceGate = true; g.flipT = -9999; tick(g);
   assert.equal(g.mult, 1);
   assert.equal(g.bestMult, peak, 'bestMult is not lowered by a break');
+});
+
+// ── 6b. Depth layer: snap tech, Overcharge, secret stage ──────────────────────────
+/** Land one razor-tight snap on the nearest gate (forces a flip, resolves 1 tick later). */
+function landSnap(g) {
+  const target = g.pol ? 0 : 1;   // opposite of current, so a flip is required
+  armNearest(g, target);
+  toggle(g);                       // flip to target; flipT = g.t (gap 1 tick → a snap)
+  return tick(g);
+}
+
+test('a run of OC_STREAK consecutive snaps triggers Overcharge exactly once, resetting the streak', () => {
+  const g = newGame(); start(g);
+  let last = null, triggeredBefore = false;
+  for (let i = 0; i < CONFIG.OC_STREAK - 1; i++) {
+    last = landSnap(g);
+    assert.equal(last.overcharge, false, `no overcharge yet at snap ${i + 1}`);
+    triggeredBefore = triggeredBefore || last.overcharge;
+  }
+  assert.equal(triggeredBefore, false);
+  last = landSnap(g);                       // the OC_STREAK-th snap
+  assert.equal(last.overcharge, true, 'Overcharge fires on the streak');
+  assert.ok(g.overcharge > 0, 'Overcharge window is active');
+  assert.equal(g.overcharges, 1);
+  assert.equal(g.snapStreak, 0, 'streak resets so it must be re-earned');
+});
+
+test('Overcharge doubles scoring while active, then expires', () => {
+  const g = newGame(); start(g);
+  // Active window: a gimme at ×3 scores 6 (doubled), not 3.
+  g.overcharge = 50; g.mult = 3;
+  g.pol = 1; armNearest(g, 1); g.flippedSinceGate = false;
+  tick(g);
+  assert.equal(g.score, 6, 'doubled while Overcharged');
+  assert.ok(g.overcharge < 50, 'the window ticks down');
+  // Expiry: with one tick left, the window closes and scoring returns to single.
+  const g2 = newGame(); start(g2);
+  g2.overcharge = 1; g2.mult = 2;
+  g2.pol = 0; armNearest(g2, 0); g2.flippedSinceGate = false;
+  tick(g2);
+  assert.equal(g2.overcharge, 0, 'Overcharge expired');
+  assert.equal(g2.score, 2, 'no longer doubled once expired');
+});
+
+test('the secret 6th stage (Supernova) exists past Singularity and reads as the last stage', () => {
+  assert.ok(CONFIG.STAGES.length >= 6, 'a hidden 6th stage exists');
+  const secret = CONFIG.STAGES[5];
+  assert.equal(stageIndexAt(CONFIG, secret.at - 1), 4, 'still Singularity just before it');
+  assert.equal(stageIndexAt(CONFIG, secret.at), 5, 'enters the secret stage at its threshold');
+  const p = stageProgress(CONFIG, secret.at + 10);
+  assert.equal(p.index, 5); assert.equal(p.isLast, true); assert.equal(p.next, null);
 });
 
 // ── 7. Determinism, dead-state, buffer ────────────────────────────────────────────
@@ -485,8 +569,18 @@ test('normalizeMeta fills a complete v1 blob from nothing, and recovers a legacy
   assert.equal(m.best, 42);
   assert.equal(m.bestStage, 0);
   assert.equal(m.bestMult, 0);
-  assert.deepEqual(m.totals, { gates: 0, points: 0, clutch: 0 });
+  assert.deepEqual(m.totals, { gates: 0, points: 0, clutch: 0, snaps: 0 });
   assert.deepEqual(m.achieved, {});
+});
+
+test('normalizeMeta upgrades a legacy blob with no snaps total losslessly', () => {
+  const legacy = { v: 1, plays: 3, best: 200, bestStage: 2, bestMult: 4,
+    totals: { gates: 90, points: 200, clutch: 5 }, achieved: { 'first-run': true } };
+  const m = normalizeMeta(legacy);
+  assert.equal(m.totals.snaps, 0, 'missing snaps total defaults to 0');
+  assert.equal(m.totals.gates, 90, 'existing totals preserved');
+  assert.equal(m.plays, 3);
+  assert.equal(m.achieved['first-run'], true);
 });
 
 test('applyRun increments plays/totals and raises bests monotonically', () => {
@@ -541,6 +635,31 @@ test('cumulative achievement (lifetime 1,000 gates) only unlocks once the total 
   assert.equal(m.achieved['lifetime-1k'], undefined);
   m = applyRun(m, summary({ score: 100, cleared: 100, stageIndex: 3 }));
   assert.equal(m.achieved['lifetime-1k'], true);
+});
+
+test('applyRun accumulates lifetime snaps from a run summary', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 40, cleared: 20, perfect: 7 }));
+  assert.equal(m.totals.snaps, 7);
+  m = applyRun(m, summary({ score: 10, cleared: 5, perfect: 3 }));
+  assert.equal(m.totals.snaps, 10, 'snaps accumulate across runs');
+});
+
+test('the depth badges (snap / razor / overcharge / supernova) fire on their feats', () => {
+  let m = normalizeMeta();
+  // A deep run: 12 snaps, an overcharge, reached the secret stage.
+  m = applyRun(m, summary({ score: 900, cleared: 300, stageIndex: 5, perfect: 12, overcharges: 2 }));
+  assert.equal(m.achieved['snap'], true, 'landed a snap');
+  assert.equal(m.achieved['razor'], true, '≥10 snaps in a run');
+  assert.equal(m.achieved['overcharge'], true, 'triggered Overcharge');
+  assert.equal(m.achieved['supernova'], true, 'reached the secret stage');
+  // A shallow run earns none of them.
+  let m2 = normalizeMeta();
+  m2 = applyRun(m2, summary({ score: 10, cleared: 8, stageIndex: 0 }));
+  assert.equal(m2.achieved['snap'], undefined);
+  assert.equal(m2.achieved['razor'], undefined);
+  assert.equal(m2.achieved['overcharge'], undefined);
+  assert.equal(m2.achieved['supernova'], undefined);
 });
 
 test('newlyEarned reports only the ids gained between two metas, in table order', () => {

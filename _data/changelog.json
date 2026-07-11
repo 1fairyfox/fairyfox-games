@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-10",
+    "game": "Polarity",
+    "slug": "polarity",
+    "kind": "grow",
+    "text": "Polarity has a lot more hiding under the hood. The wall of instructions is gone — you'll pick it up in seconds just by playing. And the deeper you go, the more it opens up: the speed no longer flattens out the way it used to, so a long run keeps pushing you. Land a flip razor-close, not just late, and you'll notice it pays extra — string enough of those together and you'll trip something that turns the whole field gold for a while. Keep climbing and there's a stage waiting past the ones you can see. Nothing here is explained on the start screen on purpose: the fun is finding it."
+  },
+  {
+    "date": "2026-07-10",
     "game": "The collection",
     "slug": null,
     "kind": "site",

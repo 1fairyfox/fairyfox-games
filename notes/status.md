@@ -2,10 +2,10 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.19.6` (single source of truth: repo-root `VERSION`) — released and live. The two
-releases this run: **v0.19.5** (Arc onto varied structure — completes the 7-of-11 rollout, the
-deferred 07-09 WIP, finished once PowerShell/`gh` were available) and **v0.19.6** (the collection's
-own icon — favicon + social-share card + landing masthead logo).
+**Version:** `0.20.0` (single source of truth: repo-root `VERSION`). **v0.20.0** is a
+**milestone**: a new **"depth inside the mechanic"** layer, with **Polarity as the reference build** —
+built from owner feedback that the games go stagnant after ~5 minutes. Prior releases this cycle:
+**v0.19.5** (Arc onto varied structure) and **v0.19.6** (the collection's own icon).
 
 ## Current state (read this first)
 
@@ -68,8 +68,12 @@ sole host), plus each game at `…/games/<game>/`.
   so no two runs share a skeleton and the notable ones name themselves as you enter them
   (`FORMATIONS`/`pickFormation`/`loadFormation`); readable **stage arc** (Drift → … →
   Singularity) weighting the pool, HUD stage chip + multiplier readout + ambient tint, and
-  **meta-progression** (`polarity.meta`: lifetime runs/gates/furthest stage/best-mult + 9
-  skill-safe badges, run-report card) — legacy `polarity.best` preserved. Pure core + 44 tests.
+  **meta-progression** (`polarity.meta`: lifetime runs/gates/furthest stage/best-mult + 13
+  skill-safe badges, run-report card) — legacy `polarity.best` preserved. **Also the reference build
+  for "depth inside the mechanic" (v0.20.0):** a no-plateau speed asymptote, the hidden **Snap** tech
+  (razor-tight flips pay extra + build a streak), **Overcharge** (snap streak → a double-score gold
+  window), and a **secret Supernova stage** past Singularity — all on the one flip verb, discovered
+  not manualled; the intro is trimmed to teach-by-play. Pure core + 52 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
   sweeping up targets. **On the Growth Architecture**: a **bank bonus** (`shotScore` —
   a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
@@ -143,13 +147,31 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **384/384** green, released. ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **392/392** green, released. ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 ## In flight / awaiting
 
+- **✅ v0.20.0 (2026-07-10) — GROW MILESTONE: "depth inside the mechanic" — Polarity is the reference build.**
+  From owner feedback: games are fun for ~5 min, then stagnant ("you keep mentioning progression but I
+  don't see it"). Diagnosed: the collection chased depth with **meta** (invisible on a fresh play) +
+  **varied structure** (variety at a *fixed intensity ceiling*), while the one felt axis — speed —
+  **plateaued** near 100 gates → the whole ceiling seen in 5 min. Fix = depth **inside the mechanic**,
+  on Polarity's single flip verb, **no new controls**, all **safe to not know**: (1) **no plateau**
+  (`speedOf` → smooth asymptote, always creeping up; regression-tested); (2) **Snap** — a razor-tight
+  inner window (`SNAP_TICKS`) that pays a bonus + builds a streak (the hidden skill-ceiling tech,
+  never explained); (3) **Overcharge** — a snap streak → ~5s double-score window + gold field bloom
+  (the earned surprise); (4) **Supernova** — a **secret 6th stage** past Singularity (unnamed on the
+  start screen, reveal + badge); (5) **intro trimmed** to one line + a curiosity hook. Four new
+  skill-safe badges; `totals.snaps` added (legacy meta upgrades losslessly). +8 net pure-core tests →
+  **392/392** green. **Chrome-previewed live** (trimmed intro; running game; forced Overcharge = gold
+  ⚡×N + field bloom + orb halo; Supernova reveal) — all clean, no console errors. New standard
+  `reference/depth-inside-the-mechanic.md` + plan `plans/2026-07-10-depth-inside-the-mechanic.md`;
+  **this layer is now the lead GROW lever** (supersedes "add one more formation"). Released `dev → main`
+  by default on green (MINOR via `release/0.20.0`), tagged `v0.20.0`, back-merged. **Polarity is the
+  reference; GROW rolls the layer across the collection one game at a time, lowest-coverage first.**
 - **✅ v0.19.6 (2026-07-10) — SITE: the collection gets its own icon (`assets/icon.png`, owner-provided).**
   The game-farm mark (a sprout rising from a game-controller cube over furrows) now serves the whole
   Jekyll chrome from one self-hosted file via `_includes/head.html`: **favicon / browser-tab icon**
@@ -324,8 +346,8 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.19.6 release (tagged); working tree carries only the fresh session notes |
-| Tests (`node --test`) | ✅ **384/384** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.0 release (tagged); working tree carries only the fresh session notes |
+| Tests (`node --test`) | ✅ **392/392** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

@@ -5,12 +5,25 @@ Built on `../reference/growth-architecture.md` (the pattern) and
 `../reference/game-design.md` (the why). Ordered; tick items off as they ship; history
 lands in `../sessions/`._
 
-> **Priority lever (2026-07-05, from owner playtest): varied structure.** Stages + badges
+> **Priority lever (2026-07-10, from owner playtest — supersedes the one below): depth inside
+> the mechanic.** Owner: the games are fun for ~5 minutes, then stagnant ("you keep mentioning
+> progression but I don't see it"). Varied structure keeps a run from feeling *identical*, but it's
+> variety at a *fixed intensity ceiling* — it doesn't make the *current five minutes* feel like there's
+> *more here*. The fix is depth **inside the moment-to-moment mechanic**: a rising skill ceiling,
+> **discoverable tech** (unannounced), **earned surprises** (a reward state, a **secret stage**), and
+> **substantive stages** — all on the game's one verb, no new controls, safe to not know, and **no
+> plateau**. **This is now the lead GROW lever** (a grow step adds a depth element and logs it), ahead
+> of "add one more formation." Polarity is the reference build (v0.20.0). Standard:
+> `../reference/depth-inside-the-mechanic.md`; per-game plan pattern:
+> `plans/2026-07-10-depth-inside-the-mechanic.md`.
+>
+> **Prior lever (2026-07-05): varied structure.** Stages + badges
 > made growth *nameable* but not *felt* — a returning player still walks the identical run
 > skeleton every time ("played once = played always"). The fix is **Wave 4** below: the run
 > becomes a seeded **sequence of named sub-patterns**, so no two runs share a shape and each
-> update visibly changes future runs. Polarity is the reference build. The daily grow-step
-> now leads with this. Pattern: `../reference/varied-structure.md`.
+> update visibly changes future runs. Polarity is the reference build. Pattern:
+> `../reference/varied-structure.md`. (Still true and rolled out to 7/11; depth-inside-the-mechanic
+> now leads it.)
 
 ## The shape of a game's growth (every game walks this same path)
 
