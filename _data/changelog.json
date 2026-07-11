@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-11",
+    "game": "Ricochet",
+    "slug": "ricochet",
+    "kind": "grow",
+    "text": "The targets no longer scatter at random — they now arrive as named layouts, dealt in a different order every run. A loose Scatter, a bunched Rack you can thread for a huge bank, a Gallery standing in a row for one flat sweep, a climbing Ladder — and as you climb the stages, the mean ones come out: Pockets tucked high against the walls where only a bank reaches, and the dense late Gauntlet. Notable layouts name themselves as they arrive. Two runs no longer offer the same angles."
+  },
+  {
     "date": "2026-07-10",
     "game": "The collection",
     "slug": null,

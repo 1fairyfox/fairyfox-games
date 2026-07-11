@@ -82,6 +82,17 @@
   .badge b { font-size:13px; color:#7af9d0; letter-spacing:.04em; }
   .badge span { font-size:11.5px; opacity:.6; }
   .metaLine { margin-top:16px; font-size:12px; letter-spacing:.06em; opacity:.45; font-variant-numeric:tabular-nums; }
+
+  /* Formation cue — a quiet name that flashes as a notable target layout arrives
+     (varied-structure layer). Peripheral; the calm layouts pass silently. */
+  #formCue {
+    position:absolute; top:110px; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; font-weight:600;
+    color:#7af9d0; opacity:0; pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
 </style>
 </head>
 <body>
@@ -97,6 +108,7 @@
     <div id="stageName">Rookie</div>
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
+  <div id="formCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Ricochet</div>
@@ -109,7 +121,10 @@
       whole game. Sweep <b>two or more in one shot</b> for a bank — and a bank is worth far
       more than the same targets picked off singly (a 3-bank scores 6, not 3), so greed pays.
       Climb the <b>stages</b> (Rookie → Marksman → Trick shot → Bank master); feats earn
-      <b>badges</b> that stick across runs.</div>
+      <b>badges</b> that stick across runs. The targets arrive as <b>layouts</b> — a loose
+      Scatter, a bunched Rack, a sweepable Gallery, a climbing Ladder, wall-hugging Pockets,
+      the dense Gauntlet — dealt in a different order every run, and climbing the stages
+      brings the meaner, bank-only ones out.</div>
     <div class="prompt">Aim &amp; click to fire</div>
   </div>
 

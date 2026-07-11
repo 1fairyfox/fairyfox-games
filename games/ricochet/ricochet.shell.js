@@ -43,6 +43,7 @@ const livesEl = el('lives');
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -58,6 +59,17 @@ function showToast(text) {
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
+}
+
+// Formation cue — a quiet name flashed as a *notable* target layout arrives (the
+// varied-structure layer). The calm layouts pass silently, keeping the base clean.
+let formCueTimer = 0;
+function showFormCue(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = '◇ ' + name;
+  formCueEl.classList.add('show');
+  clearTimeout(formCueTimer);
+  formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
@@ -219,6 +231,7 @@ function advanceFlight() {
       const si = R.stageIndexAt(game.cfg, game.score);
       if (si !== stageIdx) enterStage(si);
       updateStageChip();
+      if (res.formation) showFormCue(res.formation);   // a notable target layout just began
       if (res.died) onDeath();
     }
   }
@@ -255,6 +268,7 @@ function renderLives() {
 function onDeath() {
   shake = 18; flash = 0.7;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).

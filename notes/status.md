@@ -2,12 +2,14 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.20.2` (single source of truth: repo-root `VERSION`). **v0.20.2** is a
-**site-chrome correction**: each **game card's** description moves into a corner **"?"** and the card
-category tags get restyled (owner ask, matching the fairyfox home/stories **cards**). It **reverts
-v0.20.1**, which had wrongly applied the "?" to the *masthead* blurb — the masthead is back to normal.
-**v0.20.0** was a **milestone**: a new **"depth inside the mechanic"** layer, with **Polarity as the
-reference build** — built from owner feedback that the games go stagnant after ~5 minutes.
+**Version:** `0.20.3` (single source of truth: repo-root `VERSION`). **v0.20.3** is a **GROW** run:
+**Ricochet** comes onto **varied structure + progression** (the 8th game on the pattern) — its flat
+random target sprinkle is now a seeded sequence of named **layouts** (Scatter · Rack · Gallery ·
+Ladder · Pockets · The Gauntlet) that unlock as you climb the stages. **v0.20.2** was a
+**site-chrome correction**: each **game card's** description moved into a corner **"?"** and the card
+category tags got restyled. **v0.20.0** was a **milestone**: a new **"depth inside the mechanic"**
+layer, with **Polarity as the reference build** — built from owner feedback that the games go
+stagnant after ~5 minutes.
 
 ## Current state (read this first)
 
@@ -77,11 +79,17 @@ sole host), plus each game at `…/games/<game>/`.
   window), and a **secret Supernova stage** past Singularity — all on the one flip verb, discovered
   not manualled; the intro is trimmed to teach-by-play. Pure core + 52 tests.
 - **Ricochet** (`games/ricochet/`) — aim and fire one shot that bounces off the walls,
-  sweeping up targets. **On the Growth Architecture**: a **bank bonus** (`shotScore` —
-  a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
+  sweeping up targets. **On Varied Structure + Growth**: the field is a seeded **sequence of
+  named target layouts** (Scatter · Rack · Gallery · Ladder · Pockets · The Gauntlet) that
+  **unlock as you climb the stages** (progression drives the variety; notable ones flash a name
+  cue) — `FORMATIONS`/`pickFormation`/`loadFormation`, `spawnTarget` pulls the next slot from the
+  current layout and a pure `placeSpec` resolves it (`{fx,fy}` fractions → in-box, clear of the
+  launcher, off its neighbours), `fire` emits a `formation` cue. Plus a **bank bonus**
+  (`shotScore` — a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
   Marksman → Trick shot → Bank master) with HUD chip + tinted floor line, and
   **meta-progression** (`ricochet.meta`: lifetime hits/biggest bank + 8 badges,
-  run-report) — legacy best preserved. Pure core (`computeShot`) + 30 tests.
+  run-report) — legacy best preserved. Pure core (`computeShot`) + 41 tests. **(8th game on
+  varied structure.)**
 - **Skyline** (`games/skyline/`) — drop a sliding slab onto your tower; the overhang is
   sliced off so only precision keeps it climbing. **On the Growth Architecture**: flush
   drops keep full width + pay double, and a **run of flush drops pays an escalating
@@ -149,11 +157,28 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **392/392** green, released. ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **403/403** green, released. ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.20.3 (2026-07-11) — GROW: Ricochet onto varied structure (8th game on the pattern).**
+  Ricochet's field was a flat random sprinkle (a rejection-sampled point per refill), so every run
+  offered the same textureless spread of angles. Targets now arrive as a seeded **sequence of named
+  layouts** from a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`, copied in shape
+  from Polarity into its own core): **Scatter** (calm on-ramp), **Rack** (a billiards break — thread
+  the triangle for a huge bank), **Gallery** (a row at one height: one flat shot sweeps it),
+  **Ladder** (a diagonal climb), **Pockets** (tucked high against the side walls — only a bank
+  reaches them), **The Gauntlet** (the dense late crescendo). `minStage` gates each, so climbing the
+  stages **opens the pool** (the calm share falls >75% → <40% from Rookie to Bank master, pinned by a
+  test); notable layouts flash a quiet `#formCue`. Slots are `{fx,fy}` fractions resolved by a new
+  pure `placeSpec` (in-box, clear of the launcher, nudged off neighbours), so layouts read cleanly at
+  any target radius and the per-stage shrink still layers on top. +11 pure-core tests (30 → 41);
+  collection **403/403** green. **Chrome MCP was unavailable** — validated with a real **headless
+  Chrome render** of the live game (a temp harness drove synthetic aim+fire; a Rack triangle + HUD +
+  in-flight shot render clean, forced `#formCue` sits under the stage chip, no console errors) plus a
+  clean Jekyll build. Player changelog + `_games` date + README re-gen. Released `dev → main` by
+  default on green (PATCH). **8 of 11 games on varied structure** (remaining: Skyline, Loft, Poise).
 - **✅ v0.20.2 (2026-07-10) — SITE (corrects v0.20.1): the "?" belongs on the game CARDS, not the
   masthead.** Owner ask was to move each **game's description** (the card blurb) into a corner "?" —
   the way the fairyfox home/stories **cards** do it — and to smarten the card category tags. v0.20.1
@@ -351,9 +376,15 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 ## Next
 
-- **Ship each green run `dev → main` by default** (new policy — no approval wait; only
-  hold on red/broken/risky). Keep deepening per `plans/growth-roadmap.md` — Wave 2/3 ideas
-  (cosmetic unlocks, skill-safe modes, daily seeds) one game per few daily runs.
+- **Varied-structure rollout: 8 of 11.** Remaining: **Skyline, Loft, Poise** — one per GROW run,
+  lowest-coverage first. In parallel, the **"depth inside the mechanic"** layer (v0.20.0, Polarity =
+  reference) rolls across the collection: that is now the **lead** GROW lever for games already on
+  varied structure.
+- **Open PR #31 (Dependabot):** `actions/attest-build-provenance` **2.4.0 → 4.1.1** — a *major* bump
+  to the release-signing step. Take it deliberately (review the changelog, then watch a tagged
+  release run), not as a drive-by merge.
+- **Ship each green run `dev → main` by default** (no approval wait; only hold on red/broken/risky).
+  Keep deepening per `plans/growth-roadmap.md`.
 - Keep each addition through the simple-but-deep checklist — never convoluted (the hard
   constraint). Keep inventing fresh, mechanically-distinct experiments.
 
@@ -361,8 +392,8 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.2 release (tagged); working tree carries only the fresh session notes |
-| Tests (`node --test`) | ✅ **392/392** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.3 release (tagged); working tree carries only the fresh session notes |
+| Tests (`node --test`) | ✅ **403/403** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

@@ -14,6 +14,10 @@
  *      an out-of-the-way target is not)
  *   7. fire(): chain scoring + refill; a zero-collect shot costs a life; death at 0;
  *      dead-state inertness; determinism of a scripted run
+ *   8. Formations (varied structure): a well-formed pool; stage-gated + deterministic
+ *      picking; late stages lean on the demanding layouts; slots resolve inside the legal
+ *      spawn box and off each other; the slot queue never empties; distinct seeds give
+ *      distinct run structures; a notable layout raises exactly one cue
  */
 
 import test from 'node:test';
@@ -22,6 +26,7 @@ import {
   CONFIG, dist2, targetRadius, clampAim, aimToward, setAim,
   createGame, reset, start, spawnTarget, fillTargets, computeShot, fire, chainLabel, milestoneAt,
   shotScore, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
+  pickFormation, loadFormation, placeSpec,
 } from './ricochet.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible. */
@@ -370,4 +375,171 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+// ── 12. Formations — the varied-structure layer ──────────────────────────────────
+const TOP_STAGE = CONFIG.STAGES.length - 1;
+
+test('the FORMATIONS pool is well-formed and has a stage-0 layout', () => {
+  const ids = new Set();
+  let fromZero = 0;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.ok(typeof f.id === 'string' && f.id.length, 'has an id');
+    assert.ok(!ids.has(f.id), 'ids are unique: ' + f.id);
+    ids.add(f.id);
+    assert.ok(typeof f.name === 'string' && f.name.length, 'has a name');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.ok(f.minStage >= 0 && f.minStage <= TOP_STAGE, 'minStage inside the stage arc');
+    if (f.minStage === 0) fromZero++;
+  }
+  assert.ok(fromZero >= 1, 'at least one layout is available from the first stage');
+});
+
+test('every layout builds at least one slot, with sane fractional coordinates', () => {
+  for (const f of CONFIG.FORMATIONS) {
+    for (let seed = 1; seed <= 12; seed++) {
+      const slots = f.build({ rng: seeded(seed), stage: TOP_STAGE, cfg: CONFIG });
+      assert.ok(Array.isArray(slots) && slots.length >= 1, f.id + ' yields slots');
+      for (const s of slots) {
+        assert.ok(Number.isFinite(s.fx) && Number.isFinite(s.fy), f.id + ' finite coords');
+        // builders may lean past an edge (placeSpec clamps), but never wildly
+        assert.ok(s.fx >= -0.3 && s.fx <= 1.3, f.id + ' fx near the field');
+        assert.ok(s.fy >= -0.3 && s.fy <= 1.3, f.id + ' fy near the field');
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible layouts and is deterministic', () => {
+  for (let stage = 0; stage <= TOP_STAGE; stage++) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const a = pickFormation(CONFIG, stage, seeded(seed), null);
+      const b = pickFormation(CONFIG, stage, seeded(seed), null);
+      assert.equal(a.id, b.id, 'same seed → same pick');
+      assert.ok(stage >= a.minStage, a.id + ' is unlocked at stage ' + stage);
+    }
+  }
+});
+
+test('climbing the stages opens the pool: late layouts appear only late', () => {
+  const seen = stage => {
+    const ids = new Set();
+    for (let seed = 1; seed <= 300; seed++) ids.add(pickFormation(CONFIG, stage, seeded(seed), null).id);
+    return ids;
+  };
+  const early = seen(0), late = seen(TOP_STAGE);
+  assert.ok(!early.has('gauntlet'), 'The Gauntlet is locked at the first stage');
+  assert.ok(!early.has('pockets'), 'Pockets is locked at the first stage');
+  assert.ok(late.has('gauntlet') && late.has('pockets'), 'the late layouts show up at the top');
+  assert.ok(late.size > early.size, 'the pool widens as the run climbs');
+});
+
+test('the late pool leans on the demanding layouts (a crescendo, not a coin-flip)', () => {
+  const share = (stage, ids) => {
+    let hit = 0;
+    for (let seed = 1; seed <= 600; seed++) {
+      if (ids.includes(pickFormation(CONFIG, stage, seeded(seed), null).id)) hit++;
+    }
+    return hit / 600;
+  };
+  const calm = ['scatter', 'rack'];
+  assert.ok(share(0, calm) > 0.75, 'the first stage is nearly all calm layouts');
+  assert.ok(share(TOP_STAGE, calm) < 0.4, 'the calm layouts fade at the top');
+});
+
+test('placeSpec resolves a slot inside the spawn box, clear of the launcher', () => {
+  const g = newGame();
+  g.targets = [];
+  const corners = [
+    { fx: -1, fy: -1 }, { fx: 2, fy: 2 }, { fx: 0.5, fy: 1 }, { fx: 0.5, fy: 0.99 },
+    { fx: 0, fy: 0.5 }, { fx: 1, fy: 0.5 },
+  ];
+  for (const c of corners) {
+    const t = placeSpec(g, c);
+    assert.ok(t.x >= CONFIG.SPAWN_PAD && t.x <= W - CONFIG.SPAWN_PAD, 'x in bounds');
+    assert.ok(t.y >= CONFIG.SPAWN_PAD && t.y <= H - CONFIG.SPAWN_BOTTOM, 'y in the upper field');
+    const d = Math.hypot(t.x - g.launcher.x, t.y - g.launcher.y);
+    assert.ok(d >= CONFIG.SPAWN_CLEAR - 1e-6, 'clear of the launcher (' + d + ')');
+  }
+});
+
+test('a resolved slot is pushed off targets it would overlap', () => {
+  const g = newGame();
+  g.targets = [{ x: W / 2, y: 200 }];
+  const t = placeSpec(g, { fx: 0.5, fy: (200 - CONFIG.SPAWN_PAD) / (H - CONFIG.SPAWN_BOTTOM - CONFIG.SPAWN_PAD) });
+  const gap = 2 * targetRadius(g) + CONFIG.SPAWN_MIN_GAP;
+  assert.ok(Math.hypot(t.x - W / 2, t.y - 200) >= gap - 1, 'nudged clear of the sitting target');
+});
+
+test('the slot queue never empties across a long run of refills', () => {
+  const g = newGame();
+  start(g);
+  for (let i = 0; i < 400; i++) {
+    g.score = Math.min(300, i);            // walk the stages so every layout gets loaded
+    g.targets = [];
+    fillTargets(g);
+    assert.equal(g.targets.length, CONFIG.FIELD_TARGETS, 'field is always topped up');
+    assert.ok(g.formId !== null, 'a layout is always loaded');
+  }
+});
+
+test('distinct seeds give distinct run structures; the same seed replays exactly', () => {
+  const structure = seed => {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    const ids = [];
+    for (let i = 0; i < 24; i++) {
+      g.score = Math.min(200, i * 8);      // climb, so the whole pool comes into play
+      g.targets = [];
+      fillTargets(g);
+      if (ids[ids.length - 1] !== g.formId) ids.push(g.formId);
+    }
+    return ids.join('>');
+  };
+  assert.equal(structure(3), structure(3), 'same seed → identical structure');
+  const shapes = new Set([structure(1), structure(2), structure(3), structure(4), structure(5)]);
+  assert.ok(shapes.size >= 3, 'different seeds build differently-shaped runs');
+});
+
+test('a notable layout raises exactly one cue, and the opening field is silent', () => {
+  const g = newGame();
+  start(g);
+  assert.equal(g.formCue, null, 'the on-ramp arrives quietly');
+
+  // force a known notable layout, then drain it
+  g.score = 200;
+  g.targets = [];
+  g.formSlots = [];
+  g.formId = null;
+  loadFormation(g);
+  g.formName = 'Test layout';
+  g.formNotable = true;
+  const n = g.formSlots.length;
+  spawnTarget(g);
+  assert.equal(g.formCue, 'Test layout', 'the head target names the layout');
+  g.formCue = null;
+  for (let i = 1; i < n; i++) { spawnTarget(g); assert.equal(g.formCue, null, 'only the head cues'); }
+});
+
+test('fire() hands the shell a notable layout cue when a refill opens one', () => {
+  const g = newGame();
+  start(g);
+  g.score = 200;                                   // top stage: the notable layouts dominate
+  let cues = 0, shots = 0;
+  for (let i = 0; i < 200 && g.phase === 'play'; i++) {
+    // plant a target dead ahead so the shot always collects and refills
+    g.targets = [{ x: g.launcher.x, y: g.launcher.y - 200 }];
+    setAim(g, -Math.PI / 2);
+    const res = fire(g);
+    shots++;
+    if (res && res.formation) {
+      cues++;
+      assert.ok(CONFIG.FORMATIONS.some(f => f.name === res.formation && f.notable),
+        'a cue names a notable layout');
+    }
+    g.score = 200;                                 // pin the stage for the sweep
+  }
+  assert.ok(shots > 0 && cues > 0, 'notable layouts announce themselves during play');
 });

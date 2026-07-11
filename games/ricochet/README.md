@@ -10,9 +10,21 @@ becomes the whole game. Beat your own score.
 
 ## How it grows
 
-Ricochet follows the shared **Growth Architecture**
+Ricochet follows the shared **Varied Structure** pattern
+(`notes/reference/varied-structure.md`) and the **Growth Architecture**
 (`notes/reference/growth-architecture.md`):
 
+- **Varied structure (the run's skeleton).** Targets don't sprinkle at random: they arrive
+  as a seeded **sequence of named layouts** pulled from a stage-weighted pool
+  (`FORMATIONS` / `pickFormation` / `loadFormation`; `spawnTarget` pulls the next slot from
+  the current layout, `placeSpec` resolves it to the field). **Scatter** (the loose
+  on-ramp), **Rack** (a billiards break — thread the cluster for a huge bank), **Gallery**
+  (a row at one height: one flat shot can sweep it), **Ladder** (a diagonal climb),
+  **Pockets** (tucked high against the side walls — only a bank reaches them) and **The
+  Gauntlet** (the dense late crescendo). `minStage` gates each, so **climbing the stages
+  opens the pool** — progression drives the variety, and the late run leans on the
+  bank-only layouts. Notable layouts flash a quiet name cue as they arrive; the calm ones
+  pass silently.
 - **Core-fun (the bank bonus).** Banking is now *super-linearly* rewarded (`shotScore`):
   a chain of `n` scores `n + n(n−1)/2`, so a 3-bank is worth **6**, not 3. The tempting,
   risky bank pays far more than safe singles — the greed decision has real teeth. (The
@@ -79,7 +91,11 @@ invariants, deterministic in-bounds spawning, the **`computeShot` regression gua
 (every vertex of every shot stays inside the box — straight-up, steep, and
 corner-seeking aims — with a fixed bounce count), collection order along the path,
 and `fire()` (chain scoring + refill, a zero-collect shot costing a life, death at
-zero, dead-state inertness, and a deterministic scripted run).
+zero, dead-state inertness, and a deterministic scripted run). The **formation** layer is
+pinned too: a well-formed pool, stage-gated + deterministic picking, a pool that widens
+(and a calm share that fades) as the stages climb, slots that always resolve inside the
+spawn box and clear of the launcher and each other, a slot queue that never empties, and
+distinct seeds building distinctly-shaped runs.
 
 ### Design note: reflection that never escapes the box
 

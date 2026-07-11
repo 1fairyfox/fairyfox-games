@@ -14,6 +14,12 @@
  * end the run. As your score climbs the targets shrink, so the angles get meaner —
  * the one-mechanic, beat-your-own-score, calm-then-panic curve.
  *
+ * The field is not one flat random sprinkle: targets arrive as a seeded *sequence of
+ * named layouts* — Scatter, Rack, Gallery, Ladder, Pockets, The Gauntlet — pulled from a
+ * stage-weighted pool (see CONFIG.FORMATIONS). Climbing the stages **opens the pool**, so
+ * progression drives the variety and the late run leans on the bank-only layouts. No two
+ * runs offer the same skeleton of angles; the same seed still replays exactly.
+ *
  * Why a pure core: the whole shot — reflections off four walls and which targets
  * the path intersects — is computed deterministically as one pure function
  * ({@link computeShot}). The shell merely animates a dot along the returned
@@ -57,7 +63,132 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 60,  name: 'Trick shot',  tint: '#ff8f6a' }),
     Object.freeze({ at: 140, name: 'Bank master', tint: '#ff6ad0' }),
   ]),
+  // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer;
+  // Polarity is the reference build). Instead of every target being one flat random point
+  // in the upper field, a run is a different *sequence* of these named target LAYOUTS, so
+  // no two runs offer the same skeleton of angles. Each is a short queue of target slots
+  // with its own character — a loose Scatter, a bunched Rack, a sweepable Gallery, a
+  // climbing Ladder, wall-hugging Pockets that only a bank reaches, and a dense late
+  // Gauntlet. `minStage` gates when a layout first appears (so climbing the stages opens
+  // the pool — progression drives the variety); `weight(stageIndex)` biases selection
+  // (later stages lean on the demanding layouts); `notable` layouts earn a quiet name-cue
+  // as they arrive (the calm ones pass silently). `build(ctx)` is PURE given `ctx.rng` and
+  // returns slots as {fx, fy} specs — fractions across the legal spawn box, resolved to
+  // pixels by {@link placeSpec}, so the per-stage target shrink still layers on top.
+  // New layouts can be added over time for players to discover; ids are stable forever.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'scatter',  name: 'Scatter',      minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildScatter }),
+    Object.freeze({ id: 'rack',     name: 'Rack',         minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildRack }),
+    Object.freeze({ id: 'gallery',  name: 'Gallery',      minStage: 1, notable: true,
+      weight: () => 2, build: buildGallery }),
+    Object.freeze({ id: 'ladder',   name: 'Ladder',       minStage: 1, notable: true,
+      weight: (s) => s, build: buildLadder }),
+    Object.freeze({ id: 'pockets',  name: 'Pockets',      minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildPockets }),
+    Object.freeze({ id: 'gauntlet', name: 'The Gauntlet', minStage: 2, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildGauntlet }),
+  ]),
 });
+
+// ── Formation builders (pure given ctx.rng) ──────────────────────────────────────
+// Each returns target slots as {fx, fy}: fractions of the legal spawn box, where
+// fx 0→1 spans left→right wall pad and fy 0→1 spans the ceiling pad→the launcher's
+// clearance line. Out-of-range values are clamped by placeSpec, so a builder may lean
+// into an edge without any risk of an off-field target.
+
+/** Scatter — the calm on-ramp: targets spread loosely over the upper field (the classic
+ *  Ricochet field). Nothing to read; just aim. */
+function buildScatter(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);            // 4..6 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ fx: rng(), fy: rng() });
+  return out;
+}
+
+/** Rack — a billiards break: a tight triangle of targets bunched together. Thread the
+ *  cluster and one shot banks several; miss the line and it eats a life. */
+function buildRack(ctx) {
+  const { rng } = ctx;
+  const step = 0.10 + rng() * 0.04;               // slot spacing (fractional)
+  const cx = 0.22 + rng() * 0.56;
+  const cy = 0.14 + rng() * 0.42;
+  const out = [];
+  for (let row = 0; row < 3; row++) {
+    for (let k = 0; k <= row; k++) {
+      out.push({ fx: cx + (k - row / 2) * step, fy: cy + row * step * 0.9 });
+    }
+  }
+  return out;                                     // 6 targets (1 + 2 + 3)
+}
+
+/** Gallery — a shooting gallery: targets stand in an evenly-spaced row at one height, so a
+ *  single flat shot down the line can sweep the lot. Notable. */
+function buildGallery(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 2);            // 4..5 targets
+  const y = 0.12 + rng() * 0.5;
+  const left = 0.04 + rng() * 0.1;
+  const right = 0.96 - rng() * 0.1;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0.5;
+    out.push({ fx: left + (right - left) * t, fy: y + (rng() - 0.5) * 0.03 });
+  }
+  return out;
+}
+
+/** Ladder — a climb: targets step diagonally up across the field, so each pickup drags the
+ *  next shot further out. Notable; leans in from mid stages. */
+function buildLadder(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);            // 4..6 targets
+  const dir = rng() < 0.5 ? 1 : -1;
+  const x0 = dir > 0 ? 0.08 + rng() * 0.1 : 0.92 - rng() * 0.1;
+  const y0 = 0.72 + rng() * 0.14;                 // start low (near the launcher line)
+  const runX = 0.62 + rng() * 0.2;
+  const riseY = 0.55 + rng() * 0.15;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    out.push({ fx: x0 + dir * t * runX, fy: y0 - t * riseY });
+  }
+  return out;
+}
+
+/** Pockets — the tricky one: targets tuck high against the side walls, where a straight shot
+ *  from the launcher can barely reach — you have to bank off a wall. Notable; late. */
+function buildPockets(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 2);            // 4..5 targets
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const right = i % 2 === 1;
+    out.push({
+      fx: right ? 0.95 - rng() * 0.07 : 0.05 + rng() * 0.07,
+      fy: 0.04 + rng() * 0.3,
+    });
+  }
+  return out;
+}
+
+/** The Gauntlet — the late crescendo: a dense field packed high along both walls and the
+ *  ceiling, every one of them a bank. Notable; the deep-run peak. */
+function buildGauntlet(ctx) {
+  const { rng } = ctx;
+  const n = 6 + Math.floor(rng() * 4);            // 6..9 targets
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const lane = rng();
+    const fx = lane < 0.42 ? 0.03 + rng() * 0.2
+      : lane < 0.84 ? 0.77 + rng() * 0.2
+        : 0.34 + rng() * 0.32;
+    out.push({ fx, fy: 0.03 + rng() * 0.34 });
+  }
+  return out;
+}
 
 /**
  * Score for a shot that collected `chain` targets — the core-fun **bank bonus**: banking
@@ -121,6 +252,11 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} lives              remaining lives
  * @property {number} shots              shots fired this run
  * @property {number} bestChain          most targets collected in a single shot
+ * @property {Array<{fx:number,fy:number,head?:boolean}>} formSlots  remaining slots of the current layout
+ * @property {?string} formId            id of the current layout
+ * @property {?string} formName          display name of the current layout
+ * @property {boolean} formNotable       whether the current layout names itself
+ * @property {?string} formCue           a notable layout that just began (consumed by `fire`)
  */
 
 /**
@@ -186,31 +322,112 @@ export function setAim(g, angle) {
 }
 
 /**
- * Place one fresh target in the upper field, best-effort spaced from the other
- * targets and clear of the launcher, and append it.
+ * Choose the next formation for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
+ * what makes each run's *sequence* of target layouts differ while still escalating (later
+ * stages weight toward the demanding, bank-only layouts).
+ * @param {RicochetConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the formation just spent (soft-avoided), or null
+ * @returns {{id:string,name:string,minStage:number,notable:boolean,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next formation into `g.formSlots` ({fx, fy} specs, the first marked as the
+ * formation head so the shell can name it as it arrives) and record its identity on
+ * `g.formId`/`g.formName`/`g.formNotable`. Called by {@link spawnTarget} when the current
+ * formation is spent. Pure logic over the game's rng.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const slots = f.build({ rng: g.rng, stage, cfg });
+  if (slots.length) slots[0].head = true;        // the leading target carries the name cue
+  g.formSlots = slots;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+}
+
+/**
+ * Resolve one formation slot ({fx, fy} fractions) to a concrete field position: map it into
+ * the legal spawn box, lift it clear of the launcher, and nudge it off any target it would
+ * overlap (so a layout always reads cleanly, whatever the current target radius). Pure —
+ * reads state, mutates nothing, uses no rng (the randomness lives in the builders).
+ * @param {GameState} g
+ * @param {{fx:number, fy:number}} spec
+ * @returns {Target} the resolved position
+ */
+export function placeSpec(g, spec) {
+  const { cfg } = g;
+  const r = targetRadius(g);
+  const minX = cfg.SPAWN_PAD, maxX = Math.max(cfg.SPAWN_PAD + 1, g.w - cfg.SPAWN_PAD);
+  const minY = cfg.SPAWN_PAD, maxY = Math.max(cfg.SPAWN_PAD + 1, g.h - cfg.SPAWN_BOTTOM);
+  const c01 = v => (!(v > 0) ? 0 : v > 1 ? 1 : v);
+  let x = minX + c01(spec.fx) * (maxX - minX);
+  let y = minY + c01(spec.fy) * (maxY - minY);
+
+  // lift the target until it sits at least SPAWN_CLEAR from the launcher
+  const lift = () => {
+    const dx = x - g.launcher.x;
+    const need = cfg.SPAWN_CLEAR * cfg.SPAWN_CLEAR - dx * dx;
+    if (need > 0) {
+      const yTop = g.launcher.y - Math.sqrt(need);
+      if (y > yTop) y = yTop;
+    }
+  };
+  lift();
+
+  // push off any target it would sit on top of (deterministic, a few relaxation passes)
+  const gap = 2 * r + cfg.SPAWN_MIN_GAP;
+  for (let pass = 0; pass < cfg.SPAWN_TRIES && g.targets.length; pass++) {
+    let moved = false;
+    for (const t of g.targets) {
+      const dx = x - t.x, dy = y - t.y;
+      const d = Math.hypot(dx, dy);
+      if (d < gap) {
+        const ux = d > 1e-6 ? dx / d : 1, uy = d > 1e-6 ? dy / d : 0;
+        x += ux * (gap - d + 0.5);
+        y += uy * (gap - d + 0.5);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  lift();
+
+  x = Math.max(minX, Math.min(maxX, x));
+  y = Math.max(minY, Math.min(maxY, y));
+  return { x, y };
+}
+
+/**
+ * Place one fresh target in the upper field — the next slot of the current formation,
+ * loading a new formation (a new named layout) when the current one is spent. A notable
+ * formation raises `g.formCue` as its first target lands, which {@link fire} hands to the
+ * shell to flash. Appends and returns the target.
  * @param {GameState} g
  * @returns {Target} the new target
  */
 export function spawnTarget(g) {
-  const { cfg } = g;
-  const r = targetRadius(g);
-  const minX = cfg.SPAWN_PAD, maxX = g.w - cfg.SPAWN_PAD;
-  const minY = cfg.SPAWN_PAD, maxY = g.h - cfg.SPAWN_BOTTOM;
-  const gap = 2 * r + cfg.SPAWN_MIN_GAP;
-  const gap2 = gap * gap;
-  let x = g.w / 2, y = g.h / 2, tries = 0, ok = false;
-  while (tries < cfg.SPAWN_TRIES && !ok) {
-    x = minX + g.rng() * Math.max(1, maxX - minX);
-    y = minY + g.rng() * Math.max(1, maxY - minY);
-    tries++;
-    ok = Math.hypot(x - g.launcher.x, y - g.launcher.y) >= cfg.SPAWN_CLEAR;
-    if (ok) {
-      for (const t of g.targets) {
-        if (dist2({ x, y }, t) < gap2) { ok = false; break; }
-      }
-    }
-  }
-  const t = { x, y };
+  if (!g.formSlots || g.formSlots.length === 0) loadFormation(g);
+  const spec = g.formSlots.shift();
+  if (spec.head && g.formNotable) g.formCue = g.formName;
+  const t = placeSpec(g, spec);
   g.targets.push(t);
   return t;
 }
@@ -245,6 +462,8 @@ export function createGame(width, height, opts = {}) {
     aim: -Math.PI / 2,
     targets: [],
     score: 0, lives: cfg.LIVES, shots: 0, bestChain: 0, hits: 0,
+    // current formation (the varied-structure layer)
+    formSlots: [], formId: null, formName: null, formNotable: false, formCue: null,
   };
   reset(g);
   return g;
@@ -265,7 +484,12 @@ export function reset(g) {
   g.shots = 0;
   g.bestChain = 0;
   g.hits = 0;
+  g.formSlots = [];
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
   fillTargets(g);
+  g.formCue = null;      // the opening field arrives quietly (calm on-ramp)
   return g;
 }
 
@@ -373,6 +597,7 @@ export function computeShot(g, angle = g.aim) {
  * @property {Shot} shot       the traced shot (for the shell to animate)
  * @property {number} chain    targets collected this shot
  * @property {boolean} died    whether this shot ended the run
+ * @property {?string} formation  name of a *notable* target layout that just began, else null
  */
 
 /**
@@ -395,16 +620,19 @@ export function fire(g) {
     g.score += shotScore(chain);   // bank bonus — a big chain is worth far more
     g.hits += chain;               // raw targets collected (distinct from bonus score)
     if (chain > g.bestChain) g.bestChain = chain;
-    fillTargets(g);
+    fillTargets(g);                // may open a new named layout (raising g.formCue)
   } else {
     g.lives--;
     if (g.lives <= 0) {
       g.lives = 0;
       g.phase = 'dead';
-      return { shot, chain, died: true };
+      g.formCue = null;
+      return { shot, chain, died: true, formation: null };
     }
   }
-  return { shot, chain, died: false };
+  const formation = g.formCue;
+  g.formCue = null;
+  return { shot, chain, died: false, formation };
 }
 
 /**
