@@ -2,10 +2,11 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.20.0` (single source of truth: repo-root `VERSION`). **v0.20.0** is a
-**milestone**: a new **"depth inside the mechanic"** layer, with **Polarity as the reference build** —
-built from owner feedback that the games go stagnant after ~5 minutes. Prior releases this cycle:
-**v0.19.5** (Arc onto varied structure) and **v0.19.6** (the collection's own icon).
+**Version:** `0.20.1` (single source of truth: repo-root `VERSION`). **v0.20.1** is a
+**site-chrome polish**: the landing masthead blurb moves into a corner **"?"** disclosure and the
+mechanic filter tags get a proper restyle (owner ask, matching the fairyfox home/stories chrome).
+**v0.20.0** was a **milestone**: a new **"depth inside the mechanic"** layer, with **Polarity as the
+reference build** — built from owner feedback that the games go stagnant after ~5 minutes.
 
 ## Current state (read this first)
 
@@ -154,6 +155,17 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 ## In flight / awaiting
 
+- **✅ v0.20.1 (2026-07-10) — SITE: landing masthead declutter — blurb → corner "?" + restyled
+  mechanic filter tags.** Owner ask, matching the fairyfox home/stories chrome. The collection
+  blurb is lifted out of the hero into a `<details class="mast-info">` disclosure pinned upper-right
+  of the masthead — a 34px circular **"?"** whose popover holds the "AI-managed game farm" text
+  (accented *planted*/*growing*, caret to the button). Native `<details>` (works JS-off); `home.js`
+  adds close-on-outside-click / **Escape**. Hero now reads logo + name + **Games N**. The
+  `.game-filter` chips move from a faint tint to **roomier pills** with a hover lift + a **solid-accent
+  "on" state** so the active mechanic is obvious. Page-scoped in `home.css` (no `styles.css`
+  re-vendor). No game logic → **392/392** green; Jekyll build clean; **Chrome-previewed live**
+  (dark + light) — popover + caret + accent highlights + pills all read. No data-practices change
+  (no legal edit). Released `dev → main` by default on green (PATCH), tagged `v0.20.1`, back-merged.
 - **✅ v0.20.0 (2026-07-10) — GROW MILESTONE: "depth inside the mechanic" — Polarity is the reference build.**
   From owner feedback: games are fun for ~5 min, then stagnant ("you keep mentioning progression but I
   don't see it"). Diagnosed: the collection chased depth with **meta** (invisible on a fresh play) +
@@ -346,7 +358,7 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.0 release (tagged); working tree carries only the fresh session notes |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.1 release (tagged); working tree carries only the fresh session notes |
 | Tests (`node --test`) | ✅ **392/392** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |

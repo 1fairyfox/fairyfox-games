@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-10",
+    "game": "The collection",
+    "slug": null,
+    "kind": "site",
+    "text": "The home page is a little tidier. The blurb about what Fairy Fox Games is has moved into a small \"?\" button in the top-right corner — tap it whenever you want the description, otherwise the header stays clean. The mechanic tags for filtering the games (All, Aim, Balance, and the rest) got a fresh look too: roomier pills, a clearer hover, and the one you've picked now fills in solid so it's obvious what you're filtering by."
+  },
+  {
+    "date": "2026-07-10",
     "game": "Polarity",
     "slug": "polarity",
     "kind": "grow",
