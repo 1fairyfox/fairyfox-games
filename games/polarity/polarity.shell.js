@@ -91,6 +91,7 @@ let stageIdx = 0;                   // current stage index this run
 let stagePulse = 0;                 // stage-change shockwave life, 1 → 0
 let multPulse = 0;                  // precise-hit pop, 1 → 0
 let breakPulse = 0;                 // combo-break flinch, 1 → 0
+let ocGlow = 0;                     // Overcharge field-bloom intensity, eases 0↔1 with the window
 let tintCur = hexToRgb(COL[0]);     // ambient field tint, eased toward the stage tint
 let tintTarget = { ...tintCur };
 
@@ -129,12 +130,15 @@ function updateStageChip() {
 function updateMult() {
   if (!multEl) return;
   const m = game.mult;
-  multEl.textContent = '×' + m;
-  const active = m > 1;
-  const pop = 1 + multPulse * 0.55 + (active ? (m - 1) * 0.03 : 0);
+  const oc = game.overcharge > 0;                       // Overcharged → gates score double
+  multEl.textContent = oc ? '⚡×' + (m * 2) : '×' + m;   // show the doubled worth while Overcharged
+  const active = m > 1 || oc;
+  const pop = 1 + multPulse * 0.55 + (active ? (m - 1) * 0.03 : 0) + (oc ? 0.22 : 0);
   multEl.style.opacity = active ? Math.min(1, 0.85 + multPulse * 0.3) : 0.22;
   multEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
-  multEl.style.color = breakPulse > 0.3 ? '#ff5b5b' : MULT_COLS[Math.min(MULT_COLS.length - 1, Math.max(0, m - 1))];
+  multEl.style.color = breakPulse > 0.3 ? '#ff5b5b'
+    : oc ? '#ffe37a'
+    : MULT_COLS[Math.min(MULT_COLS.length - 1, Math.max(0, m - 1))];
 }
 
 /** Enter a new stage: ease the field tint over, pop the chip, kick a soft shockwave. */
@@ -169,7 +173,7 @@ function beginRun() {
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
   tintTarget = { ...tintCur };
-  stagePulse = 0; multPulse = 0; breakPulse = 0; fm = 0;
+  stagePulse = 0; multPulse = 0; breakPulse = 0; fm = 0; ocGlow = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.remove('hide');
   if (multEl) multEl.classList.remove('hide');
@@ -205,6 +209,9 @@ function onDeath() {
     stageIndex: stageIndexAt(game.cfg, game.cleared),
     clutch: game.clutch,
     bestMult: game.bestMult,
+    perfect: game.snaps,               // snaps landed (feeds the snap/razor badges + lifetime total)
+    overcharges: game.overcharges,     // Overcharge windows earned (overcharge badge)
+    bestSnapStreak: game.bestSnapStreak,
   };
   const prev = meta;
   meta = applyRun(prev, summary, game.cfg);
@@ -268,10 +275,16 @@ function update(now) {
     if (game.phase === 'play') {
       const r = tick(game);
       if (r.passed) {
-        flash = r.precise ? 1.5 : 1;
+        flash = r.snap ? 2 : r.precise ? 1.5 : 1;   // a snap flashes brightest
         scoreEl.textContent = game.score;
-        if (r.precise) { multPulse = 1; if (!reduceMotion) shake = Math.max(shake, 3); }
+        if (r.precise) { multPulse = 1; if (!reduceMotion) shake = Math.max(shake, r.snap ? 4 : 3); }
         if (r.broke) breakPulse = 1;
+        // Overcharge — the earned surprise. Celebrate loudly the tick it fires.
+        if (r.overcharge) {
+          showMilestone('OVERCHARGE');
+          flash = 2.4; ocGlow = Math.max(ocGlow, 0.6);
+          if (!reduceMotion) shake = Math.max(shake, 9);
+        }
         const label = milestoneAt(game.cfg, game.cleared);
         if (label) showMilestone(label);
         else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
@@ -279,7 +292,11 @@ function update(now) {
         if (r.formation) showFormation(r.formation);   // a notable formation just began
         // Stage transition — the readable arc of the run (Growth Layer 1).
         const si = stageIndexAt(game.cfg, game.cleared);
-        if (si !== stageIdx) enterStage(si);
+        if (si !== stageIdx) {
+          const secret = si === game.cfg.STAGES.length - 1;   // the hidden final stage
+          enterStage(si);
+          if (secret) { showMilestone(game.cfg.STAGES[si].name); flash = Math.max(flash, 2.4); if (!reduceMotion) shake = Math.max(shake, 10); }
+        }
         updateStageChip();
         updateMult();
       }
@@ -296,6 +313,13 @@ function update(now) {
       if (breakPulse > 0.01) breakPulse *= 0.9; else breakPulse = 0;
       updateMult();
     }
+    // Overcharge field-bloom eases in while the window is live, out as it closes; keep the
+    // multiplier readout live so its ⚡ / doubled worth appears and clears with the window.
+    const ocActive = game.phase === 'play' && game.overcharge > 0;
+    const ocPrev = ocGlow;
+    ocGlow += ((ocActive ? 1 : 0) - ocGlow) * 0.1;
+    if (ocGlow < 0.005) ocGlow = 0;
+    if (ocActive || ocPrev > 0.02) updateMult();
     // ease the ambient tint toward the current stage's colour
     tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
     tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
@@ -327,6 +351,25 @@ function draw() {
     g1.addColorStop(1, rgbStr(tintCur, 0.06));
     ctx.fillStyle = g1;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Overcharge — a warm golden bloom washing the field while the earned double-score window
+  // is live, so the reward reads at a glance (and honours reduced-motion by simply being calmer).
+  if (ocGlow > 0.01) {
+    ctx.globalCompositeOperation = 'lighter';
+    const a = ocGlow * (reduceMotion ? 0.5 : 1);
+    const gv = ctx.createLinearGradient(0, 0, 0, H);
+    gv.addColorStop(0, 'rgba(255,214,90,' + (0.14 * a).toFixed(3) + ')');
+    gv.addColorStop(0.5, 'rgba(255,180,60,0)');
+    gv.addColorStop(1, 'rgba(255,214,90,' + (0.14 * a).toFixed(3) + ')');
+    ctx.fillStyle = gv;
+    ctx.fillRect(0, 0, W, H);
+    const rg = ctx.createRadialGradient(game.cfg.PLAYER_X, H / 2, 0, game.cfg.PLAYER_X, H / 2, Math.max(W, H) * 0.5);
+    rg.addColorStop(0, 'rgba(255,226,120,' + (0.10 * a).toFixed(3) + ')');
+    rg.addColorStop(1, 'rgba(255,226,120,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   ctx.save();
