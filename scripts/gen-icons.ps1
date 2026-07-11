@@ -51,6 +51,7 @@ $games = @(
   @{ slug="ricochet";        name="Ricochet";        tags="Aim, Precision";     desc="Aim and fire one shot that ricochets off the walls, sweeping up every target in its path." }
   @{ slug="skyline";         name="Skyline";         tags="Timing, Precision";  desc="Drop a sliding slab onto a tower; only the overlap stays, so precision keeps it climbing skyward." }
   @{ slug="loft";            name="Loft";            tags="Reflex, Timing";     desc="Keep glowing orbs aloft; tap a falling orb to bat it back up before it drops." }
+  @{ slug="tether";          name="Tether";          tags="Momentum, Physics";  desc="A climber swings on a rope from an anchor point high above, arcing through the air like a pendulum, and lets go at the perfect moment to launch across a gap." }
 )
 if ($Only) { $games = $games | Where-Object { $_.slug -eq $Only }; if (-not $games) { throw "No game with slug '$Only'." } }
 
