@@ -4,7 +4,7 @@
     "game": "The collection",
     "slug": null,
     "kind": "site",
-    "text": "The home page is a little tidier. The blurb about what Fairy Fox Games is has moved into a small \"?\" button in the top-right corner — tap it whenever you want the description, otherwise the header stays clean. The mechanic tags for filtering the games (All, Aim, Balance, and the rest) got a fresh look too: roomier pills, a clearer hover, and the one you've picked now fills in solid so it's obvious what you're filtering by."
+    "text": "The game cards on the home page are tidier. Each game's description now lives behind a small \"?\" in the card's top-right corner — tap it for the blurb, otherwise the card stays clean and quick to scan. The mechanic tags on the cards (and the filter bar) got a fresh look too: roomier pills with a clearer, more legible style."
   },
   {
     "date": "2026-07-10",

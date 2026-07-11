@@ -2,9 +2,10 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.20.1` (single source of truth: repo-root `VERSION`). **v0.20.1** is a
-**site-chrome polish**: the landing masthead blurb moves into a corner **"?"** disclosure and the
-mechanic filter tags get a proper restyle (owner ask, matching the fairyfox home/stories chrome).
+**Version:** `0.20.2` (single source of truth: repo-root `VERSION`). **v0.20.2** is a
+**site-chrome correction**: each **game card's** description moves into a corner **"?"** and the card
+category tags get restyled (owner ask, matching the fairyfox home/stories **cards**). It **reverts
+v0.20.1**, which had wrongly applied the "?" to the *masthead* blurb — the masthead is back to normal.
 **v0.20.0** was a **milestone**: a new **"depth inside the mechanic"** layer, with **Polarity as the
 reference build** — built from owner feedback that the games go stagnant after ~5 minutes.
 
@@ -153,19 +154,21 @@ also walks the git-ignored `assets/references/` hub clone, whose unrelated tests
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
-## In flight / awaiting
-
-- **✅ v0.20.1 (2026-07-10) — SITE: landing masthead declutter — blurb → corner "?" + restyled
-  mechanic filter tags.** Owner ask, matching the fairyfox home/stories chrome. The collection
-  blurb is lifted out of the hero into a `<details class="mast-info">` disclosure pinned upper-right
-  of the masthead — a 34px circular **"?"** whose popover holds the "AI-managed game farm" text
-  (accented *planted*/*growing*, caret to the button). Native `<details>` (works JS-off); `home.js`
-  adds close-on-outside-click / **Escape**. Hero now reads logo + name + **Games N**. The
-  `.game-filter` chips move from a faint tint to **roomier pills** with a hover lift + a **solid-accent
-  "on" state** so the active mechanic is obvious. Page-scoped in `home.css` (no `styles.css`
-  re-vendor). No game logic → **392/392** green; Jekyll build clean; **Chrome-previewed live**
-  (dark + light) — popover + caret + accent highlights + pills all read. No data-practices change
-  (no legal edit). Released `dev → main` by default on green (PATCH), tagged `v0.20.1`, back-merged.
+- **✅ v0.20.2 (2026-07-10) — SITE (corrects v0.20.1): the "?" belongs on the game CARDS, not the
+  masthead.** Owner ask was to move each **game's description** (the card blurb) into a corner "?" —
+  the way the fairyfox home/stories **cards** do it — and to smarten the card category tags. v0.20.1
+  misread this and hit the masthead instead. This release **reverts the masthead** (the "AI-managed
+  game farm" `.mast-tag` is back; `.mast-info` gone) and moves the pattern to the card: `game-card.html`
+  is now an `<article>` + **stretched play link**, the blurb lives behind a `<details class="card-info">`
+  **"?"** pinned top-right (native → JS-off ok; `home.js` = single-open + outside-click/Escape), and the
+  card `.tags` become **roomier pills** (the `.game-filter` bar keeps its v0.20.1 restyle to match).
+  Whole-card click still plays; the "?" opens the blurb without navigating. No game logic → **392/392**
+  green; Jekyll build clean; **Chrome-previewed live** (dark + light) — each card's "?" reveals its
+  description w/ caret, tags read as pills, card-body click navigates. No data-practices change (no legal
+  edit). Released `dev → main` by default on green (PATCH), tagged `v0.20.2`, back-merged.
+- **v0.20.1 (2026-07-10) — SUPERSEDED by v0.20.2.** Applied the corner "?" to the *masthead* blurb
+  (wrong surface) + restyled the `.game-filter` tags. Masthead change reverted in v0.20.2; the filter-tag
+  restyle was kept.
 - **✅ v0.20.0 (2026-07-10) — GROW MILESTONE: "depth inside the mechanic" — Polarity is the reference build.**
   From owner feedback: games are fun for ~5 min, then stagnant ("you keep mentioning progression but I
   don't see it"). Diagnosed: the collection chased depth with **meta** (invisible on a fresh play) +
@@ -358,7 +361,7 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.1 release (tagged); working tree carries only the fresh session notes |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.20.2 release (tagged); working tree carries only the fresh session notes |
 | Tests (`node --test`) | ✅ **392/392** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |

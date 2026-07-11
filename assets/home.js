@@ -70,18 +70,26 @@ if (grid && filterBar) {
   filterBar.hidden = false;
 }
 
-// Masthead "About" disclosure — a native <details>, so it toggles fine with JS off. This
-// just adds the expected niceties: close on an outside click or Escape (returning focus).
-const info = document.querySelector(".mast-info");
-if (info) {
+// Per-card "?" description disclosures — native <details>, so they toggle fine with JS off.
+// This adds the expected niceties: only one open at a time, and close on an outside click or
+// Escape (returning focus to the button that was open).
+const infos = Array.prototype.slice.call(document.querySelectorAll(".game-card .card-info"));
+if (infos.length) {
+  infos.forEach((d) => {
+    d.addEventListener("toggle", () => {
+      if (d.open) infos.forEach((o) => { if (o !== d) o.open = false; });
+    });
+  });
   document.addEventListener("click", (e) => {
-    if (info.open && !info.contains(e.target)) info.open = false;
+    infos.forEach((d) => { if (d.open && !d.contains(e.target)) d.open = false; });
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && info.open) {
-      info.open = false;
-      const s = info.querySelector("summary");
+    if (e.key !== "Escape") return;
+    infos.forEach((d) => {
+      if (!d.open) return;
+      d.open = false;
+      const s = d.querySelector("summary");
       if (s) s.focus();
-    }
+    });
   });
 }
