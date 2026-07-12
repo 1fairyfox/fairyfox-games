@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-12",
+    "game": "Brim",
+    "slug": "brim",
+    "kind": "new",
+    "text": "A new game, and a new thing to do with one button: pour. A vessel arrives with a line you have to reach and a rim you mustn't cross. Hold to pour, let go to stop — except the stream doesn't stop. What you've already poured is still falling, and it lands anyway. So you can't stop where you want; you have to stop early, by exactly the amount still in the air, and then watch it come down. Too early and you're short. Too late and it spills. Land it in the gold band just under the rim and your multiplier climbs — which means the safest pour is also the worthless one. The flow keeps changing: a Slow Draw trickles in and hands you a free brim if you keep your nerve, a Narrow Neck rockets up and blows past the gold before you've blinked, and a Stutter alternates the two so no remembered rhythm can save you. Three lives. There's a tighter window hidden at the very top of the gold, and something waiting for anyone who strings enough of them together."
+  },
+  {
+    "date": "2026-07-12",
     "game": "Skyline",
     "slug": "skyline",
     "kind": "grow",

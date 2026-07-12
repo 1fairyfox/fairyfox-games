@@ -1,0 +1,11 @@
+{
+  "name": "brim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Brim — a one-mechanic, beat-your-own-score pour/fill game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

@@ -86,6 +86,7 @@ CI runs the full suite on every push and pull request.
 
 | Game | What you do | Folder |
 |------|-------------|--------|
+| **Brim** | Hold to pour, let go to stop — except the stream is still falling, and it lands anyway. Stop above the line, under the rim, and stop in the gold to build your multiplier. You can't stop where you want; you have to stop early. | [`games/brim/`](games/brim/) |
 | **Skyline** | Drop a sliding slab onto your tower — only the overlap stays, so the overhang is sliced off. Flush drops keep the full width; precision is the only way up. The wind shifts as you climb, so no two towers rise the same. | [`games/skyline/`](games/skyline/) |
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. Bank several in one shot — a shot that hits nothing costs a life. | [`games/ricochet/`](games/ricochet/) |
 | **Tether** | Hold to rope onto an anchor and swing; let go in the glowing arc to whip yourself across the gap. Too early and you fly flat into the ground, too late and you stall — the sweet spot is both your score and your survival. | [`games/tether/`](games/tether/) |

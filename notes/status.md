@@ -2,7 +2,11 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.21.1` (single source of truth: repo-root `VERSION`). **v0.21.1** is a **GROW** run:
+**Version:** `0.22.0` (single source of truth: repo-root `VERSION`). **v0.22.0** is a **PLANT** run:
+a new game, **Brim** — a genuinely new verb (**pour/fill**), the collection's first *metering* game
+and its **13th**. Hold to pour, let go to stop — except the stream has to **fall**, so what's still
+in the air lands anyway; you can't stop where you want, you have to stop **early**.
+**v0.21.1** was a **GROW** run:
 **Skyline** onto **varied structure + progression** (the **9th** game on the pattern) — its one flat
 slab generator is now **the wind**, a seeded sequence of named patterns (Steady · Crosswind · Plumb
 Line · Gust · Shear · The Squall), stage-gated so climbing the tower opens the pool.
@@ -37,8 +41,34 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (12):**
+**Games so far (13):**
 
+- **Brim** (`games/brim/`) — a **pour/fill** game (a genuinely new verb: the collection's first
+  *metering* mechanic — you're not steering, timing a catch, aiming or charging, you're watching a
+  value rise and stopping it inside a band). A vessel has a **fill line** you must reach and a
+  **rim** you must not cross; **hold to pour, let go to stop**, one pour per vessel.
+  **The hook falls out of the physics:** the stream is a **delay line** (`LAG` = 8 ticks ≈ 133 ms),
+  so letting go doesn't stop the level rising — it stops the *source*, and the column already in the
+  air (`carry()`) lands regardless. You can't stop where you want; you must stop **early, by exactly
+  the amount still falling**, then watch it come down. Too early → **short** (a life). Too late →
+  the carry tips it over the rim → **spill** (a life). Land it in the **gold band** under the rim →
+  a **brim**: the multiplier climbs (×2…×9), while a timid-but-safe land scores yet *breaks* the
+  combo to ×1. *The safest pour is the worthless one — greed and survival are the same act.*
+  Three lives; an untouched vessel loses patience and is taken away short, so you can't stall.
+  **On Varied Structure + the Growth Architecture from birth:** a run is a seeded **sequence of
+  named pours** (Steady · Slow Draw · Stutter · Narrow Neck · Hairline · The Flood) `minStage`-gated
+  so climbing the stages **opens the pool** (calm share >75% → <40%; notable ones flash a name cue) —
+  `FORMATIONS`/`pickFormation`/`loadFormation`, `nextVessel` pulls one `{line, flow, patience}` spec
+  at a time. **Slow Draw is the greed window** (a trickle into a high line — the easiest vessels in
+  the game, on purpose). **Honest difficulty made structural:** `flowRate()` = `flowScale()` × the
+  vessel's flow, band-clamped + hard-capped, so no formation can spike past the earned ramp;
+  `flowScale` is a smooth asymptote (×1 → ×1.55, never a plateau). Stage arc (Drip → Rill → Brook →
+  Torrent → Deluge) with HUD chip + tint, and **meta-progression** (`brim.meta`: lifetime
+  vessels/points/brims/meniscus + 14 badges, run-report + near-miss) — legacy `brim.best` preserved.
+  **Depth inside the one verb:** a hidden **meniscus** sub-window at the very top of the gold (the
+  gold band *is* drawn; the meniscus inside it deliberately is **not**), **Surge** (a meniscus streak
+  → a timed double-score window), and a **secret Whitewater stage**. Pure core + 36 tests.
+  **(10th game on varied structure — ships on the pattern from day one.)**
 - **Tether** (`games/tether/`) — a **swing/grapple** runner (the collection's first pendulum, and a
   genuinely new verb): anchors hang ahead across an endless sky; **hold** to rope onto one and swing
   beneath it, **release** to fly, miss the next and you fall past the floor. One control.
@@ -194,11 +224,31 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **446/446** green, released (Skyline's wind adds 11). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **482/482** green, released (Brim adds 36). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.22.0 (2026-07-12) — PLANT: new game **Brim** (a new verb: pour/fill).** The 13th game, and
+  the first that asks you to **meter a quantity**. Hold to pour, let go to stop — but the stream is a
+  **delay line** (`LAG` = 8 ticks), so the release stops the *source*, not the level: the column
+  already in the air lands anyway. You must therefore stop **early, by exactly the carry**, and watch
+  it come down. Short of the line = a life; over the rim = a life; into the **gold band** under the
+  rim = a **brim** and the multiplier climbs — while a safe, timid land breaks it. *The safest pour is
+  the worthless one.* Ships on **varied structure + the full Growth Architecture from birth**: six
+  stage-gated pours (Steady/Slow Draw calm; Stutter/Narrow Neck/Hairline/The Flood notable, with
+  **Slow Draw as the deliberate greed window**), a stage arc Drip→…→Deluge (+ secret **Whitewater**),
+  meta (`brim.meta`, 14 badges), and the depth layer (hidden **meniscus** window → **Surge**). Honest
+  difficulty is structural: formation flow is only a *multiplier on the score's ramp*, band-clamped +
+  hard-capped. Pure core + **36 tests** — including a **carry-blind bot** asserted to always
+  eventually spill (the test *is* the design). Collection **482/482** green. **Chrome MCP was
+  unavailable** — validated with a real **headless Chrome render** of the live game, which **caught a
+  genuine defect**: `#mult` sat at `top:70px`, exactly where the spout is drawn → moved the multiplier
+  below the bench, the formation cue to `bottom:17%`, the milestone to `top:19%`. Re-shot clean
+  (desktop + mobile; no console errors). **A live eyeball is still pending.** Wired into `_games`
+  (masthead **Games 13**) + README re-gen + a `kind:"new"` player changelog entry. Released
+  `dev → main` by default on green (MINOR via `release/0.22.0`). **10 of 13 games on varied
+  structure** (remaining: Loft, Poise).
 - **✅ v0.21.1 (2026-07-12) — GROW: Skyline onto varied structure — "the wind" (9th game on the
   pattern).** Skyline's slab came from one flat rule (`spawnCurrent`: random edge-safe start, random
   heading, the score's speed), so the only thing that ever varied was slide speed — every tower rose
@@ -437,7 +487,10 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 ## Next
 
-- **Varied-structure rollout: 9 of 12.** Remaining: **Loft, Poise** — one per GROW run,
+- **Eyeball Brim in a real browser** at the next opportunity (Chrome MCP was down; it was validated
+  with a headless render). Everything checked out, but a live play-feel pass on the carry timing
+  (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
+- **Varied-structure rollout: 10 of 13.** Remaining: **Loft, Poise** — one per GROW run,
   lowest-coverage first. In parallel, the **"depth inside the mechanic"** layer (v0.20.0, Polarity =
   reference) rolls across the collection: that is now the **lead** GROW lever for games already on
   varied structure.
@@ -453,8 +506,8 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.21.1 release (tagged); working tree carries only the fresh session notes |
-| Tests (`node --test`) | ✅ **446/446** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.0 release (tagged); working tree carries only the fresh session notes |
+| Tests (`node --test`) | ✅ **482/482** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |
