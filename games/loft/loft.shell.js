@@ -39,6 +39,7 @@ const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('over
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -104,11 +105,48 @@ function enterStage(i) {
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
   updateStageChip();
 }
+// Current cue — a quiet name flashed as a *notable* air current arrives (the
+// varied-structure layer). Calm air passes silently, keeping the field clean.
+let formCueTimer = 0;
+function showFormCue(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = '◇ ' + name;
+  formCueEl.classList.add('show');
+  clearTimeout(formCueTimer);
+  formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
+}
+
+// Dust — the air made visible (view-only). A field of faint motes carried by exactly
+// the current the core is running: they hang in a Thermal, stream sideways in a Gust,
+// and rain down in a Downdraft. It means the weather is *legible before it's named*.
+let dust = [];
+function seedDust() {
+  const n = reduceMotion ? 14 : 26;
+  dust = [];
+  for (let i = 0; i < n; i++) {
+    dust.push({ x: Math.random() * W, y: Math.random() * H, vx: 0, vy: 0, r: 0.8 + Math.random() * 1.4 });
+  }
+}
+function stepDust() {
+  if (!dust.length) return;
+  const gy = Loft.gravityNow(game) * 0.09;   // motes are light — they only sag
+  const gx = Loft.driftNow(game) * 2.4;      // …but the breeze carries them plainly
+  for (const d of dust) {
+    d.vx = d.vx * 0.95 + gx;
+    d.vy = d.vy * 0.95 + gy;
+    d.x += d.vx; d.y += d.vy;
+    if (d.x < -6) { d.x = W + 6; } else if (d.x > W + 6) { d.x = -6; }
+    if (d.y > H + 6) { d.y = -6; d.vy = 0; } else if (d.y < -6) { d.y = H + 6; d.vy = 0; }
+  }
+}
+
 function beginRun() {
   Loft.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
+  seedDust();
   scoreEl.textContent = '0';
   updateStageChip();
 }
@@ -170,6 +208,7 @@ function stepFx() {
 function onDeath() {
   shake = 18; flash = 0.7;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -244,6 +283,8 @@ function update(now) {
         if (si !== stageIdx) enterStage(si);
         updateStageChip();
       }
+      if (r.formation) showFormCue(r.formation);  // a notable current just turned
+      stepDust();
       if (r.died) onDeath();
     }
     stepFx();
@@ -286,6 +327,14 @@ function draw() {
 
   if (game.phase !== 'menu') {
     ctx.globalCompositeOperation = 'lighter';
+
+    // the air, made visible — faint motes carried by the live current (see stepDust)
+    if (game.phase === 'play') {
+      for (const d of dust) {
+        ctx.fillStyle = rgbStr(tintCur, 0.16);
+        ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+      }
+    }
 
     // strike ring under the last tap
     if (tapPulse > 0.02 && lastTap) {

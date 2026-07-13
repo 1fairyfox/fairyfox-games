@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-13",
+    "game": "Loft",
+    "slug": "loft",
+    "kind": "grow",
+    "text": "The air has weather now. The orbs used to fall through the same dead-still room every run — so once six of them were up, that was the whole game. Not any more: a run is a sequence of currents, and they turn as you climb. A Drift slides everything sideways, so you have to tap where an orb is going, not where it is. A Gust shoves hard and short, and the rhythm you'd settled into is suddenly aimed at nothing. A Downdraft presses the air down and every catch you had timed is late. And a Thermal lifts — the orbs hang, falling lazily together, which makes it far and away the easiest air in the game and therefore the best place to let them bunch and cash a big cluster catch. Notice it and commit. Reach Zero-G and you'll meet The Vortex, which does the heavy air and the whipping push at once. Gravity itself also creeps up forever now, so a full six-orb sky no longer means you've seen the ceiling. Watch the dust: it's carried by whatever the air is doing, so you can see the weather turn before it's named."
+  },
+  {
     "date": "2026-07-12",
     "game": "Brim",
     "slug": "brim",

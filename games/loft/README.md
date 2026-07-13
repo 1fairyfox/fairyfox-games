@@ -9,8 +9,30 @@ ends. Calm, then panic.
 ## How it grows
 
 Loft follows the shared **Growth Architecture**
-(`notes/reference/growth-architecture.md`):
+(`notes/reference/growth-architecture.md`) and **Varied Structure**
+(`notes/reference/varied-structure.md`):
 
+- **Varied structure — the air.** The orbs are permanent, so Loft's run-to-run skeleton
+  isn't a spawn pattern: it's the *weather they fall through*. A run is a seeded
+  **sequence of named currents** pulled from a stage-weighted pool (`FORMATIONS`,
+  `pickFormation`, `loadFormation`, `nextAir` — each current is a queue of
+  `{ticks, grav, drift}` beats):
+  **Still** (dead calm — the on-ramp and the breather), **Drift** (a slow breeze: tap
+  where the orb is *going*, not where it is), **Thermal** (the air lifts, ~0.8×
+  gravity — the deliberate **greed window**: the easiest air in the game, so the best
+  place to let the orbs bunch and cash the cluster bonus), **Gust** (a hard, short
+  sideways shove), **Downdraft** (~1.25× gravity — the floor comes up fast), and
+  **The Vortex** (the Zero-G crescendo: heavy air *and* a whipping side-to-side push).
+  `minStage` gates each, so **climbing the stages opens the pool** — progression drives
+  the variation. Notable currents flash a quiet name cue; the calm ones pass silently.
+  A field of faint **dust motes** is carried by exactly the live current, so the weather
+  is legible *before* it's named.
+- **Honest difficulty, and no plateau.** The orb count caps at six, so the old run
+  flattened out the moment the air was full. Gravity now rides a **smooth asymptote** on
+  the score (`gravScale`: ×1 → ×1.30, always creeping, never arriving), and a current is
+  only ever a *multiplier on that earned ramp* — band-clamped (`AIR_GRAV_MIN/MAX`,
+  `DRIFT_MAX`) and hard-capped (`GRAV_HARD_MAX`), so no weather can spike difficulty
+  past what the score has earned.
 - **Core-fun (cluster bonus).** On top of the natural escalation (orbs join the air as
   you score, up to six), a **multi-orb catch is now worth extra** (`tapScore`): a
   3-catch scores **6**, not 3. Reading a cluster and letting orbs bunch up (a real risk)
@@ -73,6 +95,14 @@ side-wall and ceiling bounces, floor detection), the batting rule (only-falling,
 no-double-score, reach, cluster catches), scoring and the orb top-up cadence, floor
 death and dead-state inertness, determinism under a seed, and a **self-play run** that
 proves the tuning keeps the orbs aloft (winnability).
+
+The air is pinned too: the current pool is well-formed, every current builds beats
+inside the legal bands, `pickFormation` is stage-eligible + deterministic, **climbing
+the stages measurably opens the pool** (the calm share falls from >75% to <40%), a fresh
+run opens on dead-still air (the frame-one guard), the beat queue never empties across a
+long run, **distinct seeds give distinct weather** (same seed repeats exactly), gravity's
+asymptote never plateaus or passes its ceiling, and the hard cap holds even against a
+rogue out-of-band current (honest difficulty).
 
 ## Tuning
 

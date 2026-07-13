@@ -17,6 +17,16 @@
  * tapping one orb near the ceiling — you have to let it rise and fall, then catch
  * it. One tap can rescue several orbs at once if you read the cluster.
  *
+ * Varied structure — **the air**: the orbs are permanent, so Loft's run-to-run
+ * skeleton isn't a spawn pattern, it's the *weather they fall through*. A run is a
+ * seeded sequence of named **currents** (Still · Drift · Thermal · Gust · Downdraft ·
+ * The Vortex), stage-gated so climbing the stages opens the pool, each bending gravity
+ * and pushing sideways for a while. Gravity also rides a smooth, never-plateauing
+ * asymptote on the score (`gravScale`) — without it the run flattened the moment the
+ * orb count hit its six-orb cap. A current is only ever a *multiplier on that honest
+ * ramp*, band-clamped and hard-capped, so no weather can spike past what the score
+ * earned.
+ *
  * Design note / the bug this structure guards against:
  * a bat must only fire on a *falling* orb (vy > 0). An early instinct is to let a
  * tap reset velocity on any nearby orb — but that lets a single tap re-hit an orb
@@ -53,7 +63,141 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 55,  name: 'Flock',   tint: '#a98cff' }),
     Object.freeze({ at: 110, name: 'Zero-G',  tint: '#ff8f6a' }),
   ]),
+
+  // ── The air (varied structure + the honest ramp) ───────────────────────────────
+  // The orb count used to be the *only* thing that grew — and it caps at six, so the
+  // game flattened out the moment the air was full. Two things fix that, and they are
+  // the same thing: gravity now creeps up forever on a smooth asymptote (`gravScale`),
+  // and the air itself is no longer a constant — it is a seeded sequence of named
+  // **currents** that bend the fall while they last (see FORMATIONS below).
+  GRAV_SCALE_MAX: 1.30,   // gravity asymptote ceiling (approached, never reached)
+  GRAV_SCALE_K: 90,       // score at which gravity is half-way to the ceiling
+  AIR_GRAV_MIN: 0.78,     // a current may never make the air lighter than this…
+  AIR_GRAV_MAX: 1.30,     // …nor heavier than this (band-clamped: no hidden spikes)
+  GRAV_HARD_MAX: 0.58,    // and the resulting gravity is hard-capped (px/tick²)
+  DRIFT_MAX: 0.075,       // |lateral push| a current may apply (px/tick²)
+  AIR_CALM_TICKS: 150,    // every run opens on ~2.5s of dead-still air (the on-ramp)
+
+  // Currents — the run's STRUCTURE, not just its noise. Instead of every orb falling
+  // through the same constant air for the whole run, a run pulls the next **current**
+  // from an expandable, stage-weighted pool: the air goes Still, then a Drift slides
+  // everything sideways, a **Thermal** holds the orbs up (the greed window — the easiest
+  // air in the game, on purpose: let them bunch and cash the cluster bonus), a **Gust**
+  // shoves them across, a **Downdraft** drops the floor out, and at Zero-G **The Vortex**
+  // does all of it at once. `minStage` gates when a current first appears, so *climbing
+  // the stages opens the pool* (progression drives the variation); `weight(stage)` leans
+  // on the mean currents late; `notable` currents earn a quiet name cue (the calm ones
+  // pass silently). `build(ctx)` is PURE given `ctx.rng` and returns the current as beat
+  // specs `{ticks, grav, drift}` — see the buildAir* fns below. Ids are stable forever.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'still',     name: 'Still',       minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildStill }),
+    Object.freeze({ id: 'drift',     name: 'Drift',       minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildDrift }),
+    Object.freeze({ id: 'thermal',   name: 'Thermal',     minStage: 1, notable: true,
+      weight: () => 2, build: buildThermal }),
+    Object.freeze({ id: 'gust',      name: 'Gust',        minStage: 1, notable: true,
+      weight: (s) => s, build: buildGust }),
+    Object.freeze({ id: 'downdraft', name: 'Downdraft',   minStage: 2, notable: true,
+      weight: (s) => s, build: buildDowndraft }),
+    Object.freeze({ id: 'vortex',    name: 'The Vortex',  minStage: 3, notable: true,
+      weight: (s) => Math.max(0, s - 1), build: buildVortex }),
+  ]),
 });
+
+// ── Currents (the run's varied structure) ────────────────────────────────────────
+// Each build fn is PURE given `ctx.rng` and returns an array of beat specs
+// `{ticks, grav, drift}`: how long this pocket of air lasts, its gravity multiplier,
+// and its lateral push. `ctx` = { rng, stage, cfg }. Names/behaviours are Loft's flavour
+// (weather for floating orbs); the *shape* — a pool of stage-weighted, seeded patterns
+// pulled one beat at a time — is the reusable varied-structure standard.
+
+/** A random sign from the game's rng. */
+function pickSign(rng) { return rng() < 0.5 ? 1 : -1; }
+
+/** Still — dead-calm air: the old constant physics, kept as the on-ramp and the
+ *  breather between weather. One long beat. Silent. */
+function buildStill(ctx) {
+  const { rng } = ctx;
+  const n = 1 + Math.floor(rng() * 2);                    // 1..2 beats
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ticks: 150 + Math.floor(rng() * 110), grav: 1, drift: 0 });
+  }
+  return out;
+}
+
+/** Drift — a slow, steady breeze that slides every orb one way, then the other. You
+ *  can't tap where an orb *is*; you have to tap where it's going. Calm. Silent. */
+function buildDrift(ctx) {
+  const { rng } = ctx;
+  const n = 2 + Math.floor(rng() * 2);                    // 2..3 beats
+  let s = pickSign(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ticks: 130 + Math.floor(rng() * 90), grav: 1, drift: s * (0.018 + rng() * 0.014) });
+    s = -s;
+  }
+  return out;
+}
+
+/** Thermal — the air lifts: gravity drops to ~0.8× and the orbs hang, falling lazily
+ *  together. It is the **greed beat** — deliberately the easiest air in the game, and
+ *  therefore the best place to let the orbs bunch and cash the cluster bonus (a 3-catch
+ *  scores 6, not 3). Noticing it and committing is the play. Notable. */
+function buildThermal(ctx) {
+  const { rng } = ctx;
+  const n = 2 + Math.floor(rng() * 2);                    // 2..3 beats
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ticks: 140 + Math.floor(rng() * 70), grav: 0.80 + rng() * 0.06, drift: 0 });
+  }
+  return out;
+}
+
+/** Gust — the air shoves, hard and short, first one way then back. The rhythm you just
+ *  settled into is suddenly aimed at the wrong place. Notable. */
+function buildGust(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 3);                    // 3..5 beats
+  let s = pickSign(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ticks: 55 + Math.floor(rng() * 40), grav: 1.04 + rng() * 0.06, drift: s * (0.05 + rng() * 0.02) });
+    s = -s;
+  }
+  return out;
+}
+
+/** Downdraft — the air presses down: gravity ~1.25×, no push. The orbs plummet and every
+ *  catch you had timed is suddenly late. The floor comes up fast. Notable. */
+function buildDowndraft(ctx) {
+  const { rng } = ctx;
+  const n = 2 + Math.floor(rng() * 2);                    // 2..3 beats
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ ticks: 90 + Math.floor(rng() * 55), grav: 1.18 + rng() * 0.10, drift: 0 });
+  }
+  return out;
+}
+
+/** The Vortex — the Zero-G crescendo, and the only current that does both at once: the
+ *  air is heavy *and* it whips side to side. Nothing falls where you expect. Notable. */
+function buildVortex(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);                    // 4..6 beats
+  let s = pickSign(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({
+      ticks: 65 + Math.floor(rng() * 45),
+      grav: 1.18 + rng() * 0.12,
+      drift: s * (0.055 + rng() * 0.02),
+    });
+    s = -s;
+  }
+  return out;
+}
 
 /**
  * Points scored for a single tap that struck `struck` orbs — the core-fun **cluster
@@ -160,6 +304,103 @@ export function targetOrbCount(g, score = g.score) {
   return Math.min(n, g.cfg.MAX_ORBS);
 }
 
+// ── The air: honest ramp + currents ──────────────────────────────────────────────
+
+/**
+ * Gravity's honest ramp: a **smooth asymptote** from ×1 toward `GRAV_SCALE_MAX`, keyed
+ * on score. It always creeps up and never plateaus — the fix for a run flattening out
+ * once the orb count hits its cap. Pure.
+ * @param {LoftConfig} cfg
+ * @param {number} score
+ * @returns {number} gravity multiplier ≥ 1, always < GRAV_SCALE_MAX
+ */
+export function gravScale(cfg, score) {
+  const s = Math.max(0, score | 0);
+  return 1 + (cfg.GRAV_SCALE_MAX - 1) * (s / (s + cfg.GRAV_SCALE_K));
+}
+
+/**
+ * Gravity in effect right now: the score's honest ramp, multiplied by the current's
+ * (band-clamped) gravity, then **hard-capped**. A current can only ever *colour* the
+ * difficulty the score has earned — it can never spike past it. Pure.
+ * @param {GameState} g
+ * @returns {number} downward acceleration this tick (px/tick²)
+ */
+export function gravityNow(g) {
+  const cfg = g.cfg;
+  const mul = clamp(typeof g.airGrav === 'number' ? g.airGrav : 1, cfg.AIR_GRAV_MIN, cfg.AIR_GRAV_MAX);
+  return Math.min(cfg.GRAV * gravScale(cfg, g.score) * mul, cfg.GRAV_HARD_MAX);
+}
+
+/**
+ * The current's lateral push this tick, clamped to the legal band. Pure.
+ * @param {GameState} g
+ * @returns {number} horizontal acceleration (px/tick²); positive is rightward
+ */
+export function driftNow(g) {
+  const cfg = g.cfg;
+  return clamp(typeof g.airDrift === 'number' ? g.airDrift : 0, -cfg.DRIFT_MAX, cfg.DRIFT_MAX);
+}
+
+/**
+ * Choose the next current for a stage — a seeded, stage-weighted pick over the eligible
+ * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This
+ * is what makes each run's *sequence* of weather differ while still escalating: climbing
+ * the stages opens the pool and leans on the mean currents.
+ * @param {LoftConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the current just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,minStage:number,weight:Function,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next current into `g.formAir` (a queue of `{ticks, grav, drift}` beats, the
+ * first marked as the head — it carries the name cue) and record its identity on
+ * `g.formId`/`g.formName`/`g.formNotable`. Pure logic over the game's rng; called by
+ * {@link nextAir} when the queue runs dry.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const beats = f.build({ rng: g.rng, stage, cfg });
+  if (beats.length) beats[0].head = true;
+  g.formAir = beats;
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+}
+
+/**
+ * Pull the next beat of air from the queue (refilling from a fresh current when spent)
+ * and make it the air in effect. Returns the current's name **only** when a *notable*
+ * current is arriving (its head beat) — the shell flashes that as a quiet cue; calm air
+ * passes silently. Pure logic over the game's rng.
+ * @param {GameState} g
+ * @returns {?string} a name cue to announce, or null
+ */
+export function nextAir(g) {
+  if (!g.formAir || g.formAir.length === 0) loadFormation(g);
+  const beat = g.formAir.shift();
+  g.airGrav = clamp(beat.grav, g.cfg.AIR_GRAV_MIN, g.cfg.AIR_GRAV_MAX);
+  g.airDrift = clamp(beat.drift, -g.cfg.DRIFT_MAX, g.cfg.DRIFT_MAX);
+  g.airT = Math.max(1, beat.ticks | 0);
+  return beat.head && g.formNotable ? g.formName : null;
+}
+
 /**
  * Create and append one orb near the top-centre, given a small random horizontal
  * launch. Its hue follows spawn order so each orb reads as its own colour.
@@ -198,6 +439,9 @@ export function createGame(width, height, opts = {}) {
     rng: opts.rng || Math.random,
     phase: 'menu',
     orbs: [], score: 0, spawned: 0, best: 0, catches: 0, bestCluster: 0, t: 0,
+    // The air (varied structure): the live current + its remaining beat queue.
+    formAir: [], formId: null, formName: null, formNotable: false,
+    airGrav: 1, airDrift: 0, airT: 0,
   };
   reset(g);
   return g;
@@ -217,6 +461,11 @@ export function reset(g) {
   g.catches = 0;
   g.bestCluster = 0;
   g.t = 0;
+  // Frame-one guard + on-ramp: every run opens on dead-still air with an empty queue,
+  // so the first seconds are never weather. The first current loads when this expires.
+  g.formAir = [];
+  g.formId = null; g.formName = null; g.formNotable = false;
+  g.airGrav = 1; g.airDrift = 0; g.airT = g.cfg.AIR_CALM_TICKS;
   for (let i = 0; i < g.cfg.START_ORBS; i++) spawnOrb(g);
   return g;
 }
@@ -270,7 +519,9 @@ export function applyTap(g, tap) {
 export function stepOrb(g, o) {
   const { cfg } = g;
   const r = cfg.ORB_R;
-  o.vy += cfg.GRAV;
+  o.vy += gravityNow(g);                                   // the air's weight right now
+  const push = driftNow(g);                                // …and its sideways shove
+  if (push !== 0) o.vx = clamp(o.vx + push, -cfg.MAX_VX, cfg.MAX_VX);
   o.x += o.vx;
   o.y += o.vy;
   if (o.x < r) { o.x = r; o.vx = Math.abs(o.vx) * cfg.WALL_DAMP; }
@@ -303,22 +554,26 @@ export function topUpOrbs(g) {
 }
 
 /**
- * Result of a single {@link tick}.
- * @typedef {{died:boolean, scored:number, added:number}} TickResult
+ * Result of a single {@link tick}. `formation` names a *notable* current the moment it
+ * arrives (null otherwise) — the shell's quiet name cue.
+ * @typedef {{died:boolean, scored:number, added:number, formation:(string|null)}} TickResult
  */
 
 /**
  * Advance the simulation one fixed tick.
- * Order: strike (if a tap) → top up orbs → move every orb → floor check. A grounded
- * orb ends the run. No-op unless phase is 'play'.
+ * Order: age the air (pull the next current beat when this one expires) → strike (if a
+ * tap) → top up orbs → move every orb → floor check. A grounded orb ends the run. No-op
+ * unless phase is 'play'.
  * @param {GameState} g
  * @param {{tap:(Point|null)}} [input] a tap this tick, or null for none
  * @returns {TickResult}
  */
 export function tick(g, input = { tap: null }) {
-  if (g.phase !== 'play') return { died: false, scored: 0, added: 0 };
+  if (g.phase !== 'play') return { died: false, scored: 0, added: 0, formation: null };
   g.t++;
-  let scored = 0, added = 0;
+  let scored = 0, added = 0, formation = null;
+  g.airT--;
+  if (g.airT <= 0) formation = nextAir(g);   // the weather turns over
   if (input && input.tap) {
     scored = applyTap(g, input.tap);
     if (scored > 0) added = topUpOrbs(g);
@@ -328,10 +583,10 @@ export function tick(g, input = { tap: null }) {
   for (const o of g.orbs) {
     if (orbGrounded(g, o)) {
       g.phase = 'dead';
-      return { died: true, scored, added };
+      return { died: true, scored, added, formation };
     }
   }
-  return { died: false, scored, added };
+  return { died: false, scored, added, formation };
 }
 
 /**
