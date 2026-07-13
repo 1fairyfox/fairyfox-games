@@ -2,7 +2,11 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.22.0` (single source of truth: repo-root `VERSION`). **v0.22.0** is a **PLANT** run:
+**Version:** `0.22.1` (single source of truth: repo-root `VERSION`). **v0.22.1** is a **GROW** run:
+**Loft** onto **varied structure + progression** (the **11th** game on the pattern) — Loft's orbs are
+*permanent*, so its varied unit isn't a spawn pattern, it's **the air**: a seeded sequence of named
+currents (Still · Drift · Thermal · Gust · Downdraft · The Vortex), stage-gated, plus a gravity
+asymptote that fixes the six-orb plateau. **v0.22.0** was a **PLANT** run:
 a new game, **Brim** — a genuinely new verb (**pour/fill**), the collection's first *metering* game
 and its **13th**. Hold to pour, let go to stop — except the stream has to **fall**, so what's still
 in the air lands anyway; you can't stop where you want, you have to stop **early**.
@@ -166,11 +170,24 @@ sole host), plus each game at `…/games/<game>/`.
   "N floors short of your best — so close!" on non-record runs. Pure core (no timer-driven death)
   + 38 tests. **(9th game on varied structure.)**
 - **Loft** (`games/loft/`) — keep the glowing orbs aloft; tap a **falling** orb to bat
-  it up (a rhythm, not a mash). **On the Growth Architecture**: a **cluster bonus**
-  (`tapScore` — a 3-catch scores 6, so reading a bunch pays), a **stage arc** (Solo →
-  Cascade → Flock → Zero-G) with HUD chip + tinted wash, and **meta-progression**
-  (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report) —
-  legacy best preserved. Pure core + 31 tests.
+  it up (a rhythm, not a mash). **On Varied Structure + Growth**: Loft's orbs are *permanent*
+  (nothing spawns; the count caps at six), so its varied unit is **the air** — a run is a seeded
+  **sequence of named currents** (`FORMATIONS`/`pickFormation`/`loadFormation`; `nextAir` pulls one
+  `{ticks, grav, drift}` beat at a time): **Still** (calm on-ramp), **Drift** (a breeze — tap where
+  the orb is *going*), **Thermal** (~0.8× gravity: orbs hang — the deliberate **greed window**, the
+  easiest air in the game and so the place to bunch them and cash the cluster bonus), **Gust** (a
+  hard, short sideways shove), **Downdraft** (~1.25× gravity — every timed catch is late), **The
+  Vortex** (the Zero-G crescendo: heavy air *and* a whipping push). `minStage` gates each, so
+  climbing the stages **opens the pool** (calm share >75% → <40%, pinned by a test); notable ones
+  flash a name cue. **The plateau fix:** gravity rides a **smooth asymptote** on the score
+  (`gravScale` ×1 → ×1.30, never arriving), so a full six-orb sky is no longer the ceiling — and a
+  current is only a *multiplier on that earned ramp*, band-clamped + hard-capped
+  (`GRAV_HARD_MAX`), so no weather can spike past the earned difficulty. A field of faint **dust
+  motes** is carried by the live current, so the air is legible *before* it's named. Plus a
+  **cluster bonus** (`tapScore` — a 3-catch scores 6, so reading a bunch pays), a **stage arc**
+  (Solo → Cascade → Flock → Zero-G) with HUD chip + tinted wash, and **meta-progression**
+  (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report + near-miss) —
+  legacy best preserved. Pure core + 43 tests. **(11th game on varied structure.)**
 - **Poise** (`games/poise/`) — a **balance** game: tilt a beam to keep a rolling ball on
   it and roll it over the target to score. **On the Growth Architecture**: the ball keeps
   its momentum through a catch and targets can sit near the ends (risk/reward), and
@@ -224,11 +241,37 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **482/482** green, released (Brim adds 36). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **493/493** green, released (Loft 31 → 43). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.22.1 (2026-07-13) — GROW: Loft onto varied structure — "the air" (11th game on the
+  pattern).** Loft was the collection's flattest run: its orbs are **permanent**, so the only thing
+  that grew was the orb count — and that **caps at six**, after which every run was the same six orbs
+  in the same dead-still room. It therefore couldn't take the usual spawn-pattern treatment; the
+  varied unit had to be **the air the orbs fall through**. A run is now a seeded **sequence of named
+  currents** from a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`; `nextAir`
+  pulls one `{ticks, grav, drift}` beat): **Still** (calm on-ramp/breather) · **Drift** (a slow
+  breeze — tap where the orb is *going*) · **Thermal** (~0.8× gravity, orbs hang — the deliberate
+  **greed window**: the easiest air in the game, so the place to let them bunch and cash the cluster
+  bonus) · **Gust** (a hard short shove) · **Downdraft** (~1.25× gravity — every timed catch is late)
+  · **The Vortex** (Zero-G crescendo: heavy air *and* a whipping push). `minStage` gates each (calm
+  share >75% → <40% Solo → Zero-G, pinned by a test); notable currents flash a quiet `#formCue`.
+  **Key design call — the plateau fix:** gravity now rides a **smooth asymptote** on the score
+  (`gravScale` ×1 → ×1.30, always creeping, never arriving), so a full sky is no longer the ceiling;
+  and a current is only ever a *multiplier on that honest ramp*, band-clamped (`AIR_GRAV_MIN/MAX`,
+  `DRIFT_MAX`) + hard-capped (`GRAV_HARD_MAX`), so no weather can spike past the earned difficulty
+  (a test asserts a rogue out-of-band current still can't break the cap). Every run opens on
+  `AIR_CALM_TICKS` of dead-still air (frame-one guard). A field of faint **dust motes** in the shell
+  is carried by exactly the live current — the air is legible *before* it's named (view-only,
+  reduced-motion aware). +12 pure-core tests (31 → 43); collection **493/493** green; the pre-existing
+  self-play winnability test passes unchanged under the new physics. **Chrome MCP was unavailable** —
+  validated with a real **headless Chrome render** of the live game (temp probe forced a top-stage
+  Vortex: dust, HUD, orb, stage chip and the `◇ THE VORTEX` cue render clean, no collision, no console
+  errors); the mobile off-centre panel reproduced again → the known headless-capture artifact, not a
+  regression. Player changelog + `_games` date + README re-gen. Released `dev → main` by default on
+  green (PATCH). **11 of 13 games on varied structure** (remaining: **Poise**).
 - **✅ v0.22.0 (2026-07-12) — PLANT: new game **Brim** (a new verb: pour/fill).** The 13th game, and
   the first that asks you to **meter a quantity**. Hold to pour, let go to stop — but the stream is a
   **delay line** (`LAG` = 8 ticks), so the release stops the *source*, not the level: the column
@@ -490,10 +533,12 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 - **Eyeball Brim in a real browser** at the next opportunity (Chrome MCP was down; it was validated
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
-- **Varied-structure rollout: 10 of 13.** Remaining: **Loft, Poise** — one per GROW run,
-  lowest-coverage first. In parallel, the **"depth inside the mechanic"** layer (v0.20.0, Polarity =
-  reference) rolls across the collection: that is now the **lead** GROW lever for games already on
-  varied structure.
+- **Varied-structure rollout: 11 of 13.** Remaining: **Poise** — the last one; take it next GROW run.
+  Once it lands, the rollout is **complete** and the **"depth inside the mechanic"** layer (v0.20.0,
+  Polarity = reference) becomes the sole lead GROW lever across the collection.
+- **Eyeball Loft in a real browser** (Chrome MCP was down; validated by headless render). The knobs
+  worth a play-feel pass: `GRAV_SCALE_MAX` (1.30), `AIR_GRAV_MIN/MAX` (0.78/1.30), `DRIFT_MAX`
+  (0.075) — i.e. is a Downdraft/Vortex *tense* rather than unfair, and does a Thermal read as a gift?
 - **Open PR #31 (Dependabot):** `actions/attest-build-provenance` **2.4.0 → 4.1.1** — a *major* bump
   to the release-signing step. Take it deliberately (review the changelog, then watch a tagged
   release run), not as a drive-by merge.

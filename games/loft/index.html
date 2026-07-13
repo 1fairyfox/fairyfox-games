@@ -72,6 +72,17 @@
   @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
   @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
 
+  /* Current cue — a quiet name that flashes as a notable air current arrives
+     (varied-structure layer). Peripheral; the calm air passes silently. */
+  #formCue {
+    position:absolute; top:78px; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; font-weight:600;
+    color:#7af9d0; opacity:0; pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
+
   /* Game-over run report (Growth L2). */
   .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
   .badge { display:flex; flex-direction:column; gap:1px; padding:6px 14px; border-radius:10px;
@@ -93,6 +104,7 @@
     <div id="stageName">Solo</div>
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
+  <div id="formCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Loft</div>
@@ -102,9 +114,10 @@
     <div class="tip"><b>Tip:</b> you can only strike an orb while it's <b>descending</b>, so
       find a rhythm — let it rise and fall, then catch it low. One well-placed tap can rescue a
       whole <b>cluster</b> at once — and a cluster catch is worth <em>extra</em> (a 3-catch scores 6,
-      not 3), so reading a bunch pays. Every few points a new orb joins the air (up to six).
-      Climb the <b>stages</b> (Solo → Cascade → Flock → Zero-G); feats earn <b>badges</b> that
-      stick across runs.</div>
+      not 3), so reading a bunch pays. Watch the <b>air</b>: it turns as you climb — a Thermal
+      holds the orbs up (the best place to let them bunch), a Gust shoves them sideways, a
+      Downdraft drops the floor out. Every few points a new orb joins (up to six). Climb the
+      <b>stages</b> (Solo → Cascade → Flock → Zero-G); feats earn <b>badges</b> that stick.</div>
     <div class="prompt">Tap to begin</div>
   </div>
 

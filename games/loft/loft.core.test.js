@@ -22,6 +22,7 @@ import {
   tick, lowestFalling, milestoneAt,
   tapScore, ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
   nearMissLine,
+  gravScale, gravityNow, driftNow, pickFormation, loadFormation, nextAir,
 } from './loft.core.js';
 
 /** Deterministic RNG (mulberry32) so orb spawns are reproducible in tests. */
@@ -222,9 +223,9 @@ test('the run ends when an orb touches the floor', () => {
 
 test('tick is inert before start and after death', () => {
   const g = newGame(); // menu
-  assert.deepEqual(tick(g, { tap: null }), { died: false, scored: 0, added: 0 });
+  assert.deepEqual(tick(g, { tap: null }), { died: false, scored: 0, added: 0, formation: null });
   g.phase = 'dead';
-  assert.deepEqual(tick(g, { tap: { x: 1, y: 1 } }), { died: false, scored: 0, added: 0 });
+  assert.deepEqual(tick(g, { tap: { x: 1, y: 1 } }), { died: false, scored: 0, added: 0, formation: null });
 });
 
 test('lowestFalling returns the most-endangered descending orb, or null', () => {
@@ -364,4 +365,184 @@ test('nearMissLine nudges only on an honest near miss, never on a record', () =>
   assert.equal(nearMissLine(45, 50), '5 points short of your best — so close!', 'at the margin');
   assert.equal(nearMissLine(44, 50), null, 'beyond the default margin → no line');
   assert.equal(nearMissLine(30, 50, 25), '20 points short of your best — so close!', 'margin is configurable');
+});
+
+// ── 11. The air: varied structure + the honest ramp ─────────────────────────────
+const TOP = CONFIG.STAGES.length - 1;
+const CALM = CONFIG.FORMATIONS.filter(f => !f.notable).map(f => f.id);
+
+test('FORMATIONS is a well-formed pool with calm air available from stage 0', () => {
+  const ids = new Set(), names = new Set();
+  let prevMin = -1;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.equal(typeof f.id, 'string');
+    assert.equal(typeof f.name, 'string');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.ok(!ids.has(f.id), 'unique id: ' + f.id);
+    assert.ok(!names.has(f.name), 'unique name: ' + f.name);
+    ids.add(f.id); names.add(f.name);
+    assert.ok(f.minStage >= prevMin, 'minStage is non-decreasing (pool only widens)');
+    prevMin = f.minStage;
+  }
+  const zero = CONFIG.FORMATIONS.filter(f => f.minStage === 0);
+  assert.ok(zero.length >= 1, 'something is playable from stage 0');
+  assert.ok(zero.every(f => !f.notable), 'the stage-0 on-ramp is calm, unnamed air');
+});
+
+test('every current builds ≥1 beat, all values inside the legal bands', () => {
+  for (const f of CONFIG.FORMATIONS) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const beats = f.build({ rng: seeded(seed), stage: f.minStage, cfg: CONFIG });
+      assert.ok(Array.isArray(beats) && beats.length >= 1, f.id + ' yields beats');
+      for (const b of beats) {
+        assert.ok(Number.isFinite(b.ticks) && b.ticks > 0, f.id + ': positive duration');
+        assert.ok(b.grav >= CONFIG.AIR_GRAV_MIN && b.grav <= CONFIG.AIR_GRAV_MAX,
+          f.id + ': gravity multiplier inside the band (got ' + b.grav + ')');
+        assert.ok(Math.abs(b.drift) <= CONFIG.DRIFT_MAX,
+          f.id + ': drift inside the band (got ' + b.drift + ')');
+      }
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible currents, and is deterministic', () => {
+  for (let stage = 0; stage <= TOP; stage++) {
+    for (let seed = 1; seed <= 30; seed++) {
+      const a = pickFormation(CONFIG, stage, seeded(seed), null);
+      const b = pickFormation(CONFIG, stage, seeded(seed), null);
+      assert.equal(a.id, b.id, 'same seed → same pick');
+      assert.ok(stage >= a.minStage, 'never picks a current the stage has not unlocked');
+    }
+  }
+});
+
+test('PROGRESSION: climbing the stages opens the pool — calm air gives way to weather', () => {
+  const share = (stage) => {
+    let calm = 0;
+    const N = 600;
+    const rng = seeded(99);
+    for (let i = 0; i < N; i++) {
+      const f = pickFormation(CONFIG, stage, rng, null);
+      if (CALM.includes(f.id)) calm++;
+    }
+    return calm / N;
+  };
+  assert.ok(share(0) > 0.75, 'the opening stage is mostly calm air (got ' + share(0) + ')');
+  assert.ok(share(TOP) < 0.4, 'the top stage is mostly weather (got ' + share(TOP) + ')');
+  assert.ok(share(TOP) < share(0), 'the calm share falls as you climb');
+});
+
+test('a fresh run opens on dead-still air (the frame-one guard / on-ramp)', () => {
+  const g = newGame(); start(g);
+  assert.equal(g.airGrav, 1);
+  assert.equal(g.airDrift, 0);
+  assert.equal(g.formId, null, 'no current is loaded yet');
+  assert.equal(g.airT, CONFIG.AIR_CALM_TICKS);
+  // Through the whole calm window the air stays constant and no cue fires.
+  for (let i = 0; i < CONFIG.AIR_CALM_TICKS - 1; i++) {
+    const r = tick(g, { tap: null });
+    if (r.died) break;
+    assert.equal(r.formation, null, 'no weather announced during the on-ramp');
+    assert.equal(driftNow(g), 0, 'the opening air never pushes');
+  }
+});
+
+test('the beat queue never empties across a long run, and cues only name notable air', () => {
+  const g = createGame(W, H, { rng: seeded(11) });
+  start(g);
+  const seen = new Set();
+  for (let i = 0; i < 4000; i++) {
+    const o = lowestFalling(g);
+    const tap = o && o.y > H * 0.42 ? { x: o.x, y: o.y } : null;
+    const r = tick(g, { tap });
+    if (r.formation) {
+      seen.add(r.formation);
+      const f = CONFIG.FORMATIONS.find(x => x.name === r.formation);
+      assert.ok(f && f.notable, 'only notable currents announce themselves');
+    }
+    assert.ok(g.airT >= 1, 'a beat is always in effect (tick ' + i + ')');
+    assert.ok(Number.isFinite(g.airGrav) && Number.isFinite(g.airDrift));
+    if (g.phase !== 'play') break;
+  }
+  assert.ok(seen.size >= 1, 'a long run meets at least one named current');
+});
+
+test('STRUCTURE: distinct seeds give distinct weather; the same seed repeats exactly', () => {
+  const structure = (seed) => {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    const seq = [];
+    for (let i = 0; i < 3000 && g.phase === 'play'; i++) {
+      const o = lowestFalling(g);
+      tick(g, { tap: o && o.y > H * 0.42 ? { x: o.x, y: o.y } : null });
+      if (g.formId && seq[seq.length - 1] !== g.formId) seq.push(g.formId);
+    }
+    return seq.join('>');
+  };
+  const a = structure(5), b = structure(6);
+  assert.equal(structure(5), a, 'same seed → the identical sequence of currents');
+  assert.notEqual(a, b, 'different seeds → a differently-shaped run');
+  assert.ok(a.length > 0 && b.length > 0, 'runs actually get weather');
+});
+
+test('gravScale is a smooth asymptote: always climbing, never plateauing, never past the ceiling', () => {
+  assert.equal(gravScale(CONFIG, 0), 1, 'the opening is the honest baseline');
+  let prev = gravScale(CONFIG, 0);
+  for (const s of [10, 50, 100, 250, 800, 5000, 100000]) {
+    const v = gravScale(CONFIG, s);
+    assert.ok(v > prev, 'still climbing at ' + s + ' (no plateau)');
+    assert.ok(v < CONFIG.GRAV_SCALE_MAX, 'never reaches the ceiling');
+    prev = v;
+  }
+});
+
+test('HONEST DIFFICULTY: a current can only colour the earned ramp — never spike past it', () => {
+  const g = newGame(); start(g);
+  // Baseline: still air at score 0 is exactly the old constant gravity.
+  assert.ok(Math.abs(gravityNow(g) - CONFIG.GRAV) < 1e-9);
+  // A rogue current far outside the band is clamped, then hard-capped.
+  g.score = 100000;
+  g.airGrav = 99;
+  assert.ok(gravityNow(g) <= CONFIG.GRAV_HARD_MAX, 'hard cap holds');
+  g.airDrift = -99;
+  assert.equal(driftNow(g), -CONFIG.DRIFT_MAX, 'drift is band-clamped');
+  g.airDrift = 99;
+  assert.equal(driftNow(g), CONFIG.DRIFT_MAX);
+  // And the heaviest legal weather at any score never exceeds the cap.
+  g.airGrav = CONFIG.AIR_GRAV_MAX;
+  for (const s of [0, 50, 500, 50000]) {
+    g.score = s;
+    assert.ok(gravityNow(g) <= CONFIG.GRAV_HARD_MAX + 1e-9, 'capped at score ' + s);
+    assert.ok(gravityNow(g) > 0);
+  }
+});
+
+test('a Thermal lightens the air and a Downdraft presses it down (the currents are felt)', () => {
+  const g = newGame(); start(g);
+  const airOf = (id) => {
+    const f = CONFIG.FORMATIONS.find(x => x.id === id);
+    g.formAir = f.build({ rng: seeded(4), stage: f.minStage, cfg: CONFIG });
+    g.formId = f.id; g.formName = f.name; g.formNotable = f.notable;
+    nextAir(g);
+    return gravityNow(g);
+  };
+  const still = airOf('still');
+  assert.ok(airOf('thermal') < still, 'a Thermal holds the orbs up');
+  assert.ok(airOf('downdraft') > still, 'a Downdraft drops the floor out');
+  const f = CONFIG.FORMATIONS.find(x => x.id === 'gust');
+  g.formAir = f.build({ rng: seeded(4), stage: f.minStage, cfg: CONFIG });
+  g.formId = f.id; g.formName = f.name; g.formNotable = f.notable;
+  nextAir(g);
+  assert.ok(Math.abs(driftNow(g)) > 0.03, 'a Gust shoves sideways');
+});
+
+test('loadFormation records the current and marks its head beat (the cue carrier)', () => {
+  const g = newGame(); start(g);
+  loadFormation(g);
+  assert.ok(g.formId && g.formName, 'identity recorded for the HUD');
+  assert.ok(g.formAir.length >= 1);
+  assert.equal(g.formAir[0].head, true, 'the leading beat carries the name cue');
+  assert.ok(g.formAir.slice(1).every(b => !b.head), 'only the head announces');
 });
