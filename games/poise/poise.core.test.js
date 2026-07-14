@@ -18,11 +18,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, clamp, clampTilt, gravOf,
+  CONFIG, clamp, clampTilt, gravOf, gravScale,
   createGame, reset, start, spawnTarget,
   stepBall, offEnd, tryCatch, tick, milestoneAt,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress,
   normalizeMeta, applyRun, newlyEarned, nearMissLine,
+  placeSpec, pickFormation, loadFormation,
 } from './poise.core.js';
 
 /** Deterministic RNG (mulberry32) so target placement is reproducible in tests. */
@@ -55,10 +56,11 @@ test('clampTilt limits a commanded tilt to ±MAX_TILT', () => {
 test('gravOf rises with the stage (escalation) and starts at the base', () => {
   const g = newGame();
   assert.equal(g.score, 0);
-  assert.ok(Math.abs(gravOf(g) - CONFIG.GRAV) < 1e-12);
-  g.score = 1000; // past the last stage
-  const topIdx = CONFIG.STAGES.length - 1;
-  assert.ok(Math.abs(gravOf(g) - CONFIG.GRAV * (1 + topIdx * CONFIG.GRAV_STEP)) < 1e-12);
+  assert.ok(Math.abs(gravOf(g) - CONFIG.GRAV) < 1e-12, 'score 0 = the untouched base');
+  g.score = 20;
+  const idx = stageIndexAt(CONFIG, 20);
+  const want = CONFIG.GRAV * (1 + idx * CONFIG.GRAV_STEP) * gravScale(CONFIG, 20);
+  assert.ok(Math.abs(gravOf(g) - want) < 1e-12);
   assert.ok(gravOf(g) > CONFIG.GRAV, 'later stages roll faster');
 });
 
@@ -210,7 +212,7 @@ test('holding a full tilt eventually rolls the ball off and ends the run', () =>
   assert.equal(g.phase, 'dead');
   assert.ok(g.pos >= CONFIG.OFF_END - 1e-9, 'ball pinned to the low (right) lip');
   // Dead games ignore further ticks.
-  assert.deepEqual(tick(g, { tilt: 0 }), { died: false, caught: false });
+  assert.deepEqual(tick(g, { tilt: 0 }), { died: false, caught: false, formation: null });
 });
 
 test('tick with no input defaults to a level beam', () => {
@@ -334,4 +336,198 @@ test('nearMissLine stays quiet for a record or a miss beyond the margin', () => 
 test('nearMissLine respects a custom margin and coerces to integers', () => {
   assert.equal(nearMissLine(16, 20, 4), '4 catches short of your best — so close!');
   assert.equal(nearMissLine(19.7, 20.4), '1 catch short of your best — so close!');
+});
+
+// ── 11. Varied structure — THE ROUTE ──────────────────────────────────────────
+// Targets no longer come from one flat rule: a run is a seeded sequence of named routes
+// pulled from a stage-gated pool. These pin the pool's shape, the picker's determinism +
+// gating, the placement invariants, and that distinct seeds really do build distinct runs.
+
+test('FORMATIONS is well-formed: unique ids/names, sane fields, calm start available', () => {
+  const ids = new Set(), names = new Set();
+  let lastMin = -1;
+  for (const f of CONFIG.FORMATIONS) {
+    assert.ok(typeof f.id === 'string' && f.id.length, 'has an id');
+    assert.ok(typeof f.name === 'string' && f.name.length, 'has a name');
+    assert.equal(ids.has(f.id), false, 'unique id: ' + f.id);
+    assert.equal(names.has(f.name), false, 'unique name: ' + f.name);
+    ids.add(f.id); names.add(f.name);
+    assert.equal(typeof f.build, 'function');
+    assert.equal(typeof f.weight, 'function');
+    assert.equal(typeof f.notable, 'boolean');
+    assert.ok(Number.isInteger(f.minStage) && f.minStage >= 0);
+    assert.ok(f.minStage >= lastMin, 'minStage is non-decreasing through the table');
+    lastMin = f.minStage;
+  }
+  assert.ok(CONFIG.FORMATIONS.some(f => f.minStage === 0), 'something is playable at stage 0');
+  assert.ok(CONFIG.FORMATIONS.filter(f => f.minStage === 0).every(f => !f.notable),
+    'the stage-0 on-ramp is silent — a first-timer never meets a name cue');
+  assert.ok(CONFIG.FORMATIONS.length >= 6, 'a pool worth having');
+});
+
+test('every route builds ≥1 spec, and every spec resolves inside the legal bounds', () => {
+  const rng = seeded(7);
+  for (const f of CONFIG.FORMATIONS) {
+    for (let stage = f.minStage; stage < CONFIG.STAGES.length; stage++) {
+      for (let rep = 0; rep < 30; rep++) {
+        const specs = f.build({ rng, stage, cfg: CONFIG });
+        assert.ok(Array.isArray(specs) && specs.length >= 1, f.id + ' yields specs');
+        // Resolve each spec against a hostile spread of ball positions.
+        for (const spec of specs) {
+          for (const ball of [-1, -0.9, -0.5, 0, 0.31, 0.75, 0.9, 1]) {
+            const p = placeSpec(CONFIG, spec, ball, rng);
+            assert.ok(Number.isFinite(p), 'finite');
+            assert.ok(Math.abs(p) <= CONFIG.SPAWN_RANGE + 1e-9,
+              f.id + ': target inside ±SPAWN_RANGE (got ' + p + ')');
+            assert.ok(Math.abs(p - ball) >= CONFIG.MIN_TARGET_DIST - 1e-9,
+              f.id + ': target never lands on the ball (ball ' + ball + ', got ' + p + ')');
+          }
+        }
+      }
+    }
+  }
+});
+
+test("Cradle is the gift: its hops are the shortest legal step, always toward the fulcrum", () => {
+  const rng = seeded(11);
+  const cradle = CONFIG.FORMATIONS.find(f => f.id === 'cradle');
+  const specs = cradle.build({ rng, stage: 2, cfg: CONFIG });
+  assert.ok(specs.every(s => s.mode === 'near'), 'all relative hops');
+  for (const ball of [-0.8, -0.35, 0.35, 0.8]) {
+    for (const spec of specs) {
+      const p = placeSpec(CONFIG, spec, ball, rng);
+      assert.ok(Math.abs(p) < Math.abs(ball), 'the hop moves the ball INWARD, never toward a lip');
+      const hop = Math.abs(p - ball);
+      assert.ok(hop >= CONFIG.MIN_TARGET_DIST - 1e-9 && hop <= CONFIG.MIN_TARGET_DIST * 1.25 + 1e-9,
+        'a short, legal hop — the easiest target the game can offer');
+    }
+  }
+});
+
+test('pickFormation only returns stage-eligible routes and is deterministic under a seed', () => {
+  for (let stage = 0; stage < CONFIG.STAGES.length; stage++) {
+    const a = seeded(99), b = seeded(99);
+    for (let i = 0; i < 200; i++) {
+      const fa = pickFormation(CONFIG, stage, a, null);
+      const fb = pickFormation(CONFIG, stage, b, null);
+      assert.equal(fa.id, fb.id, 'same seed → same pick');
+      assert.ok(fa.minStage <= stage, fa.id + ' is not unlocked at stage ' + stage);
+    }
+  }
+});
+
+test('climbing the stages OPENS the pool: the calm share collapses, the crescendo appears', () => {
+  const share = (stage) => {
+    const rng = seeded(2024 + stage);
+    let calm = 0, reel = 0;
+    const N = 4000;
+    for (let i = 0; i < N; i++) {
+      const f = pickFormation(CONFIG, stage, rng, null);
+      if (!f.notable) calm++;
+      if (f.id === 'reel') reel++;
+    }
+    return { calm: calm / N, reel: reel / N };
+  };
+  const low = share(0), top = share(CONFIG.STAGES.length - 1);
+  assert.ok(low.calm > 0.75, 'the opening stage is a calm on-ramp (got ' + low.calm + ')');
+  assert.equal(low.reel, 0, 'The Reel cannot appear before the Tempest');
+  assert.ok(top.calm < 0.40, 'the top stage leans on the mean routes (got ' + top.calm + ')');
+  assert.ok(top.reel > 0, 'the crescendo is live at the top');
+});
+
+test('distinct seeds build distinct run structures; the same seed rebuilds it exactly', () => {
+  const routesOf = (seed) => {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    const seen = [];
+    for (let i = 0; i < 60; i++) {
+      g.pos = g.target.pos;               // teleport onto the target: a scripted 60-catch run
+      g.vel = 0;
+      tryCatch(g);
+      seen.push(g.formId + '@' + g.target.pos.toFixed(3));
+    }
+    return seen.join('|');
+  };
+  assert.equal(routesOf(5), routesOf(5), 'same seed → an identical run (determinism holds)');
+  const a = routesOf(5), b = routesOf(6), c = routesOf(7);
+  assert.notEqual(a, b, 'a different seed builds a different-shaped run');
+  assert.notEqual(a, c);
+  assert.notEqual(b, c);
+});
+
+test('the route queue never empties across a long run, and always names a live route', () => {
+  const g = createGame(W, H, { rng: seeded(31) });
+  start(g);
+  for (let i = 0; i < 500; i++) {
+    g.pos = g.target.pos;
+    g.vel = 0;
+    assert.equal(tryCatch(g), true, 'catch ' + i);
+    assert.ok(g.target && Number.isFinite(g.target.pos), 'a target always exists');
+    assert.ok(typeof g.formId === 'string' && g.formId.length, 'a route is always live');
+    assert.ok(CONFIG.FORMATIONS.some(f => f.id === g.formId), 'and it is one from the pool');
+  }
+  assert.equal(g.score, 500);
+});
+
+test('FRAME ONE: a fresh run opens calm — a silent route, no cue, target off the ball', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const g = createGame(W, H, { rng: seeded(seed) });
+    start(g);
+    assert.equal(g.formNotable, false, 'seed ' + seed + ': the opening route is a calm one');
+    assert.equal(g.formCue, null, 'no name cue is fired before the player has moved');
+    assert.ok(Math.abs(g.target.pos - g.pos) >= CONFIG.MIN_TARGET_DIST - 1e-9,
+      'the first target is never a free catch');
+    const r = tick(g, { tilt: 0 });
+    assert.equal(r.died, false);
+    assert.equal(r.caught, false);
+    assert.equal(r.formation, null, 'and tick fires no cue on frame one');
+  }
+});
+
+test('tick hands a notable route name to the shell exactly once', () => {
+  const g = createGame(W, H, { rng: seeded(3) });
+  start(g);
+  g.score = 40;                    // deep enough that the mean routes are unlocked
+  g.formTargets = [];              // force a reload on the next spawn
+  g.formId = null;
+  loadFormation(g);
+  const name = g.formName;
+  const notable = g.formNotable;
+  assert.equal(g.formCue, notable ? name : null);
+  if (notable) {
+    const r = tick(g, { tilt: 0 });
+    assert.equal(r.formation, name, 'the cue is delivered');
+    assert.equal(tick(g, { tilt: 0 }).formation, null, 'and never repeated');
+  }
+});
+
+// ── 12. No plateau — the gravity asymptote ────────────────────────────────────
+test('gravScale climbs forever toward its asymptote and never reaches it', () => {
+  assert.equal(gravScale(CONFIG, 0), 1);
+  let last = 0;
+  for (const s of [0, 10, 50, 100, 500, 5000, 100000]) {
+    const v = gravScale(CONFIG, s);
+    assert.ok(v > last, 'strictly increasing at score ' + s);
+    assert.ok(v < CONFIG.GRAV_SCALE_MAX, 'never arrives at the asymptote');
+    last = v;
+  }
+});
+
+test('REGRESSION (no plateau): the beam keeps getting heavier PAST the last stage', () => {
+  const g = newGame();
+  const top = CONFIG.STAGES[CONFIG.STAGES.length - 1].at;
+  g.score = top;         const atTop = gravOf(g);
+  g.score = top + 60;    const beyond = gravOf(g);
+  g.score = top + 400;   const farBeyond = gravOf(g);
+  assert.ok(beyond > atTop, 'gravity still climbs after the last stage is entered');
+  assert.ok(farBeyond > beyond, 'and keeps climbing — there is no score at which it stops');
+});
+
+test('gravity is bounded: the hard cap holds no matter the score (honest difficulty)', () => {
+  const g = newGame();
+  for (const s of [0, 50, 200, 1e4, 1e9]) {
+    g.score = s;
+    assert.ok(gravOf(g) <= CONFIG.GRAV_HARD_MAX + 1e-12, 'capped at score ' + s);
+    assert.ok(gravOf(g) >= CONFIG.GRAV, 'never below the base');
+  }
 });

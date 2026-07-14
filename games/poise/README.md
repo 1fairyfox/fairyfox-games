@@ -23,9 +23,32 @@ the risk/reward is baked into where the next one lands.
 Poise follows the shared **Growth Architecture**
 (`notes/reference/growth-architecture.md`):
 
-- **Escalation (the core-fun edge).** Gravity ramps by **stage** (`gravOf`), so the
-  ball rolls faster the deeper you get — a steady hand early becomes a twitchy one
-  late. The catch radius and beam length never change; only your margin for error does.
+- **Varied structure — the ROUTE** (`notes/reference/varied-structure.md`). Only one
+  target is alive at a time, so Poise's varied unit isn't a spawn *wave* — it's **the
+  path the targets trace along the beam**. A run is a seeded sequence of named **routes**
+  from a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`; `spawnTarget`
+  takes one spec at a time): **Scatter** (the loose calm on-ramp), **Pendulum** (long even
+  sweeps across the fulcrum), **Cradle** (the *greed window* — targets appear the shortest
+  legal hop away and always **inward**, toward the fulcrum, never toward a lip: the easiest,
+  safest points in the game, so spot it and cash it), **Feint** (tight side-to-side
+  reversals — short distances, brutal braking, because the momentum you carry *through* the
+  catch overshoots every time), **Creep** (targets stepping outward, one at a time, from the
+  safe middle to the lip), **The Brink** (a run of targets tucked against **one** lip — you
+  have to live out there and hold it: a hover, not a traverse), and **The Reel** (the
+  Tempest-only crescendo: lip-to-lip swings on the heaviest beam you've earned). `minStage`
+  gates each, so **climbing the stages opens the pool** (progression drives the variation;
+  the calm share falls from >75% to <40%, pinned by a test); notable routes flash a quiet
+  `#formCue`, the calm ones pass silently. A spec is resolved by the pure `placeSpec`, which
+  **guarantees** the target lands inside ±`SPAWN_RANGE` and at least `MIN_TARGET_DIST` from
+  the ball *by construction* — replacing the old best-effort rejection loop that could give
+  up and drop a target on top of the ball.
+- **Escalation (the core-fun edge) — with no plateau.** Gravity ramps by **stage**
+  (`gravOf`), so the ball rolls faster the deeper you get. But the stage steps *stop* at
+  Tempest, so the beam used to settle into a final weight and the whole ceiling was visible
+  in a couple of minutes. Gravity now also rides a smooth **asymptote** on the raw score
+  (`gravScale`, ×1 → ×1.22, always creeping, never arriving) and is **hard-capped**
+  (`GRAV_HARD_MAX`) — so there is no score at which the game stops getting harder, and no
+  spike either. The catch radius and beam length never change; only your margin for error does.
 - **Stages (the run's arc).** Steady → Wobble → Sway → Pitch → Tempest — a quiet HUD
   chip + progress bar, a stage-tinted frame and beam, and a shockwave on stage change
   (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
@@ -73,15 +96,23 @@ every tick and let rounding walk it off centre; the test suite guards the restin
 node --test          # from this folder (Node 18+, zero dependencies)
 ```
 
-The suite covers the helpers (clamp, tilt clamp, gravity escalation), reset invariants,
-the ball physics (level = no drift, tilt rolls the right way, a finite terminal speed),
-off-end death at both lips, targets (deterministic spawn, min-distance, catch →
-score/respawn/momentum), a full balanced run that survives under a proportional
-controller, a held-tilt run that rolls off and dies, the stages, and the meta layer.
+The suite (42 tests) covers the helpers (clamp, tilt clamp, gravity escalation), reset
+invariants, the ball physics (level = no drift, tilt rolls the right way, a finite
+terminal speed), off-end death at both lips, targets (deterministic spawn, min-distance,
+catch → score/respawn/momentum), a full balanced run that survives under a proportional
+controller, a held-tilt run that rolls off and dies, the stages, and the meta layer —
+plus the **routes**: the pool is well-formed and silent at stage 0, every spec resolves
+inside the legal bounds against a hostile spread of ball positions, Cradle really is the
+shortest *inward* hop, `pickFormation` is stage-gated + deterministic, climbing the stages
+collapses the calm share, **distinct seeds build distinct runs** (same seed rebuilds one
+exactly), the queue never empties over 500 catches, frame one opens calm with no cue, and
+the gravity asymptote **keeps climbing past the last stage** while staying under the hard cap.
 
 ## Tuning
 
 All feel constants live in `CONFIG` at the top of `poise.core.js` — max tilt, the
-beam's ease rate, base gravity and its per-stage step, friction, the catch radius, and
+beam's ease rate, base gravity and its per-stage step, the no-plateau asymptote
+(`GRAV_SCALE_MAX`/`GRAV_SCALE_K`/`GRAV_HARD_MAX`), friction, the catch radius, and
 target spawn spread. They're injectable per game instance, which is also how the tests
-stay deterministic.
+stay deterministic. The routes live beside them in `FORMATIONS` — adding one is a clean,
+low-risk, player-visible change.

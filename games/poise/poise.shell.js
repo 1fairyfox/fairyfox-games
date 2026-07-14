@@ -41,6 +41,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -123,11 +124,23 @@ function enterStage(i) {
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 5); }
   updateStageChip();
 }
+// Route cue — a quiet name flashed as a *notable* route begins (the varied-structure
+// layer). The calm routes (Scatter, Pendulum) pass silently, keeping the beam clean.
+let formCueTimer = 0;
+function showFormCue(name) {
+  if (!formCueEl || !name) return;
+  formCueEl.textContent = '◇ ' + name;
+  formCueEl.classList.add('show');
+  clearTimeout(formCueTimer);
+  formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
+}
+
 function beginRun() {
   Poise.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   scoreEl.textContent = '0';
   updateStageChip();
 }
@@ -213,6 +226,7 @@ function onDeath() {
   burst(bp.x, bp.y, 8, 26);
   shake = 15;
   if (stageChip) stageChip.classList.add('hide');
+  if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -275,6 +289,7 @@ function update(now) {
         burst(bp.x, bp.y, 150, 14);
         shake = Math.min(shake + 3, 9);
       }
+      if (r.formation) showFormCue(r.formation);
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
       if (game.score !== prev) {
