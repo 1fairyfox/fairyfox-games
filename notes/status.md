@@ -2,7 +2,12 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.22.1` (single source of truth: repo-root `VERSION`). **v0.22.1** is a **GROW** run:
+**Version:** `0.22.2` (single source of truth: repo-root `VERSION`). **v0.22.2** is a **GROW** run
+and a **milestone**: **Poise** onto **varied structure + progression** — the **13th of 13**, so the
+**rollout is COMPLETE**. Only one target is ever alive in Poise, so its varied unit isn't a spawn
+wave — it's **the route**: a seeded sequence of named target-paths (Scatter · Pendulum · **Cradle**
+(the greed window) · Feint · Creep · The Brink · The Reel), stage-gated, plus a gravity asymptote
+that fixes the score-50 plateau. **v0.22.1** was a **GROW** run:
 **Loft** onto **varied structure + progression** (the **11th** game on the pattern) — Loft's orbs are
 *permanent*, so its varied unit isn't a spawn pattern, it's **the air**: a seeded sequence of named
 currents (Still · Drift · Thermal · Gust · Downdraft · The Vortex), stage-gated, plus a gravity
@@ -189,14 +194,33 @@ sole host), plus each game at `…/games/<game>/`.
   (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report + near-miss) —
   legacy best preserved. Pure core + 43 tests. **(11th game on varied structure.)**
 - **Poise** (`games/poise/`) — a **balance** game: tilt a beam to keep a rolling ball on
-  it and roll it over the target to score. **On the Growth Architecture**: the ball keeps
-  its momentum through a catch and targets can sit near the ends (risk/reward), and
-  **gravity ramps by stage** (`gravOf`) so control gets twitchier; a **stage arc** (Steady
-  → Wobble → Sway → Pitch → Tempest) with HUD chip + tinted beam/frame, and
-  **meta-progression** (`poise.meta`: lifetime catches/longest-run + 9 badges, run-report)
-  — legacy `poise.best` preserved. Normalised pure core (`pos` −1..1) + 30 tests. A
-  **near-miss** line (`nearMissLine`) nudges "N catches short of your best — so close!"
-  on non-record runs (Growth Wave 2).
+  it and roll it over the target to score. **On Varied Structure + Growth**: only one target is
+  ever alive, so Poise's varied unit isn't a spawn wave — it's **the route the targets trace along
+  the beam**. A run is a seeded **sequence of named routes** (`FORMATIONS`/`pickFormation`/
+  `loadFormation`; `spawnTarget` pulls one spec at a time): **Scatter** (the loose calm on-ramp) ·
+  **Pendulum** (long even sweeps across the fulcrum) · **Cradle** (the deliberate **greed window**
+  — targets appear the shortest legal hop away and always *inward*, toward the fulcrum, never
+  toward a lip: the easiest, safest points in the game, so spot it and cash it) · **Feint** (tight
+  side-to-side reversals — short distances, brutal braking, because the momentum carried *through*
+  the catch overshoots every time) · **Creep** (targets stepping outward, one at a time, safe middle
+  → lip) · **The Brink** (a run of targets against **one** lip: a hover, not a traverse — the
+  tensest route) · **The Reel** (the Tempest crescendo: lip-to-lip swings on the heaviest beam
+  you've earned). `minStage` gates each, so climbing the stages **opens the pool** (calm share >75%
+  → <40%, pinned by a test); notable routes flash a name cue. **A new spec vocabulary** (Poise's own
+  flavour): a target is placed against a *live ball*, so specs are either `{f}` (absolute fraction of
+  `SPAWN_RANGE`) or `{mode:'near', f}` (the shortest legal hop **inward**) — the `near` mode is what
+  makes Cradle a real gift. The pure `placeSpec` **guarantees by construction** that a target lands
+  in-range *and* ≥ `MIN_TARGET_DIST` from the ball, retiring the old best-effort `TARGET_TRIES`
+  rejection loop (which could give up and drop a target on top of the ball). **The plateau fix:**
+  gravity used to ramp *only* on the stage index, which stops at Tempest (score 50) — past that the
+  beam never got heavier and the whole ceiling was visible in ~2 min. It now also rides a smooth
+  **asymptote** on the score (`gravScale` ×1 → ×1.22, never arriving) and is **hard-capped**
+  (`GRAV_HARD_MAX`), so there is no score at which it stops getting harder, and no spike. Plus the
+  ball keeping its momentum through a catch (risk/reward), a **stage arc** (Steady → Wobble → Sway →
+  Pitch → Tempest) with HUD chip + tinted beam/frame, **meta-progression** (`poise.meta`: lifetime
+  catches/longest-run + 9 badges, run-report) and a **near-miss** line — legacy `poise.best`
+  preserved. Normalised pure core (`pos` −1..1) + 42 tests. **(13th and last game on varied
+  structure — the rollout is complete.)**
 - **Symmetry** (`games/symmetry/`) — a **mirror-coordination** game: one control (the
   *spread*) drives two catchers locked in a mirror about a centre line, so you often
   can't save both sides at once — a forced tradeoff. **On Varied Structure + Growth**: each
@@ -241,11 +265,45 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **493/493** green, released (Loft 31 → 43). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **505/505** green, released (Poise 30 → 42). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.22.2 (2026-07-14) — GROW MILESTONE: Poise onto varied structure — "the route". The
+  rollout is COMPLETE (13 of 13).** Poise was the last flat game, and it couldn't take the usual
+  treatment: every other game varies a *spawn wave*, but in Poise **only one target is ever alive**
+  — there is no wave. Its targets came from a single rule (a uniform random point in ±`SPAWN_RANGE`,
+  re-rolled by a `TARGET_TRIES` rejection loop if it landed on the ball), so a run was a shapeless
+  hunt with no build. The varied unit had to be the thing that actually shapes a Poise run: **the
+  path the targets walk you along the beam**. A run is now a seeded **sequence of named routes** from
+  a stage-weighted pool (`FORMATIONS`/`pickFormation`/`loadFormation`; `spawnTarget` pulls one spec
+  at a time): **Scatter** (calm on-ramp) · **Pendulum** (long even sweeps) · **Cradle** (the
+  **greed window** — the shortest legal hop, always *inward*: the easiest, safest points in the game,
+  the only route that makes Poise easier, on purpose) · **Feint** (tight reversals — short distances,
+  the hardest braking in the game, because the momentum carried *through* a catch overshoots every
+  time) · **Creep** (targets stepping outward, safe middle → lip) · **The Brink** (a run of targets
+  against **one** lip — a hover, not a traverse) · **The Reel** (Tempest crescendo: lip-to-lip
+  swings). `minStage` gates each (calm share >75% → <40% Steady → Tempest, pinned by a test); notable
+  routes flash a quiet `#formCue`, the calm ones are silent so a first-timer never meets one.
+  **A new spec vocabulary — Poise's own flavour, worth reusing:** because a target is placed against
+  a *live ball*, specs come in two forms resolved by a new pure `placeSpec` — `{f}` (**absolute**, a
+  signed fraction of `SPAWN_RANGE`) and `{mode:'near', f}` (**relative**, the shortest legal hop
+  *inward*). The `near` mode is what makes Cradle a genuine gift rather than "slightly closer
+  randomness". `placeSpec` also **guarantees by construction** (any ball in [-1,1]) that a target is
+  in-range *and* ≥ `MIN_TARGET_DIST` from the ball — a strict strengthening of the old rejection loop,
+  which could exhaust its 24 tries and drop a target on the ball (a free catch / latent frame-one
+  bug). `TARGET_TRIES` retired. **Key design call — the plateau fix:** Poise's difficulty came *only*
+  from `GRAV_STEP`, keyed on the **stage index**, and the stages stop at Tempest (score 50) — past 50
+  the beam never got heavier and the entire ceiling was visible in ~2 minutes. Gravity now also rides
+  a smooth **asymptote** on the raw score (`gravScale` ×1 → ×1.22, half-travelled at score 70 —
+  always creeping, never arriving) on top of the stage steps, **hard-capped** at `GRAV_HARD_MAX` so
+  difficulty stays honest and bounded (two regressions pin both halves). +12 pure-core tests
+  (30 → 42); collection **505/505** green. **Chrome MCP was unavailable** — validated with a real
+  **headless Chrome render** of the live game (temp probe forced a top-stage Reel: beam, ball, target,
+  fulcrum, HUD and the `◇ THE REEL` cue all render clean, no collision with the stage chip, no boot
+  error, desktop + mobile). Player changelog + `_games` date + README re-gen. Released `dev → main`
+  by default on green (PATCH). **13 of 13 games on varied structure — rollout COMPLETE.**
 - **✅ v0.22.1 (2026-07-13) — GROW: Loft onto varied structure — "the air" (11th game on the
   pattern).** Loft was the collection's flattest run: its orbs are **permanent**, so the only thing
   that grew was the orb count — and that **caps at six**, after which every run was the same six orbs
@@ -533,12 +591,22 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 - **Eyeball Brim in a real browser** at the next opportunity (Chrome MCP was down; it was validated
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
-- **Varied-structure rollout: 11 of 13.** Remaining: **Poise** — the last one; take it next GROW run.
-  Once it lands, the rollout is **complete** and the **"depth inside the mechanic"** layer (v0.20.0,
-  Polarity = reference) becomes the sole lead GROW lever across the collection.
+- **✅ Varied-structure rollout: 13 of 13 — COMPLETE** (Poise landed it in v0.22.2). The
+  **"depth inside the mechanic"** layer (v0.20.0, Polarity = reference) is now the **sole lead GROW
+  lever**. Only **Polarity** and **Brim** carry it; take the next game lowest-coverage first. A game
+  already on both layers can still take one new formation or a cross-run unlock.
+- **Sweep the collection for the stage-index plateau** (a general finding, not a one-off). Loft
+  (v0.22.1) and Poise (v0.22.2) both had difficulty keyed *only* on the **stage index**, which
+  flatlines the moment the last stage is entered — so the whole ceiling was visible in minutes. Other
+  games likely share the shape: check each speed/gravity/density ramp for a **score-driven asymptote**
+  and add one (band-clamped + hard-capped) where it's missing. Cheap, and genuinely felt.
 - **Eyeball Loft in a real browser** (Chrome MCP was down; validated by headless render). The knobs
   worth a play-feel pass: `GRAV_SCALE_MAX` (1.30), `AIR_GRAV_MIN/MAX` (0.78/1.30), `DRIFT_MAX`
   (0.075) — i.e. is a Downdraft/Vortex *tense* rather than unfair, and does a Thermal read as a gift?
+- **Eyeball Poise in a real browser** (Chrome MCP down again; validated by headless render). Knobs:
+  `GRAV_SCALE_MAX` (1.22) / `GRAV_SCALE_K` (70) — does the beam keep getting meaningfully heavier
+  past score 50 without turning unfair? — and does **Cradle** read as an obvious gift and **The
+  Brink** as tense rather than cheap?
 - **Open PR #31 (Dependabot):** `actions/attest-build-provenance` **2.4.0 → 4.1.1** — a *major* bump
   to the release-signing step. Take it deliberately (review the changelog, then watch a tagged
   release run), not as a drive-by merge.
@@ -551,8 +619,9 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.0 release (tagged); working tree carries only the fresh session notes |
-| Tests (`node --test`) | ✅ **482/482** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.2 release (tagged) |
+| Tests (`node --test`) | ✅ **505/505** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Varied-structure rollout | ✅ **COMPLETE — 13/13 games** (Poise closed it out, v0.22.2) |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

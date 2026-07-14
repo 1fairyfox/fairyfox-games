@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-14",
+    "game": "Poise",
+    "slug": "poise",
+    "kind": "grow",
+    "text": "The targets have learned to lead you somewhere. They used to just appear at random spots on the beam, so every run was the same shapeless hunt. Now they arrive as routes, and each one asks something different of you. A Pendulum swings you the full width, over and over. A Feint flicks the target from side to side but keeps it close — short distances, brutal braking, because the ball carries its speed straight through a catch and overshoots every time. A Creep steps you outward one target at a time, from the safe middle toward the lip, until you're braking far later than you meant to. And a Cradle is a gift: the targets appear the shortest possible hop away and always toward the fulcrum, never toward an edge — the easiest, safest points in the game. Spot one and cash it hard. Climb the stages and the beam opens up to the mean routes: The Brink parks a run of targets right against one lip, so you have to live out there and hold it, and the Tempest brings The Reel — lip-to-lip swings on the heaviest beam you've earned. The beam also never stops getting heavier now; there's no score at which it settles down."
+  },
+  {
     "date": "2026-07-13",
     "game": "Loft",
     "slug": "loft",

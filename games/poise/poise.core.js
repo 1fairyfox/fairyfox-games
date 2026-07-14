@@ -16,6 +16,18 @@
  * your score climbs the beam grows more sensitive (gravity ramps by stage), so
  * a steady hand early becomes a twitchy one late — "calm, then panic".
  *
+ * Varied structure — THE ROUTE (the run's skeleton, added v0.22.2):
+ * a target used to come from one flat rule (a uniform random point in ±SPAWN_RANGE,
+ * re-rolled if it landed on the ball). Textureless: every run's targets scattered the
+ * same, so once you'd balanced for a minute you'd balanced forever. Poise's varied unit
+ * isn't a spawn *wave* (only one target is ever alive) — it's the **route the targets
+ * trace along the beam**. A run is now a seeded *sequence of named routes*: a loose
+ * **Scatter**, a long **Pendulum** sweep, a **Cradle** of gimme hops at the fulcrum (the
+ * greed window), a **Feint** of tight reversals that your own momentum overshoots, a
+ * **Creep** stepping you out toward the lip, **The Brink** parked at the edge, and — at
+ * the Tempest — **The Reel**. `minStage` gates each, so climbing the stages *opens the
+ * pool* (progression drives the variation).
+ *
  * Coordinates are normalised: the ball position `pos` runs from -1 (left end)
  * to +1 (right end), 0 at the fulcrum. `tilt` is the beam angle in radians,
  * positive = right end down (so the ball rolls toward +pos). This keeps the
@@ -43,12 +55,21 @@ export const CONFIG = Object.freeze({
   GRAV: 0.0016,         // base roll acceleration at full tilt (pos-units / tick^2)
   GRAV_STEP: 0.2,       // gravity multiplier ADDED per stage — the escalation: later
                         // stages roll the ball faster, so control gets twitchier
+  // The plateau fix (v0.22.2). GRAV_STEP alone stops climbing the moment you reach the
+  // last stage (Tempest, score 50) — past that the beam never got heavier again, so the
+  // whole ceiling was visible in a couple of minutes. Gravity now also rides a smooth
+  // ASYMPTOTE on the raw score: always creeping up, never arriving, so there is no
+  // score at which the game stops getting harder.
+  GRAV_SCALE_MAX: 1.22, // the asymptote gravity approaches but never reaches (×)
+  GRAV_SCALE_K: 70,     // score at which the asymptote is half-travelled (larger = slower)
+  GRAV_HARD_MAX: 0.0040,// absolute acceleration ceiling — honest difficulty, no spikes
   FRICTION: 0.02,       // proportional velocity damping per tick — gives a terminal
                         // roll speed (acc/FRICTION) so the ball is guidable, not runaway
   CATCH: 0.11,          // collect a target when |pos - target| is within this (pos units)
   SPAWN_RANGE: 0.9,     // targets spawn within ±this of centre — up to 0.9 is near an end
-  MIN_TARGET_DIST: 0.28,// keep a fresh target at least this far from the ball
-  TARGET_TRIES: 24,     // attempts to satisfy MIN_TARGET_DIST before giving up
+  MIN_TARGET_DIST: 0.28,// a fresh target is never closer than this to the ball. `placeSpec`
+                        // now GUARANTEES this (it resolves the conflict by construction),
+                        // replacing the old best-effort rejection loop (TARGET_TRIES).
   OFF_END: 1,           // |pos| beyond this = the ball has rolled off the beam (death)
   // Stages — the readable arc of the "steady → tempest" curve (Growth Architecture
   // Layer 1), keyed on score (targets caught). `at` is the score to ENTER the stage.
@@ -59,7 +80,226 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 32, name: 'Pitch',   tint: '#c48cff' }),
     Object.freeze({ at: 50, name: 'Tempest', tint: '#ff8fb0' }),
   ]),
+
+  // ── Formations — THE ROUTE (varied structure) ─────────────────────────────────
+  // Only one target is alive at a time in Poise, so the varied unit can't be a spawn
+  // *wave* — it's the **path the targets walk you along the beam**. A run is a seeded
+  // sequence of named routes pulled from a stage-weighted pool; `spawnTarget` takes one
+  // spec at a time. `minStage` gates each, so climbing the stages opens the pool
+  // (progression drives the variation) and `weight(stage)` leans on the mean routes late.
+  // `notable` routes earn a quiet name cue; the calm ones pass silently.
+  //
+  // A spec is a target placement, resolved by the pure `placeSpec` against the ball's
+  // live position:
+  //   {f}              — ABSOLUTE: a signed fraction of SPAWN_RANGE (-1 = left lip, +1 = right)
+  //   {mode:'near', f} — RELATIVE: the shortest legal hop INWARD (toward the fulcrum),
+  //                      MIN_TARGET_DIST × (1 + f) away. The easiest target the game can
+  //                      offer — this is what makes Cradle a genuine gift.
+  FORMATIONS: Object.freeze([
+    Object.freeze({ id: 'scatter',  name: 'Scatter',   minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildScatter }),
+    Object.freeze({ id: 'pendulum', name: 'Pendulum',  minStage: 0, notable: false,
+      weight: (s) => Math.max(1, 3 - s), build: buildPendulum }),
+    Object.freeze({ id: 'cradle',   name: 'Cradle',    minStage: 1, notable: true,
+      weight: () => 2, build: buildCradle }),
+    Object.freeze({ id: 'feint',    name: 'Feint',     minStage: 1, notable: true,
+      weight: (s) => s, build: buildFeint }),
+    Object.freeze({ id: 'creep',    name: 'Creep',     minStage: 2, notable: true,
+      weight: (s) => s, build: buildCreep }),
+    Object.freeze({ id: 'brink',    name: 'The Brink', minStage: 3, notable: true,
+      weight: (s) => Math.max(1, s - 1), build: buildBrink }),
+    Object.freeze({ id: 'reel',     name: 'The Reel',  minStage: 4, notable: true,
+      weight: (s) => Math.max(0, s - 2), build: buildReel }),
+  ]),
 });
+
+// ── Formations (the run's varied structure) ──────────────────────────────────────
+// Each build fn is PURE given `ctx.rng` and returns an array of target specs.
+// `ctx` = { rng, stage, cfg }. The names/behaviours are Poise's flavour (the route the
+// targets trace along the beam); the *shape* — a pool of stage-weighted, seeded patterns
+// pulled one beat at a time — is the reusable varied-structure standard.
+
+/** A random side: -1 (left) or +1 (right). */
+function pickSide(rng) { return rng() < 0.5 ? -1 : 1; }
+
+/** Scatter — the calm baseline (the old flat generator, tamed to the inner beam):
+ *  targets anywhere within ±0.65 of the range. No shape, no story — the on-ramp. Silent. */
+function buildScatter(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 3);              // 3..5 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ f: (rng() * 2 - 1) * 0.65 });
+  return out;
+}
+
+/** Pendulum — the beam swings: targets alternate sides at a wide, even amplitude, so the
+ *  ball makes long sweeps across the fulcrum. Readable and rhythmic — a calm breather that
+ *  still asks you to brake at each end. Silent. */
+function buildPendulum(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 3);              // 3..5 targets
+  let side = pickSide(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ f: side * (0.5 + rng() * 0.22) });   // ±0.50..0.72
+    side = -side;
+  }
+  return out;
+}
+
+/** Cradle — the gift. A run of targets that appear the shortest legal hop away and always
+ *  INWARD, toward the fulcrum: you barely move, and never toward a lip. It is the *greed*
+ *  beat — the easiest, safest points in the game, so it pays to notice it and cash it hard
+ *  while the beam is calm. The only route that makes Poise easier, on purpose. Notable. */
+function buildCradle(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);              // 4..6 targets
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ mode: 'near', f: rng() * 0.25 });
+  return out;
+}
+
+/** Feint — tight reversals: the target flips side every catch but stays near the middle,
+ *  so the momentum you carry *through* the catch (the core rule) overshoots every time.
+ *  Short distances, but the hardest braking in the game. Notable. */
+function buildFeint(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 3);              // 4..6 targets
+  let side = pickSide(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ f: side * (0.20 + rng() * 0.22) });  // ±0.20..0.42
+    side = -side;
+  }
+  return out;
+}
+
+/** Creep — the walk out. Targets step outward on one side, each further than the last,
+ *  from the safe middle to the lip. Nothing about any single target is scary; the sequence
+ *  is, because it keeps asking you to brake a little later, a little nearer the end.
+ *  Notable. */
+function buildCreep(ctx) {
+  const { rng } = ctx;
+  const n = 4 + Math.floor(rng() * 2);              // 4..5 targets
+  const side = pickSide(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const step = n > 1 ? i / (n - 1) : 1;           // 0 → 1 across the route
+    out.push({ f: side * (0.32 + step * 0.60 + rng() * 0.04) });  // ±0.32 → ±0.96 (clamped)
+  }
+  return out;
+}
+
+/** The Brink — park at the edge. Several targets tucked against ONE lip, so the ball has to
+ *  live out where a slip is fatal and be held there. The tensest route in the game: not a
+ *  traverse, a hover. Notable. */
+function buildBrink(ctx) {
+  const { rng } = ctx;
+  const n = 3 + Math.floor(rng() * 2);              // 3..4 targets
+  const side = pickSide(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ f: side * (0.80 + rng() * 0.18) });  // ±0.80..0.98
+  return out;
+}
+
+/** The Reel — the Tempest crescendo. A long run of full-beam swings, lip to lip, on the
+ *  heaviest gravity the run has earned. Every catch flings you across the whole beam and
+ *  you have to arrive already braking. Notable. */
+function buildReel(ctx) {
+  const { rng } = ctx;
+  const n = 6 + Math.floor(rng() * 3);              // 6..8 targets
+  let side = pickSide(rng);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ f: side * (0.72 + rng() * 0.24) });  // ±0.72..0.96
+    side = -side;
+  }
+  return out;
+}
+
+/**
+ * Resolve one target spec to an actual beam position, against the ball's live position.
+ * Pure given `rng` (only used to break a dead-centre tie).
+ *
+ * Guarantees, for ANY spec and ANY `ballPos` in [-1, 1]:
+ *   • the result is inside ±SPAWN_RANGE, and
+ *   • it is at least MIN_TARGET_DIST from the ball.
+ * The old spawner tried for this with a rejection loop (`TARGET_TRIES`) and could give up;
+ * this resolves the conflict *by construction*, so a target can never be dropped on top of
+ * the ball (a free catch) — including on frame one, with the ball resting at the fulcrum.
+ *
+ * @param {PoiseConfig} cfg
+ * @param {{f?:number, mode?:string}} spec
+ * @param {number} ballPos ball position, -1..1
+ * @param {() => number} rng
+ * @returns {number} the target position along the beam
+ */
+export function placeSpec(cfg, spec, ballPos, rng) {
+  const R = cfg.SPAWN_RANGE;
+  const D = cfg.MIN_TARGET_DIST;
+  const s = spec || {};
+
+  if (s.mode === 'near') {
+    // The shortest legal hop, always INWARD (toward the fulcrum) — never toward a lip.
+    const inward = ballPos > 0 ? -1 : (ballPos < 0 ? 1 : (rng() < 0.5 ? -1 : 1));
+    const hop = D * (1 + Math.max(0, s.f || 0));
+    let p = ballPos + inward * hop;
+    if (Math.abs(p) > R) p = ballPos - inward * hop;   // no room inward: take the other way
+    return clamp(p, -R, R);
+  }
+
+  let p = clamp((typeof s.f === 'number' ? s.f : 0) * R, -R, R);
+  if (Math.abs(p - ballPos) < D) {
+    // Too close to the ball. Push it further along its own side (keeping the route's
+    // character); if that runs off the beam, flip to the other side of the ball instead.
+    const away = p >= ballPos ? 1 : -1;
+    let q = ballPos + away * D;
+    if (Math.abs(q) > R) q = ballPos - away * D;
+    p = clamp(q, -R, R);
+  }
+  return p;
+}
+
+/**
+ * Choose the next route for a stage — a seeded, stage-weighted pick over the eligible pool
+ * (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is what
+ * makes each run's *sequence* of routes differ while still escalating: climbing the stages
+ * opens the pool and leans on the mean routes.
+ * @param {PoiseConfig} cfg
+ * @param {number} stage current stage index
+ * @param {() => number} rng
+ * @param {?string} prevId id of the route just finished (soft-avoided), or null
+ * @returns {{id:string,name:string,notable:boolean,minStage:number,weight:Function,build:Function}}
+ */
+export function pickFormation(cfg, stage, rng, prevId) {
+  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+  const list = pool.length ? pool : [cfg.FORMATIONS[0]];
+  const weights = list.map(f =>
+    Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+/**
+ * Load the next route into `g.formTargets` (a queue of unresolved specs) and record its
+ * identity on `g.formId`/`g.formName`. A *notable* route arms `g.formCue`, which {@link tick}
+ * hands to the shell exactly once so it can flash the name. Called by {@link spawnTarget}
+ * when the queue is spent.
+ * @param {GameState} g
+ * @returns {void}
+ */
+export function loadFormation(g) {
+  const cfg = g.cfg;
+  const stage = stageIndexAt(cfg, g.score);
+  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  g.formTargets = f.build({ rng: g.rng, stage, cfg });
+  g.formId = f.id;
+  g.formName = f.name;
+  g.formNotable = f.notable;
+  if (f.notable) g.formCue = f.name;
+}
 
 /**
  * Achievement definitions — plain data (Growth Architecture Layer 2). Pure predicates.
@@ -101,6 +341,11 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} score             targets caught
  * @property {number} t                 ticks elapsed this run
  * @property {{pos:number, born:number}} target  active target position along the beam
+ * @property {Array<Object>} formTargets remaining (unresolved) target specs of the live route
+ * @property {?string} formId           id of the live route
+ * @property {?string} formName         display name of the live route
+ * @property {boolean} formNotable      does the live route earn a name cue?
+ * @property {?string} formCue          a notable route's name, pending hand-off by `tick`
  */
 
 /**
@@ -149,14 +394,31 @@ export function stageAt(cfg, score) {
 }
 
 /**
- * Current gravity (roll acceleration coefficient) for a state — the base scaled up
- * by the stage, so the ball rolls faster the deeper you get. Pure.
+ * The no-plateau gravity multiplier for a score — a smooth asymptote from ×1 toward
+ * `GRAV_SCALE_MAX`, never arriving. This is what keeps the beam getting heavier *after*
+ * the last stage (Tempest) is reached: the stage steps name the arc, this makes sure the
+ * arc has no ceiling. Monotonically non-decreasing in `score`. Pure.
+ * @param {PoiseConfig} cfg
+ * @param {number} score
+ * @returns {number} multiplier ≥ 1, strictly below GRAV_SCALE_MAX
+ */
+export function gravScale(cfg, score) {
+  const s = Math.max(0, score | 0);
+  return 1 + (cfg.GRAV_SCALE_MAX - 1) * (s / (s + cfg.GRAV_SCALE_K));
+}
+
+/**
+ * Current gravity (roll acceleration coefficient) for a state — the base, stepped up by
+ * the stage (the readable arc) and then scaled by the no-plateau score asymptote, hard-
+ * capped at `GRAV_HARD_MAX` so difficulty is always honest and bounded. Pure.
  * @param {GameState} g
  * @returns {number}
  */
 export function gravOf(g) {
-  const idx = stageIndexAt(g.cfg, g.score);
-  return g.cfg.GRAV * (1 + idx * g.cfg.GRAV_STEP);
+  const cfg = g.cfg;
+  const idx = stageIndexAt(cfg, g.score);
+  const acc = cfg.GRAV * (1 + idx * cfg.GRAV_STEP) * gravScale(cfg, g.score);
+  return Math.min(acc, cfg.GRAV_HARD_MAX);
 }
 
 /**
@@ -178,6 +440,7 @@ export function createGame(width, height, opts = {}) {
     pos: 0, vel: 0, tilt: 0,
     score: 0, t: 0,
     target: { pos: 0, born: 0 },
+    formTargets: [], formId: null, formName: null, formNotable: false, formCue: null,
   };
   reset(g);
   return g;
@@ -195,7 +458,15 @@ export function reset(g) {
   g.tilt = 0;
   g.score = 0;
   g.t = 0;
+  // Fresh route queue. At score 0 the stage-0 pool holds only the calm routes, so a run
+  // always opens on a quiet on-ramp and never greets a first-timer with a name cue.
+  g.formTargets = [];
+  g.formId = null;
+  g.formName = null;
+  g.formNotable = false;
+  g.formCue = null;
   spawnTarget(g);
+  g.formCue = null;                      // never cue the very first target (frame-one calm)
   return g;
 }
 
@@ -211,18 +482,17 @@ export function start(g) {
 }
 
 /**
- * Place a fresh target along the beam, within ±SPAWN_RANGE and (best-effort) at least
- * MIN_TARGET_DIST from the ball so it's never dropped on top of it.
+ * Place a fresh target along the beam — the next beat of the live **route**. Pulls one
+ * spec from `g.formTargets`, refilling it from a freshly picked route when spent
+ * ({@link loadFormation}), and resolves it against the ball's live position
+ * ({@link placeSpec} — which guarantees ±SPAWN_RANGE and ≥ MIN_TARGET_DIST from the ball).
  * @param {GameState} g
  * @returns {{pos:number, born:number}} the new target
  */
 export function spawnTarget(g) {
-  const { cfg } = g;
-  let p = 0, tries = 0;
-  do {
-    p = (g.rng() * 2 - 1) * cfg.SPAWN_RANGE;
-    tries++;
-  } while (tries < cfg.TARGET_TRIES && Math.abs(p - g.pos) < cfg.MIN_TARGET_DIST);
+  if (!g.formTargets || !g.formTargets.length) loadFormation(g);
+  const spec = g.formTargets.shift();
+  const p = placeSpec(g.cfg, spec, g.pos, g.rng);
   g.target = { pos: p, born: g.t };
   return g.target;
 }
@@ -288,8 +558,9 @@ export function milestoneAt(score) {
 }
 
 /**
- * Result of a single {@link tick}.
- * @typedef {{died:boolean, caught:boolean}} TickResult
+ * Result of a single {@link tick}. `formation` carries the name of a *notable* route the
+ * instant it begins (once, then null) — the shell flashes it as a quiet cue.
+ * @typedef {{died:boolean, caught:boolean, formation:?string}} TickResult
  */
 
 /**
@@ -302,16 +573,19 @@ export function milestoneAt(score) {
  * @returns {TickResult}
  */
 export function tick(g, input = { tilt: 0 }) {
-  if (g.phase !== 'play') return { died: false, caught: false };
+  if (g.phase !== 'play') return { died: false, caught: false, formation: null };
   g.t++;
   const desired = input && typeof input.tilt === 'number' ? input.tilt : 0;
   stepBall(g, desired);
   if (offEnd(g)) {
     g.pos = g.pos < 0 ? -g.cfg.OFF_END : g.cfg.OFF_END; // pin to the lip for a clean render
     g.phase = 'dead';
-    return { died: true, caught: false };
+    return { died: true, caught: false, formation: null };
   }
-  return { died: false, caught: tryCatch(g) };
+  const caught = tryCatch(g);              // a catch may have loaded a new route (arming formCue)
+  const formation = g.formCue || null;
+  g.formCue = null;                        // hand the cue over exactly once
+  return { died: false, caught, formation };
 }
 
 // ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────

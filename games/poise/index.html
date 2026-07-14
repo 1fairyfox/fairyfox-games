@@ -71,6 +71,17 @@
   @keyframes chipPop { 0%{transform:scale(1)} 30%{transform:scale(1.28)} 100%{transform:scale(1)} }
   @media (prefers-reduced-motion: reduce){ #stageChip.pop #stageName{ animation:none } #stageFill{ transition:none } }
 
+  /* Route cue — a quiet name that flashes as a notable route begins (varied-structure
+     layer). Peripheral; the calm routes pass silently. */
+  #formCue {
+    position:absolute; top:104px; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; font-weight:600;
+    color:#7af9d0; opacity:0; pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
+
   /* Game-over run report (Growth L2). */
   .oversub { font-size:13px; opacity:.55; margin-top:6px; min-height:16px; }
   .badges { display:flex; flex-direction:column; gap:6px; margin-top:14px; align-items:center; }
@@ -93,6 +104,7 @@
     <div id="stageName">Steady</div>
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
+  <div id="formCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Poise</div>
@@ -100,9 +112,10 @@
       score — then chase the next one, without letting the ball slip off either end.</div>
     <div class="tips">Controls: <b>← →</b> or <b>A D</b> to tilt, or hold and slide left/right of centre on
       touch. Tip: lead the ball with small, early tilts — <b>counter its speed before it drifts</b>, don't
-      chase it late. Targets near the ends pay the same but risk more, and the ball keeps its momentum
-      through a catch. It grows twitchier through the <b>stages</b> (Steady → Wobble → Sway → Pitch →
-      Tempest); feats earn <b>badges</b> that stick across runs.</div>
+      chase it late; the ball keeps its momentum through a catch. Targets arrive as <b>routes</b> — a
+      Pendulum sweep, a <b>Cradle</b> of easy hops (take them), a Feint, a Creep out to the lip, The
+      Brink — and climbing the <b>stages</b> (Steady → Wobble → Sway → Pitch → Tempest) opens meaner
+      ones, so no two runs walk the same path. Feats earn <b>badges</b> that stick across runs.</div>
     <div class="prompt">Press a key or tap to begin</div>
   </div>
 
