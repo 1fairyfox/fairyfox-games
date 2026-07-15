@@ -109,9 +109,11 @@ function updateStageChip() {
 /** Enter a new stage: ease the chamber tint over, pop the chip, kick a soft beat. */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) { showToast(st.name); shake = Math.max(shake, 10); }  // reveal the face-down stage
   updateStageChip();
 }
 
@@ -143,7 +145,7 @@ function act() {
   // playing → try to catch the echo
   const prev = game.score;
   const res = Echo.echo(game);
-  ringFlash(res.hit);
+  ringFlash(res.hit, res.node);
   if (res.hit) {
     scoreEl.textContent = game.score;
     renderCombo();
@@ -151,6 +153,7 @@ function act() {
     if (res.cadence) showCadence(res.cadence);   // a notable cadence just began
     const si = Echo.stageIndexAt(game.cfg, game.score);
     if (si !== stageIdx) enterStage(si);
+    if (res.waveStarted) { showToast('Standing wave'); shake = Math.max(shake, 8); }  // the reversal
     updateStageChip();
   } else {
     renderCombo();
@@ -165,10 +168,10 @@ window.addEventListener('keydown', e => {
 });
 
 // ── Eye candy (view-only) ──────────────────────────────────────────────────────
-function ringFlash(hit) {
+function ringFlash(hit, node) {
   flash = 1; flashHit = hit;
-  shake = hit ? 4 : 12;
-  flashes.push({ r: game.ringR, life: 22, hit });
+  shake = hit ? (node ? 6 : 4) : 12;
+  flashes.push({ r: game.ringR, life: node ? 26 : 22, hit, node: !!node });
 }
 function stepFx() {
   for (const f of flashes) { f.r += 3; f.life--; }
@@ -199,6 +202,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex,
     catches: game.catches, perfects: game.perfects, bestCombo: game.bestCombo,
+    nodes: game.nodes, waves: game.waves,
   };
   const prev = meta;
   meta = Echo.applyRun(prev, summary, game.cfg);
@@ -208,7 +212,9 @@ function onDeath() {
   if (overSubEl) {
     const streak = game.bestCombo > 1 ? ` · best streak ${game.bestCombo}` : '';
     const perf = game.perfects > 0 ? ` · ${game.perfects} perfect` : '';
-    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + perf + streak;
+    const nodes = game.nodes > 0 ? ` · ${game.nodes} node${game.nodes > 1 ? 's' : ''}` : '';
+    const waves = game.waves > 0 ? ` · ${game.waves} standing wave${game.waves > 1 ? 's' : ''}` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + perf + streak + nodes + waves;
   }
   // Freshly-earned badges.
   if (badgesEl) {
@@ -307,11 +313,11 @@ function draw() {
     ctx.beginPath(); ctx.arc(cx, cy, Math.max(1, g.ringR), 0, 7); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // hit/miss flash rings
+    // hit/miss/node flash rings — a node (dead-centre resonance) flashes gold
     for (const f of flashes) {
-      const col = f.hit ? 155 : 5;
-      ctx.strokeStyle = `hsla(${col},95%,65%,${f.life / 28})`;
-      ctx.lineWidth = 4;
+      const col = f.node ? 46 : (f.hit ? 155 : 5);
+      ctx.strokeStyle = `hsla(${col},95%,${f.node ? 62 : 65}%,${f.life / 28})`;
+      ctx.lineWidth = f.node ? 5 : 4;
       ctx.beginPath(); ctx.arc(cx, cy, f.r, 0, 7); ctx.stroke();
     }
   }
@@ -321,6 +327,13 @@ function draw() {
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = flashHit ? `rgba(40,220,150,${flash * 0.10})` : `rgba(220,60,60,${flash * 0.16})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // Standing Wave — a warm gold bloom while the double-score window holds (view-only).
+  if (game.phase === 'play' && game.wave > 0) {
+    const a = reduceMotion ? 0.12 : 0.09 + 0.05 * Math.abs(Math.sin(game.t * 0.14));
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(255,206,84,${a})`;
     ctx.fillRect(0, 0, W, H);
   }
   ctx.globalCompositeOperation = 'source-over';

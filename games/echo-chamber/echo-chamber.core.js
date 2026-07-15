@@ -29,10 +29,16 @@
  * @typedef {Object} EchoChamberConfig
  */
 export const CONFIG = Object.freeze({
-  SPEED: 3.0,        // echo-ring expansion at 0 catches (px/tick) — the base speed
-  SPEED_INC: 0.03,   // added to the expansion per catch — the run ESCALATES, not just
-                     // the window tightening (which caps); this keeps late runs tense
-  SPEED_MAX: 6.2,    // expansion speed cap (px/tick)
+  SPEED: 3.0,        // echo-ring expansion at score 0 (px/tick) — the base speed
+  // The escalation is a SMOOTH ASYMPTOTE on the score, not a capped linear ramp: it always
+  // creeps upward and never plateaus. The old `SPEED + score*SPEED_INC` flat-lined at
+  // SPEED_MAX (~score 107), so past the mid-run the whole ceiling was already seen — the exact
+  // "five minutes and you've met the whole game" bug the depth layer exists to kill. speedOf =
+  // SPEED + SPEED_SPAN·score/(score+SPEED_K): half-travelled at SPEED_K, approaching but never
+  // reaching SPEED+SPEED_SPAN, and hard-capped for safety so a config override can't spike it.
+  SPEED_SPAN: 4.0,   // the asymptotic gain the speed approaches but never fully reaches (px/tick)
+  SPEED_K: 90,       // score at which the speed is half-way up the span (the ramp's knee)
+  SPEED_HARD_MAX: 7.5, // absolute safety ceiling (never bound by the formula; guards overrides)
   MARGIN: 40,        // rim inset from the nearest playfield edge (px)
   TARGET_MIN_R: 60,  // closest the target band can sit to the centre (px)
   BAND_PAD: 22,      // keep the target this far inside the rim (px)
@@ -42,6 +48,20 @@ export const CONFIG = Object.freeze({
   LIVES: 3,          // missed presses / overruns allowed before game over
   PERFECT_FRAC: 0.4, // a catch within tol*this of dead-centre is "perfect" (builds combo)
   MULT_MAX: 5,       // cap on the perfect-catch score multiplier — rewards long streaks
+  // ── Depth inside the one verb (see notes/reference/depth-inside-the-mechanic.md) ──
+  // The discoverable TECH: a razor-tight window at the dead centre of the band, far tighter
+  // than `perfect` and taught NOWHERE — a curious player finds that a truly centred catch
+  // "resonates". A node pays a small bonus AND builds a streak; it's a subset of a perfect, so
+  // a beginner who never notices it still plays fine (safe to not know).
+  NODE_FRAC: 0.14,   // a catch within tol*this of dead-centre is a NODE (⊂ perfect) — the tech
+  NODE_BONUS: 1,     // extra points a node scores on top of the combo multiplier
+  // The REVERSAL the tech unlocks: land WAVE_TRIGGER nodes in a row and the chamber enters a
+  // STANDING WAVE — a timed window where every catch scores double. Hard work (precision) pays
+  // off with a surprise, and for a few seconds the "safe" precise play becomes the greedy one.
+  // Discovered, never announced up front.
+  WAVE_TRIGGER: 3,   // consecutive nodes needed to raise a standing wave
+  WAVE_TICKS: 300,   // standing-wave duration (ticks; ~5s at 60fps)
+  WAVE_MULT: 2,      // score multiplier applied to every catch while a standing wave holds
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
   // Named regions that drive a quiet HUD chip + an ambient tint; the escalating speed
   // gives them real teeth. `at` is the score to ENTER the stage; ascending.
@@ -50,6 +70,9 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 25,  name: 'Resonance', tint: '#5ea8ff' }),
     Object.freeze({ at: 60,  name: 'Harmonic',  tint: '#a98cff' }),
     Object.freeze({ at: 120, name: 'Overtone',  tint: '#ff8f6a' }),
+    // A SECRET stage past Overtone — unlisted on the start screen, revealed only by reaching it
+    // (a card kept face-down for the player who pushes deep). `secret` flags it for the shell.
+    Object.freeze({ at: 200, name: 'Feedback',   tint: '#ff5a7a', secret: true }),
   ]),
   // Cadences — the run's varied STRUCTURE + PROGRESSION (see notes/reference/varied-structure.md).
   // A run is no longer a string of independent random target radii; it's a seeded *sequence*
@@ -183,6 +206,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.catches >= 1000 }),
   Object.freeze({ id: 'regular',       label: 'Regular',       desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth-layer feats — earned by finding the tech, not by grinding. (Appended so ids stay stable.)
+  Object.freeze({ id: 'dead-centre',   label: 'Dead centre',   desc: 'Strike a node — a dead-centre resonance.',
+    test: (s) => s.nodes >= 1 }),
+  Object.freeze({ id: 'standing-wave', label: 'Standing wave',  desc: 'Raise a standing wave.',
+    test: (s) => s.waves >= 1 }),
+  Object.freeze({ id: 'reach-feedback',label: 'Feedback',       desc: 'Reach the secret Feedback stage.',
+    test: (s) => s.stageIndex >= 4 }),
 ]);
 
 /**
@@ -201,6 +231,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} combo              consecutive perfect catches (drives the multiplier)
  * @property {number} perfects           total perfect (dead-centre) catches this run
  * @property {number} bestCombo          longest perfect-catch streak reached this run
+ * @property {number} nodeStreak         consecutive dead-centre nodes toward a standing wave
+ * @property {number} wave               standing-wave ticks remaining (0 = inactive)
+ * @property {number} nodes              dead-centre nodes struck this run
+ * @property {number} waves              standing waves raised this run
  * @property {number} t                  ticks elapsed this run
  */
 
@@ -240,6 +274,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     ringR: 0, targetR: 0, tol: cfg.TOL_START,
     score: 0, lives: cfg.LIVES, combo: 0, perfects: 0, bestCombo: 0, catches: 0, t: 0,
+    nodeStreak: 0, wave: 0, nodes: 0, waves: 0,                // depth layer: tech streak + reversal
     cadQ: [], cadId: null, cadName: null, cadNotable: false,   // current cadence queue + identity
   };
   reset(g);
@@ -262,6 +297,10 @@ export function reset(g) {
   g.bestCombo = 0;
   g.catches = 0;
   g.t = 0;
+  g.nodeStreak = 0;       // depth layer: consecutive dead-centre nodes toward a standing wave
+  g.wave = 0;             // standing-wave ticks remaining (0 = not active)
+  g.nodes = 0;            // dead-centre nodes struck this run
+  g.waves = 0;            // standing waves raised this run
   g.cadQ = [];            // clear the cadence queue; the first pickTarget loads a fresh one
   g.cadId = null;
   g.cadName = null;
@@ -309,14 +348,20 @@ export function offset(g) {
 }
 
 /**
- * Current echo-ring expansion speed — the base plus a per-catch ramp, capped. This is
- * the escalation that keeps late runs tense once the catch window has bottomed out at
- * TOL_MIN. Pure. At score 0 it equals CONFIG.SPEED (the base).
+ * Current echo-ring expansion speed — a SMOOTH ASYMPTOTE on the score that always creeps
+ * upward and never plateaus (the escalation that keeps late runs tense once the catch window
+ * has bottomed out at TOL_MIN). It approaches `SPEED + SPEED_SPAN` without ever reaching it,
+ * is half-travelled at `SPEED_K`, and is hard-capped for safety. Pure. At score 0 it equals
+ * CONFIG.SPEED (the base). No score exists at which it stops rising — the deliberate fix for
+ * the old capped-linear ramp that flat-lined mid-run.
  * @param {GameState} g
  * @returns {number} px per tick
  */
 export function speedOf(g) {
-  return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED + g.score * g.cfg.SPEED_INC);
+  const c = g.cfg;
+  const s = Math.max(0, g.score);
+  const v = c.SPEED + c.SPEED_SPAN * (s / (s + c.SPEED_K));
+  return Math.min(c.SPEED_HARD_MAX, v);
 }
 
 /**
@@ -329,10 +374,12 @@ export function speedOf(g) {
 export function tick(g) {
   if (g.phase !== 'play') return { overrun: false, dead: false };
   g.t++;
+  if (g.wave > 0) g.wave--;               // standing-wave window counts down each playing tick
   g.ringR += speedOf(g);
   if (g.ringR >= rim(g)) {
     g.lives--;
     g.combo = 0;
+    g.nodeStreak = 0;                      // an overrun breaks the node streak too
     if (g.lives <= 0) {
       g.phase = 'dead';
       return { overrun: true, dead: true };
@@ -359,22 +406,40 @@ export function echo(g) {
   if (err <= g.tol) {
     g.catches++;                          // lifetime-catchable hit count (for meta)
     const perfect = err <= g.tol * g.cfg.PERFECT_FRAC;
+    const node = err <= g.tol * g.cfg.NODE_FRAC;        // the razor-tight tech (⊂ perfect)
     const mult = Math.min(1 + g.combo, g.cfg.MULT_MAX); // multiplier from the current combo
-    g.score += perfect ? mult : 1;        // perfect catches earn the combo multiplier
+    const waveActive = g.wave > 0;        // read BEFORE this catch can raise a new wave
+    let gain = (perfect ? mult : 1) + (node ? g.cfg.NODE_BONUS : 0);
+    if (waveActive) gain *= g.cfg.WAVE_MULT;            // a standing wave doubles every point
+    g.score += gain;
     g.combo = perfect ? g.combo + 1 : 0;  // a plain (non-perfect) catch breaks the combo
     if (perfect) g.perfects++;            // lifetime perfect count this run (a stat to chase)
     if (g.combo > g.bestCombo) g.bestCombo = g.combo; // track the longest streak reached
+    let waveStarted = false;
+    if (node) {
+      g.nodes++;                          // the tech: dead-centre resonance
+      g.nodeStreak++;
+      if (g.nodeStreak >= g.cfg.WAVE_TRIGGER) {         // enough nodes in a row → raise a wave
+        g.wave = g.cfg.WAVE_TICKS;
+        g.waves++;
+        g.nodeStreak = 0;
+        waveStarted = true;
+      }
+    } else {
+      g.nodeStreak = 0;                   // any non-node catch breaks the node streak
+    }
     g.tol = Math.max(g.cfg.TOL_MIN, g.tol - g.cfg.TOL_SHRINK);
     const prevCad = g.cadId;              // did this catch tip us into a new (notable) cadence?
     g.ringR = 0;
     pickTarget(g);                        // score already updated, so a new stage can unlock cadences
     const cadence = (g.cadNotable && g.cadId !== prevCad) ? g.cadName : null;
-    return { hit: true, perfect, mult, dead: false, cadence };
+    return { hit: true, perfect, node, mult, gain, wave: g.wave > 0, waveStarted, dead: false, cadence };
   }
   g.combo = 0;
+  g.nodeStreak = 0;                       // a miss breaks the node streak
   g.lives--;
   if (g.lives <= 0) g.phase = 'dead';
-  return { hit: false, perfect: false, mult: 1, dead: g.phase === 'dead', cadence: null };
+  return { hit: false, perfect: false, node: false, mult: 1, gain: 0, wave: g.wave > 0, waveStarted: false, dead: g.phase === 'dead', cadence: null };
 }
 
 /**
@@ -445,7 +510,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, catches:number, perfects:number, bestCombo:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, catches:number, perfects:number, bestCombo:number, nodes:number, waves:number}} RunSummary
  */
 
 /**
@@ -456,7 +521,7 @@ export function stageProgress(cfg, score) {
  * @property {number} best        best single-run score (mirrors `echo-chamber.best`)
  * @property {number} bestStage
  * @property {number} bestCombo   longest perfect streak ever
- * @property {{catches:number, perfects:number, points:number}} totals
+ * @property {{catches:number, perfects:number, points:number, nodes:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -475,7 +540,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestCombo: src.bestCombo | 0,
-    totals: { catches: t.catches | 0, perfects: t.perfects | 0, points: t.points | 0 },
+    totals: { catches: t.catches | 0, perfects: t.perfects | 0, points: t.points | 0, nodes: t.nodes | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -493,6 +558,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.catches += summary.catches | 0;
   next.totals.perfects += summary.perfects | 0;
   next.totals.points += summary.score | 0;
+  next.totals.nodes += summary.nodes | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestCombo = Math.max(next.bestCombo, summary.bestCombo | 0);

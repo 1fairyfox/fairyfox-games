@@ -2,9 +2,17 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.22.2` (single source of truth: repo-root `VERSION`). **v0.22.2** is a **GROW** run
+**Version:** `0.22.3` (single source of truth: repo-root `VERSION`). **v0.22.3** is a **GROW** run:
+**Echo Chamber** gets the **"depth inside the mechanic"** layer — the **3rd game** to carry it
+(after Polarity and Brim), now the lead GROW lever with the varied-structure rollout complete. On
+the one press-to-catch verb: a discoverable **Node** (a razor-tight dead-centre window that pays a
+bonus + builds a streak, taught nowhere), the **Standing Wave** it unlocks (3 nodes in a row → a
+~5s double-score window — precise play becomes the greedy play), a **no-plateau speed asymptote**
+(replacing the old `SPEED_MAX` hard cap that flat-lined mid-run), and a **secret Feedback stage**
+past Overtone (revealed only by reaching it). 3 new badges (8 → 11); +8 pure-core tests (40 → 48).
+**v0.22.2** was a **GROW** run
 and a **milestone**: **Poise** onto **varied structure + progression** — the **13th of 13**, so the
-**rollout is COMPLETE**. Only one target is ever alive in Poise, so its varied unit isn't a spawn
+**varied-structure rollout is COMPLETE**. Only one target is ever alive in Poise, so its varied unit isn't a spawn
 wave — it's **the route**: a seeded sequence of named target-paths (Scatter · Pendulum · **Cradle**
 (the greed window) · Feint · Creep · The Brink · The Reel), stage-gated, plus a gravity asymptote
 that fixes the score-50 plateau. **v0.22.1** was a **GROW** run:
@@ -112,11 +120,16 @@ sole host), plus each game at `…/games/<game>/`.
   Varied Structure + Growth**: each run is a seeded **sequence of target cadences** (Even ·
   Pulse · Near · Far · Climb · Scatter) that **unlock as you climb the stages** (progression
   drives the variety; notable cadences name themselves) — `CADENCES`/`pickCadence`/
-  `loadCadence`; the echo **speeds up with score** (no late plateau), perfect-combo to
-  **×5**, a **stage arc** (Whisper → Resonance → Harmonic → Overtone) with HUD chip + chamber
-  tint, and **meta-progression** (`echochamber.meta`: lifetime catches/perfects/best-combo +
-  8 badges, run-report) — legacy best preserved. Pure core + 40 tests. **(2nd game on varied
-  structure.)**
+  `loadCadence`; perfect-combo to **×5**, a **stage arc** (Whisper → Resonance → Harmonic →
+  Overtone) with HUD chip + chamber tint, and **meta-progression** (`echochamber.meta`:
+  lifetime catches/perfects/nodes/best-combo + 11 badges, run-report) — legacy best preserved.
+  **Depth inside the one verb (v0.22.3, the 3rd game on the layer):** the echo **no longer
+  plateaus** (`speedOf` is a smooth score asymptote, hard-capped — replaced the old `SPEED_MAX`
+  hard cap that flat-lined mid-run); a hidden **Node** (a razor-tight dead-centre window, tighter
+  than `perfect`, taught nowhere: pays a bonus + builds a streak); the **Standing Wave** it
+  unlocks (3 nodes in a row → a ~5s window where every catch scores double — the precise play is
+  quietly the greedy one); and a **secret Feedback stage** past Overtone, revealed only by
+  reaching it. Pure core + 48 tests. **(2nd game on varied structure.)**
 - **Orbit Slingshot** (`games/orbit-slingshot/`) — thrust a probe around a planet,
   sweep targets; **close-pass skim bonus** is the risk/reward. **On Varied Structure +
   Growth**: each run is a seeded **sequence of named target formations** (Belt · Cluster ·
@@ -265,11 +278,31 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **505/505** green, released (Poise 30 → 42). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **513/513** green, released (Echo Chamber 40 → 48). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.22.3 (2026-07-15) — GROW: Echo Chamber gets "depth inside the mechanic" (3rd game on the
+  layer, after Polarity + Brim).** With varied structure done (13/13), the depth layer is the lead
+  lever; Echo Chamber was the natural next target — a pure timing catch with structure/stages/meta
+  but nothing *under* the five minutes, and a real plateau (`speedOf` hard-capped ≈ score 107). All
+  four depth items land on the one press-to-catch verb, all safe to not know: (1) **Node** — a
+  razor-tight dead-centre window (`NODE_FRAC` 0.14, inside `perfect` 0.4), taught nowhere, pays a
+  bonus + builds a streak + flashes gold; (2) **Standing Wave** — 3 nodes in a row → a ~5s
+  every-catch-doubles window (the precise play is quietly the greedy one); (3) **no plateau** —
+  `speedOf` is now a score **asymptote** (hard-capped), never flat-lining (also clears a
+  plateau-sweep item); (4) a **secret Feedback stage** past Overtone (score 200, revealed only on
+  reaching it + a badge). 3 new skill-safe badges (8 → 11), `totals.nodes` in the meta (legacy
+  upgrades losslessly), run-report surfaces nodes/waves, start tips trimmed to a curiosity hook.
+  +8 net pure-core tests (40 → 48); collection **513/513** green (reworked the 3 tests the new
+  scoring/speed model touches). **Chrome MCP down** → validated by **headless Chrome**: clean boot
+  with the hook; an auto-driver ran ~17 run/death cycles with **zero runtime errors** (new
+  flash/`onDeath`/badge paths, meta 1/11); a core-driven deep run hit **Feedback (secret) + a live
+  Standing Wave, 20 nodes / 6 waves at score 211**, rendering the gold node ring + wave bloom + pink
+  Feedback rim cleanly. **A live play-feel eyeball is still worth doing.** Player changelog +
+  `_games` date + README re-gen. Released `dev → main` by default on green (PATCH). **Depth-layer
+  rollout: 3 of 13 (Polarity, Brim, Echo Chamber).**
 - **✅ v0.22.2 (2026-07-14) — GROW MILESTONE: Poise onto varied structure — "the route". The
   rollout is COMPLETE (13 of 13).** Poise was the last flat game, and it couldn't take the usual
   treatment: every other game varies a *spawn wave*, but in Poise **only one target is ever alive**
@@ -591,15 +624,21 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 - **Eyeball Brim in a real browser** at the next opportunity (Chrome MCP was down; it was validated
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
-- **✅ Varied-structure rollout: 13 of 13 — COMPLETE** (Poise landed it in v0.22.2). The
-  **"depth inside the mechanic"** layer (v0.20.0, Polarity = reference) is now the **sole lead GROW
-  lever**. Only **Polarity** and **Brim** carry it; take the next game lowest-coverage first. A game
+- **✅ Varied-structure rollout: 13 of 13 — COMPLETE.** The **"depth inside the mechanic"** layer
+  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 3 of 13** —
+  Polarity, Brim, **Echo Chamber** (v0.22.3). Take the next game lowest-coverage first. A game
   already on both layers can still take one new formation or a cross-run unlock.
-- **Sweep the collection for the stage-index plateau** (a general finding, not a one-off). Loft
-  (v0.22.1) and Poise (v0.22.2) both had difficulty keyed *only* on the **stage index**, which
-  flatlines the moment the last stage is entered — so the whole ceiling was visible in minutes. Other
-  games likely share the shape: check each speed/gravity/density ramp for a **score-driven asymptote**
-  and add one (band-clamped + hard-capped) where it's missing. Cheap, and genuinely felt.
+- **Eyeball Echo Chamber in a real browser** (Chrome MCP was down; validated by headless render).
+  Play-feel knobs: `NODE_FRAC` (0.14) — is a node satisfying to hit but genuinely tight? —
+  `WAVE_TRIGGER` (3) / `WAVE_TICKS` (300) / `WAVE_MULT` (2) — does a Standing Wave feel like an
+  earned jolt without trivialising the score? — and the speed asymptote `SPEED_SPAN` (4.0) /
+  `SPEED_K` (90). Also: does **Feedback** land as a real "there's more" surprise?
+- **Sweep the collection for the stage-index / hard-cap plateau** (a general finding, not a one-off).
+  Loft (v0.22.1), Poise (v0.22.2) had difficulty keyed *only* on the **stage index**; Echo Chamber
+  (v0.22.3) had it **hard-capped** on the score — both flat-line the moment the ramp tops out, so the
+  whole ceiling shows in minutes. Others likely share the shape: check each speed/gravity/density ramp
+  for a **score-driven asymptote** and add one (band-clamped + hard-capped) where it's missing. Cheap,
+  and genuinely felt. (Convenient to fold into the depth-layer pass for a game, as this run did.)
 - **Eyeball Loft in a real browser** (Chrome MCP was down; validated by headless render). The knobs
   worth a play-feel pass: `GRAV_SCALE_MAX` (1.30), `AIR_GRAV_MIN/MAX` (0.78/1.30), `DRIFT_MAX`
   (0.075) — i.e. is a Downdraft/Vortex *tense* rather than unfair, and does a Thermal read as a gift?
@@ -619,9 +658,10 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.2 release (tagged) |
-| Tests (`node --test`) | ✅ **505/505** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.3 release (tagged) |
+| Tests (`node --test`) | ✅ **513/513** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | Varied-structure rollout | ✅ **COMPLETE — 13/13 games** (Poise closed it out, v0.22.2) |
+| Depth-inside-the-mechanic rollout | 🔄 **3/13** (Polarity, Brim, Echo Chamber) — the lead GROW lever |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

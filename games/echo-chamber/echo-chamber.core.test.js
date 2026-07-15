@@ -137,11 +137,12 @@ test('overrun on the last life ends the game', () => {
 test('catching within tolerance scores, tightens the window, and re-arms', () => {
   const g = newGame();
   start(g);
-  g.ringR = g.targetR; // dead-on
+  g.ringR = g.targetR + g.tol; // a plain in-window catch (on the boundary → not perfect, not a node)
   const tol0 = g.tol;
   const res = echo(g);
   assert.equal(res.hit, true);
-  assert.equal(g.score, 1);
+  assert.equal(res.perfect, false);
+  assert.equal(g.score, 1);    // a plain catch scores exactly 1
   assert.equal(g.tol, tol0 - CONFIG.TOL_SHRINK);
   assert.equal(g.ringR, 0, 'a fresh echo started');
 });
@@ -224,13 +225,15 @@ test('a dead-on catch is perfect and extends the combo; an edge catch resets it'
   assert.equal(g.combo, 0);
 });
 
-test('perfect catches build a score multiplier capped at MULT_MAX', () => {
+test('perfect (non-node) catches build a score multiplier capped at MULT_MAX', () => {
   const g = newGame(); start(g);
   const gains = [];
   for (let i = 0; i < 6; i++) {
     const before = g.score;
-    g.ringR = g.targetR;
-    echo(g);
+    // inside the perfect band but OUTSIDE the razor-tight node window, so no node bonus / wave
+    g.ringR = g.targetR + g.tol * 0.3;
+    const r = echo(g);
+    assert.ok(r.perfect && !r.node, 'perfect but not a node');
     gains.push(g.score - before);
   }
   assert.deepEqual(gains, [1, 2, 3, 4, 5, 5]); // x1..x5, then capped at MULT_MAX (5)
@@ -294,13 +297,21 @@ test('perfect catches accumulate and bestCombo tracks the longest streak', () =>
 });
 
 // ── 10. Escalation: speed ramps with score ────────────────────────────────────
-test('speedOf starts at the base and ramps with score, capped at SPEED_MAX', () => {
+test('speedOf is a smooth asymptote on score: rises forever, never plateaus, hard-capped', () => {
   const g = newGame();
-  assert.equal(speedOf(g), CONFIG.SPEED);
-  g.score = 10;
-  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED + 10 * CONFIG.SPEED_INC)) < 1e-9);
-  g.score = 1e6;
-  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+  assert.equal(speedOf(g), CONFIG.SPEED, 'base speed at score 0');
+  // half-way up the span at SPEED_K (the ramp's knee)
+  g.score = CONFIG.SPEED_K;
+  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED + CONFIG.SPEED_SPAN * 0.5)) < 1e-9);
+  // strictly monotone — there is NO score at which it stops rising (the plateau this fix removes)
+  const at = (s) => { g.score = s; return speedOf(g); };
+  assert.ok(at(50) > at(0));
+  assert.ok(at(200) > at(107), 'still rising past the OLD linear-cap point');
+  assert.ok(at(1000) > at(400), 'still rising deep into a run — no flat forever');
+  // approaches but never reaches SPEED + SPEED_SPAN, and is bounded by the hard cap
+  g.score = 1e9;
+  assert.ok(speedOf(g) < CONFIG.SPEED + CONFIG.SPEED_SPAN, 'never reaches the asymptote ceiling');
+  assert.ok(speedOf(g) <= CONFIG.SPEED_HARD_MAX, 'bounded by the hard cap');
 });
 
 test('a catch counter accumulates on hits (for lifetime meta)', () => {
@@ -333,13 +344,13 @@ test('stageProgress: frac 0 at a boundary, rises toward the next, isLast at the 
 });
 
 // ── 12. Meta-progression ──────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, stageIndex: 0, catches: 0, perfects: 0, bestCombo: 0, ...o });
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, catches: 0, perfects: 0, bestCombo: 0, nodes: 0, waves: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 40);
   assert.equal(m.v, 1);
   assert.equal(m.best, 40);
-  assert.deepEqual(m.totals, { catches: 0, perfects: 0, points: 0 });
+  assert.deepEqual(m.totals, { catches: 0, perfects: 0, points: 0, nodes: 0 });
   assert.deepEqual(m.achieved, {});
 });
 
@@ -482,4 +493,103 @@ test('loadCadence records the current cadence identity + fills the queue', () =>
   assert.ok(g.cadQ.length >= 1);
   assert.equal(typeof g.cadName, 'string');
   assert.ok(CONFIG.CADENCES.some(c => c.name === g.cadName && c.id === g.cadId));
+});
+
+// ── 14. Depth inside the mechanic: node tech, standing wave, secret stage ─────────
+test('a dead-centre catch is a NODE: pays a bonus on top of the multiplier and counts', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR;                 // dead-on → inside the razor-tight node window
+  const r = echo(g);
+  assert.equal(r.hit, true);
+  assert.equal(r.perfect, true);
+  assert.equal(r.node, true);
+  assert.equal(g.score, 1 + CONFIG.NODE_BONUS); // combo mult 1 + the node bonus
+  assert.equal(g.nodes, 1);
+  assert.equal(g.nodeStreak, 1);
+});
+
+test('a perfect-but-not-node catch is NOT a node and pays no node bonus', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR + g.tol * ((CONFIG.NODE_FRAC + CONFIG.PERFECT_FRAC) / 2);
+  const r = echo(g);
+  assert.equal(r.perfect, true);
+  assert.equal(r.node, false);
+  assert.equal(g.score, 1);            // plain perfect multiplier only, no bonus
+  assert.equal(g.nodes, 0);
+  assert.equal(g.nodeStreak, 0);
+});
+
+test('WAVE_TRIGGER nodes in a row raise a standing wave; the streak is then consumed', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.WAVE_TRIGGER - 1; i++) {
+    g.ringR = g.targetR;
+    const r = echo(g);
+    assert.equal(r.waveStarted, false);
+    assert.equal(g.wave, 0);
+  }
+  g.ringR = g.targetR;
+  const r = echo(g);                   // the WAVE_TRIGGER-th node
+  assert.equal(r.waveStarted, true);
+  assert.equal(g.wave, CONFIG.WAVE_TICKS);
+  assert.equal(g.waves, 1);
+  assert.equal(g.nodeStreak, 0, 'streak consumed by raising the wave');
+});
+
+test('the node streak resets on a non-node catch (nodes must be consecutive)', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR; echo(g);             // node → streak 1
+  assert.equal(g.nodeStreak, 1);
+  g.ringR = g.targetR + g.tol; echo(g);     // plain catch → streak broken
+  assert.equal(g.nodeStreak, 0);
+});
+
+test('an overrun resets the node streak', () => {
+  const g = newGame(); start(g);
+  g.ringR = g.targetR; echo(g);             // node → streak 1
+  assert.equal(g.nodeStreak, 1);
+  for (let i = 0; i < 10000; i++) { if (tick(g).overrun) break; }
+  assert.equal(g.nodeStreak, 0);
+});
+
+test('a standing wave doubles every point scored while it holds, then expires', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.WAVE_TRIGGER; i++) { g.ringR = g.targetR; echo(g); }
+  assert.ok(g.wave > 0, 'wave is live');
+  // a plain in-window catch during the wave scores 1 × WAVE_MULT
+  let before = g.score;
+  g.ringR = g.targetR + g.tol;
+  const r = echo(g);
+  assert.equal(r.wave, true);
+  assert.equal(g.score - before, 1 * CONFIG.WAVE_MULT);
+  // the wave counts down and expires; scoring returns to normal
+  g.wave = 1;
+  tick(g);
+  assert.equal(g.wave, 0);
+  before = g.score;
+  g.ringR = g.targetR + g.tol;
+  echo(g);
+  assert.equal(g.score - before, 1, 'no doubling once the wave has expired');
+});
+
+test('STAGES includes exactly one secret Feedback stage past Overtone, reachable by score', () => {
+  const secret = CONFIG.STAGES.filter(s => s.secret);
+  assert.equal(secret.length, 1);
+  assert.equal(secret[0].name, 'Feedback');
+  const idx = CONFIG.STAGES.length - 1;
+  assert.equal(stageIndexAt(CONFIG, secret[0].at), idx, 'reaching its score enters it');
+  assert.equal(stageIndexAt(CONFIG, secret[0].at - 1), idx - 1, 'just short stays in the prior stage');
+});
+
+test('the depth feats earn their badges; a shallow run earns none of them', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 260, stageIndex: 4, catches: 80, perfects: 40, bestCombo: 8, nodes: 12, waves: 3 }));
+  assert.equal(m.achieved['dead-centre'], true);
+  assert.equal(m.achieved['standing-wave'], true);
+  assert.equal(m.achieved['reach-feedback'], true);
+  assert.equal(m.totals.nodes, 12);
+  let m2 = normalizeMeta();
+  m2 = applyRun(m2, summary({ score: 20, stageIndex: 1, catches: 10 }));
+  assert.equal(m2.achieved['dead-centre'], undefined);
+  assert.equal(m2.achieved['standing-wave'], undefined);
+  assert.equal(m2.achieved['reach-feedback'], undefined);
 });
