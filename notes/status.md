@@ -2,7 +2,16 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.22.3` (single source of truth: repo-root `VERSION`). **v0.22.3** is a **GROW** run:
+**Version:** `0.23.0` (single source of truth: repo-root `VERSION`). **v0.23.0** is a **PLANT** run:
+a new game, **Reprise** — a genuinely new verb (**recall / call-and-response**), the collection's
+first **memory** game and its **14th**. Four pads play a **call**; you **echo** it back in the same
+order (tap / keys 1–4). Watch, then repeat — three-second grasp. Land the call → it grows +1 and
+plays faster; wrong pad → −1 of 3 lives (the call replays). **Depth = tempo:** echo *on the beat*
+and it pays a bonus + grows a ×2…×9 multiplier (off-tempo-but-correct is *safe* — scores, breaks the
+combo); a streak of in-tempo echoes lights the pads gold for **Resonance** (double score). Varied
+structure from birth (phrases Steady/Run/Echo/Leap/**Mirror**=greed-window/Cascade), stages
+Prelude→…→Finale + secret **Encore**, no-plateau tempo asymptote, meta (`reprise.meta`, 13 badges).
+Pure core + 39 tests. **v0.22.3** was a **GROW** run:
 **Echo Chamber** gets the **"depth inside the mechanic"** layer — the **3rd game** to carry it
 (after Polarity and Brim), now the lead GROW lever with the varied-structure rollout complete. On
 the one press-to-catch verb: a discoverable **Node** (a razor-tight dead-centre window that pays a
@@ -58,8 +67,32 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (13):**
+**Games so far (14):**
 
+- **Reprise** (`games/reprise/`) — a **call-and-response / recall** game (a genuinely new verb: the
+  collection's first *memory* mechanic — you're not steering, timing, aiming or metering, you're
+  **remembering a sequence and repeating it**). Four pads flash a **call**; you **echo** it back in
+  order (tap or press **1–4**). Land the whole call and it grows by one pad and the next plays a
+  shade faster; a wrong pad costs one of three lives, but the call **replays** so a slip is
+  recoverable. Watch, then repeat — graspable in three seconds. **The depth is tempo, and it's
+  discovered not told:** the call is played *at a beat*, and echoing each pad back **on that beat**
+  is an *in-tempo* press — it pays a flat bonus and grows a **multiplier** (×2…×9), while a correct
+  but *off-tempo* press is **safe** (it scores, but breaks the combo to ×1). So the precise, musical
+  echo is quietly the greedy one (the Polarity scoring shape retargeted to memory+rhythm). A streak
+  of in-tempo echoes triggers **Resonance** — the pads light gold and every point doubles for ~5s
+  (the "safe" precise play becoming the big play, the second-order reversal). **On Varied Structure
+  + the Growth Architecture from birth:** a call is composed from a seeded **sequence of named
+  phrases** (`PHRASES`/`pickPhrase`/`buildCall`, `minStage`-gated so climbing the stages **opens the
+  pool**): **Steady** (calm free pads) · **Run** (an adjacent scale — a helpful, memorable shape) ·
+  **Echo** (a repeated pad — recall the *count*) · **Leap** (corner-to-corner jumps) · **Mirror**
+  (a palindrome a·b·a — the most memorable phrase and so the deliberate **greed window**, the safest
+  place to bank in-tempo echoes) · **Cascade** (the dense late crescendo). Notable phrases flash a
+  quiet name cue. Plus a **stage arc** (Prelude → Verse → Chorus → Bridge → Finale) with HUD chip +
+  tint, a **secret Encore stage** past Finale, a **no-plateau tempo asymptote** (`beatAt` — the calls
+  never stop tightening; length caps at LEN_MAX so tempo carries the ramp), and **meta-progression**
+  (`reprise.meta`: lifetime calls/points/in-tempo + best stage/mult + 13 badges incl. the depth
+  badges, run-report) — legacy `reprise.best` preserved. Pure core + 39 tests. **(Ships on varied
+  structure + the depth layer from day one.)**
 - **Brim** (`games/brim/`) — a **pour/fill** game (a genuinely new verb: the collection's first
   *metering* mechanic — you're not steering, timing a catch, aiming or charging, you're watching a
   value rise and stopping it inside a band). A vessel has a **fill line** you must reach and a
@@ -278,11 +311,30 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **513/513** green, released (Echo Chamber 40 → 48). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **552/552** green, released (Reprise +39). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.23.0 (2026-07-15) — PLANT: new game Reprise (a genuinely new verb: recall / call-and-
+  response).** The **14th** game and the collection's first **memory** game — every prior verb is
+  real-time reflex; none asks the player to remember and repeat. Four pads flash a **call**; you
+  **echo** it back (tap / keys 1–4). Land it → +1 pad and a faster next call; wrong pad → −1 of 3
+  lives, and the call **replays** (recoverable). Watch, then repeat — three-second grasp. **Depth =
+  tempo, discovered not told:** echoing **on the beat** is *in-tempo* (bonus + ×2…×9 multiplier),
+  off-tempo-but-correct is *safe* (scores, breaks the combo) — the precise play is the greedy play;
+  a streak → **Resonance** (double score, gold pads). Ships on **varied structure + the full Growth
+  Architecture from birth**: stage-gated **phrases** (Steady/Run calm; Echo/Leap/Mirror/Cascade
+  notable, **Mirror = greed window**), stages Prelude→…→Finale + secret **Encore**, a **no-plateau
+  tempo asymptote** (length caps at LEN_MAX so tempo carries the endless ramp), meta (`reprise.meta`,
+  13 badges). Pure `press`/`tick`-split core + **39 tests** (determinism, frame-one guard, a 30-round
+  perfect self-play pinning the call never empties); collection **552/552** green. **Chrome MCP was
+  unavailable** → validated with a **headless DOM/canvas smoke** of the live shell (clean boot; an
+  auto-driver ran **60 round-cycles** across menu/call/respond/death/restart with **zero runtime
+  errors**) + a clean **Jekyll build** (masthead **Games 14**, Reprise card + `Memory`/`Rhythm` tag
+  pages). **A live play-feel eyeball is still pending** (like Brim); no per-game `icon.png` yet
+  (Brim precedent — owner supplies game icons). Wired into `_games` + README re-gen + a `kind:"new"`
+  changelog entry. Released `dev → main` by default on green (MINOR via `release/0.23.0`).
 - **✅ v0.22.3 (2026-07-15) — GROW: Echo Chamber gets "depth inside the mechanic" (3rd game on the
   layer, after Polarity + Brim).** With varied structure done (13/13), the depth layer is the lead
   lever; Echo Chamber was the natural next target — a pure timing catch with structure/stages/meta

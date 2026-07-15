@@ -87,6 +87,7 @@ CI runs the full suite on every push and pull request.
 | Game | What you do | Folder |
 |------|-------------|--------|
 | **Echo Chamber** | An echo ring expands from the centre — catch it the instant it crosses the target band. Every hit tightens the window. Three lives. | [`games/echo-chamber/`](games/echo-chamber/) |
+| **Reprise** | The pads play a phrase — watch it, then echo it back in the same order. Each call you land grows by one and plays a touch faster. Echo on the beat and you'll find there's more here than that. | [`games/reprise/`](games/reprise/) |
 | **Poise** | Tilt the beam to balance a rolling ball — roll it over the glowing target to score, without letting it slip off either end. The targets arrive in named routes, and it grows twitchier the longer you last. | [`games/poise/`](games/poise/) |
 | **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it back up. You can only strike on the way down, and every few points another orb joins the air. | [`games/loft/`](games/loft/) |
 | **Brim** | Hold to pour, let go to stop — except the stream is still falling, and it lands anyway. Stop above the line, under the rim, and stop in the gold to build your multiplier. You can't stop where you want; you have to stop early. | [`games/brim/`](games/brim/) |

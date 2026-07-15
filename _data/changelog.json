@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-15",
+    "game": "Reprise",
+    "slug": "reprise",
+    "kind": "new",
+    "text": "A brand-new game, and a brand-new thing to do: remember and repeat. Four pads play a little phrase — you watch it, then echo it straight back, tapping the pads (or pressing 1–4) in the same order. Land the whole call and it grows by one pad and the next plays a shade faster; slip up and you lose one of three lives, but the phrase replays so you can find your feet again. That's the whole game in three seconds. The catch you discover by playing: the phrase is played at a tempo, and if you echo it back on the beat — not just correct, but in time — it pays more and builds a multiplier, and a run of on-beat echoes lights the pads gold and doubles every point for a few seconds. Echo at your own pace and you're always safe; echo like a musician and the score takes off. There's a stage past the ones on the sign, too, for anyone who gets deep enough to hear it."
+  },
+  {
+    "date": "2026-07-15",
     "game": "Echo Chamber",
     "slug": "echo-chamber",
     "kind": "grow",
