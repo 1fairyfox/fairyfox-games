@@ -30,9 +30,15 @@
  */
 export const CONFIG = Object.freeze({
   SPEED: 3.0,          // forward travel per tick at score 0 (px) — the base speed
-  SPEED_INC: 0.012,    // travel added per point of score — the run ESCALATES (calm→panic
-                       // gets a real speed edge on top of the shrinking safe space)
-  SPEED_MAX: 4.4,      // forward-travel cap (px/tick)
+  // The escalation is an ASYMPTOTE, not a capped line (depth layer: "no plateau").
+  // The old ramp (SPEED + score·0.012, capped at 4.4) flat-lined around score ~117 —
+  // past that the one felt axis never moved again and the whole ceiling was visible.
+  // speedOf is now SPEED + SPEED_SPAN·score/(score+SPEED_K): half-travelled at SPEED_K,
+  // approaching but never reaching SPEED+SPEED_SPAN, and hard-capped for safety so a
+  // config override can't spike it. Mastery always meets rising pressure.
+  SPEED_SPAN: 2.0,     // the asymptotic gain the speed approaches but never fully reaches (px/tick)
+  SPEED_K: 120,        // score at which the speed is half-way up the span (the ramp's knee)
+  SPEED_HARD_MAX: 4.9, // absolute safety cap (px/tick)
   TURN: 0.085,         // max steering change per tick (radians)
   BASE_R: 6,           // head/trail base radius (px)
   R_GROW: 0.18,        // radius added per point of score
@@ -51,6 +57,23 @@ export const CONFIG = Object.freeze({
   PRISM_SCORE: 3,      // points a prism mote is worth (a normal mote is 1)
   PRISM_GROW: 3,       // a prism grows the trail this many times as much — the greed
                        // decision: 3× the points, but 3× the space you give up
+  // ── Depth inside the mechanic (see notes/reference/depth-inside-the-mechanic.md) ──
+  // The GRAZE — the hidden tech on the one steer verb, taught nowhere: ride razor-close
+  // to your own trail (inside a thin band just OUTSIDE the kill radius) and live, and it
+  // pays a point + builds a streak. The trail — the game's whole hazard — becomes a score
+  // source for the player daring enough to kiss it (the Pac-Man reversal). Safe to not
+  // know: the band sits strictly outside the collision radius, so a beginner who never
+  // rides it plays exactly the old game.
+  GRAZE_BAND: 9,       // graze band width in px beyond the kill radius (razor-tight)
+  GRAZE_SCORE: 1,      // points a graze pays (before any Iridescence doubling)
+  GRAZE_COOLDOWN: 60,  // ticks between graze awards (~1s) — riding the band can't machine-gun
+  GRAZE_CHAIN: 300,    // a graze within this many ticks of the last one chains the streak (~5s)
+  // The REVERSAL the tech unlocks: chain IRI_TRIGGER grazes and the ink turns IRIDESCENT —
+  // for IRI_TICKS every point scores double (motes, prisms, grazes alike). The daring play
+  // becomes the greedy play. Discovered, then announced only when earned.
+  IRI_TRIGGER: 3,      // chained grazes needed to set the ink shimmering
+  IRI_TICKS: 300,      // iridescence duration (ticks; ~5s at 60fps)
+  IRI_MULT: 2,         // score multiplier while the ink is iridescent
   // Stages — the readable arc of the "calm → panic" curve (Growth Architecture Layer 1),
   // keyed on score. `at` is the score to ENTER the stage; ascending.
   STAGES: Object.freeze([
@@ -59,6 +82,10 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 60,  name: 'Tendril',      tint: '#7ab8ff' }),
     Object.freeze({ at: 120, name: 'Bloom',        tint: '#c48cff' }),
     Object.freeze({ at: 180, name: 'Cosmic bloom', tint: '#ff8fd0' }),
+    // A SECRET stage past Cosmic bloom — unlisted on the start screen, revealed only by
+    // reaching it (a card kept face-down for the player who pushes deep). `secret` flags
+    // it for the shell.
+    Object.freeze({ at: 260, name: 'Eclipse',      tint: '#9d8cff', secret: true }),
   ]),
   // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
   // Instead of every mote landing from one flat random rule, a run is a different *sequence*
@@ -110,6 +137,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.motes >= 1000 }),
   Object.freeze({ id: 'regular',     label: 'Regular',       desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth-layer feats — earned by finding the tech, not by grinding. (Appended so ids stay stable.)
+  Object.freeze({ id: 'featherbrush',label: 'Featherbrush',  desc: 'Brush your own ink and live.',
+    test: (s) => s.grazes >= 1 }),
+  Object.freeze({ id: 'iridescent',  label: 'Iridescent',    desc: 'Set the bloom shimmering.',
+    test: (s) => s.iris >= 1 }),
+  Object.freeze({ id: 'reach-eclipse',label: 'Eclipse',      desc: 'Reach the secret Eclipse stage.',
+    test: (s) => s.stageIndex >= 5 }),
 ]);
 
 /**
@@ -168,13 +202,19 @@ export function radius(g) {
 }
 
 /**
- * Current forward travel per tick — the base plus a per-score ramp, capped. Escalation
- * on top of the shrinking safe space. At score 0 it equals CONFIG.SPEED. Pure.
+ * Current forward travel per tick — the base plus a smooth score ASYMPTOTE (the
+ * depth layer's "no plateau"): escalation on top of the shrinking safe space that
+ * always creeps upward and never flat-lines. It approaches `SPEED + SPEED_SPAN`
+ * without ever reaching it, is half-travelled at `SPEED_K`, and is hard-capped for
+ * safety. At score 0 it equals CONFIG.SPEED. Pure.
  * @param {GameState} g
  * @returns {number} px per tick
  */
 export function speedOf(g) {
-  return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED + g.score * g.cfg.SPEED_INC);
+  const c = g.cfg;
+  const s = Math.max(0, g.score);
+  const v = c.SPEED + c.SPEED_SPAN * (s / (s + c.SPEED_K));
+  return Math.min(c.SPEED_HARD_MAX, v);
 }
 
 /**
@@ -199,6 +239,8 @@ export function createGame(width, height, opts = {}) {
     score: 0, hue: cfg.HUE_START, t: 0,
     motesEaten: 0, prisms: 0,
     moteQueue: [], formId: null, formName: null, formNotable: false, // current formation
+    // depth layer: graze tech streak + the iridescence reversal it unlocks
+    grazes: 0, grazeStreak: 0, grazeCd: 0, lastGrazeT: -1e9, iri: 0, iris: 0,
     mote: { x: 0, y: 0, born: 0 },
   };
   reset(g);
@@ -229,6 +271,12 @@ export function reset(g) {
   g.t = 0;
   g.motesEaten = 0;
   g.prisms = 0;
+  g.grazes = 0;           // depth layer: grazes landed this run
+  g.grazeStreak = 0;      // chained grazes toward iridescence
+  g.grazeCd = 0;          // ticks until the next graze can award
+  g.lastGrazeT = -1e9;    // tick of the last graze (chain window anchor)
+  g.iri = 0;              // iridescence ticks remaining (0 = inactive)
+  g.iris = 0;             // iridescence windows earned this run
   g.moteQueue = [];       // no formation loaded yet; the first spawnMote pulls one
   g.formId = null;
   g.formName = null;
@@ -470,7 +518,27 @@ export function hitSelf(g) {
 }
 
 /**
+ * Squared distance from the head to the NEAREST collidable trail point — the same
+ * points {@link hitSelf} checks (everything except the newest `GAP` neck points).
+ * Infinity when no collidable point exists. Powers the graze band (depth layer):
+ * surviving inside `hitR..hitR+GRAZE_BAND` of your own trail is a graze. Pure.
+ * @param {GameState} g
+ * @returns {number} squared px distance, or Infinity
+ */
+export function minSelfDist2(g) {
+  const lim = g.trail.length - g.cfg.GAP;
+  let min = Infinity;
+  for (let i = 0; i < lim; i++) {
+    const d2 = dist2(g.trail[i], g.head);
+    if (d2 < min) min = d2;
+  }
+  return min;
+}
+
+/**
  * If the head overlaps the mote, eat it: score up, grow, rotate hue, respawn.
+ * While the ink is iridescent (depth layer) every point scores double — the
+ * trail growth is NOT doubled, so the window is pure profit, not pure risk.
  * @param {GameState} g
  * @returns {boolean} true if a mote was eaten this call
  */
@@ -478,7 +546,8 @@ export function tryEat(g) {
   const reach = g.cfg.MOTE_R + radius(g);
   if (dist2(g.mote, g.head) < reach * reach) {
     const prism = g.mote.kind === 'prism';
-    g.score += prism ? g.cfg.PRISM_SCORE : 1;
+    const mult = g.iri > 0 ? g.cfg.IRI_MULT : 1;
+    g.score += (prism ? g.cfg.PRISM_SCORE : 1) * mult;
     // A prism grows the trail PRISM_GROW× as much — the greed decision: more points,
     // but it eats your safe space that much faster.
     g.maxLen += g.cfg.GROW_PER_MOTE * (prism ? g.cfg.PRISM_GROW : 1);
@@ -518,30 +587,60 @@ export function milestoneAt(score) {
  * @property {?string} formation  name of a notable formation whose head mote just became
  *   the active target (for the HUD cue) — i.e. a new sweeping/tight structure just began —
  *   else null
+ * @property {boolean} grazed  the head skimmed its own trail inside the graze band this
+ *   tick and lived (the hidden tech paying out — depth layer)
+ * @property {boolean} iridescent  an iridescence window just OPENED this tick (a graze
+ *   chain completed — the earned reversal; check `g.iri > 0` for "still active")
  */
 
 /**
  * Advance the simulation one fixed tick.
- * Order: steer → move → wall check → self check → eat. A death short-circuits
- * before eating. No-op (died:false, ate:false, formation:null) unless phase is 'play'.
+ * Order: steer → move → wall check → self check → graze → eat. A death short-circuits
+ * before grazing/eating. No-op unless phase is 'play'.
  * @param {GameState} g
  * @param {{target:(number|null)}} [input] target heading this tick, or null to hold course
  * @returns {TickResult}
  */
 export function tick(g, input = { target: null }) {
-  if (g.phase !== 'play') return { died: false, ate: false, formation: null };
+  if (g.phase !== 'play') {
+    return { died: false, ate: false, formation: null, grazed: false, iridescent: false };
+  }
   g.t++;
   if (input && input.target != null) steer(g, input.target);
   stepHead(g);
   if (hitWall(g) || hitSelf(g)) {
     g.phase = 'dead';
-    return { died: true, ate: false, formation: null };
+    return { died: true, ate: false, formation: null, grazed: false, iridescent: false };
+  }
+  // depth layer timers
+  if (g.grazeCd > 0) g.grazeCd--;
+  if (g.iri > 0) g.iri--;
+  // The GRAZE — we survived hitSelf, so the head is strictly OUTSIDE the kill radius;
+  // if it's still inside the razor band just beyond it, that's the tech paying out.
+  let grazed = false, iridescent = false;
+  if (g.grazeCd === 0) {
+    const outer = radius(g) * g.cfg.HIT_K + g.cfg.GRAZE_BAND;
+    if (minSelfDist2(g) < outer * outer) {
+      grazed = true;
+      g.grazes++;
+      g.grazeCd = g.cfg.GRAZE_COOLDOWN;
+      // chain: a graze close enough to the last one grows the streak, else restarts it
+      g.grazeStreak = (g.t - g.lastGrazeT <= g.cfg.GRAZE_CHAIN) ? g.grazeStreak + 1 : 1;
+      g.lastGrazeT = g.t;
+      g.score += g.cfg.GRAZE_SCORE * (g.iri > 0 ? g.cfg.IRI_MULT : 1);
+      if (g.grazeStreak >= g.cfg.IRI_TRIGGER && g.iri === 0) {
+        g.iri = g.cfg.IRI_TICKS;        // the reversal: every point doubles for a window
+        g.iris++;
+        g.grazeStreak = 0;
+        iridescent = true;
+      }
+    }
   }
   const ate = tryEat(g);
   // tryEat respawns on a successful eat, so g.mote is now the *next* target; if that new
   // target is the head of a notable formation, a fresh structure has just begun — cue it.
   const formation = ate && g.mote.formHead ? g.mote.form : null;
-  return { died: false, ate, formation };
+  return { died: false, ate, formation, grazed, iridescent };
 }
 
 /**
@@ -606,7 +705,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, motes:number, prisms:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, motes:number, prisms:number, grazes:number, iris:number}} RunSummary
  */
 
 /**
@@ -616,7 +715,7 @@ export function stageProgress(cfg, score) {
  * @property {number} plays
  * @property {number} best       best single-run score (mirrors `inkbloom.best`)
  * @property {number} bestStage
- * @property {{motes:number, prisms:number, points:number}} totals
+ * @property {{motes:number, prisms:number, points:number, grazes:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -634,7 +733,8 @@ export function normalizeMeta(m, legacyBest = 0) {
     plays: src.plays | 0,
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
-    totals: { motes: t.motes | 0, prisms: t.prisms | 0, points: t.points | 0 },
+    totals: { motes: t.motes | 0, prisms: t.prisms | 0, points: t.points | 0,
+              grazes: t.grazes | 0 },   // depth layer; absent in older blobs → 0 (lossless)
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -652,6 +752,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.motes += summary.motes | 0;
   next.totals.prisms += summary.prisms | 0;
   next.totals.points += summary.score | 0;
+  next.totals.grazes += summary.grazes | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   for (const a of ACHIEVEMENTS) {

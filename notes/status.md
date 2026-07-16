@@ -2,7 +2,15 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.23.0` (single source of truth: repo-root `VERSION`). **v0.23.0** is a **PLANT** run:
+**Version:** `0.23.1` (single source of truth: repo-root `VERSION`). **v0.23.1** is a **GROW** run:
+**Ink Bloom** gets the **"depth inside the mechanic"** layer — the **4th game** to carry it (after
+Polarity, Brim and Echo Chamber; Tether + Reprise ship with it from birth). On the one steer verb:
+a discoverable **Graze** (ride razor-close to your own trail and live → a point + a gold spark +
+a streak, taught nowhere — the hazard becomes the score source), **Iridescence** (3 chained grazes
+→ ~5s in which every point doubles; growth is not doubled, so the daring line is pure profit), a
+**no-plateau speed asymptote** (replacing the old `SPEED_MAX` 4.4 hard cap that flat-lined around
+score ~117), and a **secret Eclipse stage** past Cosmic bloom (score 260, revealed only by reaching
+it). 3 new badges (8 → 11); +10 pure-core tests (44 → 54). **v0.23.0** was a **PLANT** run:
 a new game, **Reprise** — a genuinely new verb (**recall / call-and-response**), the collection's
 first **memory** game and its **14th**. Four pads play a **call**; you **echo** it back in the same
 order (tap / keys 1–4). Watch, then repeat — three-second grasp. Land the call → it grows +1 and
@@ -147,8 +155,16 @@ sole host), plus each game at `…/games/<game>/`.
   `tick` emits a `formation` cue. Plus escalation (ink speeds up with score) + **prism motes
   as a greed call** (×3 points but ×3 growth), a **stage arc** (Seed → Sprout → Tendril →
   Bloom → Cosmic bloom) with HUD chip + tinted wall frame, and **meta-progression**
-  (`inkbloom.meta`: lifetime motes/prisms + 8 badges, run-report) — legacy best preserved.
-  Pure core + 44 tests. **(3rd game on varied structure.)**
+  (`inkbloom.meta`: lifetime motes/prisms/grazes + 11 badges, run-report) — legacy best preserved.
+  **Depth inside the one verb (v0.23.1, the 4th game on the layer):** the ink **no longer
+  plateaus** (`speedOf` is a smooth score asymptote, hard-capped — replaced the old `SPEED_MAX`
+  4.4 cap that flat-lined around score ~117); a hidden **Graze** (surviving inside a razor 9px
+  band just outside your own trail's kill radius pays a point + sparks gold + builds a streak —
+  taught nowhere, cooldown-gated so band-parking can't farm it); **Iridescence** (3 grazes chained
+  within ~5s of each other → a ~5s window where every point doubles — motes, prisms and grazes,
+  but *not* trail growth, so the daring line is pure profit); and a **secret Eclipse stage** past
+  Cosmic bloom (score 260), revealed only by reaching it. Pure core + 54 tests. **(3rd game on
+  varied structure.)**
 - **Echo Chamber** (`games/echo-chamber/`) — catch the expanding echo on the band. **On
   Varied Structure + Growth**: each run is a seeded **sequence of target cadences** (Even ·
   Pulse · Near · Far · Climb · Scatter) that **unlock as you climb the stages** (progression
@@ -311,11 +327,35 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **552/552** green, released (Reprise +39). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **562/562** green, released (Ink Bloom +10). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.23.1 (2026-07-16) — GROW: Ink Bloom gets "depth inside the mechanic" (4th game on the
+  layer, after Polarity, Brim + Echo Chamber).** Ink Bloom was the oldest game without the layer
+  and had the exact plateau the sweep item flags: `speedOf` hard-capped at 4.4 around score ~117,
+  after which the one felt axis was flat forever. All four depth items on the one steer verb, all
+  safe to not know: (1) **the Graze** — surviving inside a razor `GRAZE_BAND` (9px) just *outside*
+  your own trail's kill radius pays a point + sparks gold + builds a streak, taught nowhere (the
+  game's whole hazard becomes a score source — the Pac-Man reversal); cooldown-gated (60 ticks) so
+  parking on the band can't farm it; a new pure `minSelfDist2` (same collidable set as `hitSelf`)
+  powers it, so the neck/frame-one geometry can't phantom-graze (pinned). (2) **Iridescence** —
+  3 grazes chained within ~5s → ~5s where **every point doubles** (motes, prisms, grazes; trail
+  growth deliberately NOT doubled — the window is pure profit); announced only when earned; the
+  shell shimmer is colour-only (hue-cycling frame + head halo, reduced-motion friendly). (3) **no
+  plateau** — `speedOf` is a smooth score asymptote (`SPEED_SPAN` 2.0 / `SPEED_K` 120, hard-capped
+  4.9), gentler early than the old ramp and still climbing at score 400+ (regression-pinned; clears
+  a plateau-sweep entry). (4) a **secret Eclipse stage** past Cosmic bloom (score 260,
+  `secret: true`, EC's reveal pattern) — and the start tips no longer print the stage list, so the
+  "end" stays uncertain. 3 new skill-safe badges (8 → 11), `totals.grazes` (lossless legacy
+  upgrade), run-report graze count, tips trimmed to a curiosity hook. +10 pure-core tests
+  (44 → 54); collection **562/562** green. **Chrome MCP unavailable** → validated by **headless
+  Chrome** probe renders (forced Eclipse + live Iridescence: chip, shimmer frame, halo all clean,
+  desktop + mobile, no console errors) + a clean Jekyll build; **a live play-feel eyeball is still
+  worth doing** (knobs: `GRAZE_BAND` 9 / `GRAZE_COOLDOWN` 60 / `IRI_TRIGGER` 3). Player changelog +
+  `_games` date + README re-gen. Released `dev → main` by default on green (PATCH). **Depth-layer
+  rollout: 4 of 13 (Polarity, Brim, Echo Chamber, Ink Bloom).**
 - **✅ v0.23.0 (2026-07-15) — PLANT: new game Reprise (a genuinely new verb: recall / call-and-
   response).** The **14th** game and the collection's first **memory** game — every prior verb is
   real-time reflex; none asks the player to remember and repeat. Four pads flash a **call**; you
@@ -677,9 +717,16 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
 - **✅ Varied-structure rollout: 13 of 13 — COMPLETE.** The **"depth inside the mechanic"** layer
-  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 3 of 13** —
-  Polarity, Brim, **Echo Chamber** (v0.22.3). Take the next game lowest-coverage first. A game
-  already on both layers can still take one new formation or a cross-run unlock.
+  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 4 of 13** —
+  Polarity, Brim, Echo Chamber, **Ink Bloom** (v0.23.1); Tether + Reprise carry it from birth.
+  Take the next game lowest-coverage first (remaining: Orbit Slingshot, Ricochet, Skyline, Loft,
+  Poise, Symmetry, Arc, Sluice — the oldest without the layer is a good default). A game already
+  on both layers can still take one new formation or a cross-run unlock.
+- **Eyeball Ink Bloom in a real browser** (Chrome MCP was down; validated by headless probe
+  renders). Play-feel knobs: `GRAZE_BAND` (9px) — is a graze findable by a curious player yet
+  genuinely daring? — `GRAZE_COOLDOWN` (60) / `IRI_TRIGGER` (3) / `IRI_TICKS` (300) — does
+  Iridescence feel earned without trivialising the score? — and the speed asymptote `SPEED_SPAN`
+  (2.0) / `SPEED_K` (120). Also: does **Eclipse** land as a real "there's more" surprise?
 - **Eyeball Echo Chamber in a real browser** (Chrome MCP was down; validated by headless render).
   Play-feel knobs: `NODE_FRAC` (0.14) — is a node satisfying to hit but genuinely tight? —
   `WAVE_TRIGGER` (3) / `WAVE_TICKS` (300) / `WAVE_MULT` (2) — does a Standing Wave feel like an
@@ -710,10 +757,10 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.22.3 release (tagged) |
-| Tests (`node --test`) | ✅ **513/513** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.23.1 release (tagged) |
+| Tests (`node --test`) | ✅ **562/562** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | Varied-structure rollout | ✅ **COMPLETE — 13/13 games** (Poise closed it out, v0.22.2) |
-| Depth-inside-the-mechanic rollout | 🔄 **3/13** (Polarity, Brim, Echo Chamber) — the lead GROW lever |
+| Depth-inside-the-mechanic rollout | 🔄 **4/13** (Polarity, Brim, Echo Chamber, Ink Bloom; Tether + Reprise born with it) — the lead GROW lever |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

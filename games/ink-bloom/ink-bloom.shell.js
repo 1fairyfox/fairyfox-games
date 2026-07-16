@@ -111,10 +111,22 @@ function updateStageChip() {
 /** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) { showToast(st.name); shake = Math.max(shake, 10); }  // reveal the face-down stage
   updateStageChip();
+}
+
+// A graze — the hidden tech paying out: a quick gold sparkle at the head (view-only).
+function grazeSpark() {
+  for (let i = 0; i < 10; i++) {
+    const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 2.4;
+    particles.push({ x: game.head.x, y: game.head.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 16 + Math.random() * 10, h: 48 });
+  }
+  shake = Math.max(shake, 3);
 }
 function beginRun() {
   Ink.start(game);
@@ -184,14 +196,16 @@ function onDeath() {
 
   // Fold the run into the persistent meta (all logic pure in the core).
   const stageIndex = Ink.stageIndexAt(game.cfg, game.score);
-  const summary = { score: game.score, stageIndex, motes: game.motesEaten, prisms: game.prisms };
+  const summary = { score: game.score, stageIndex, motes: game.motesEaten, prisms: game.prisms,
+                    grazes: game.grazes, iris: game.iris };
   const prev = meta;
   meta = Ink.applyRun(prev, summary, game.cfg);
   saveMeta(meta);
 
   if (overSubEl) {
     const pr = game.prisms > 0 ? ` · ${game.prisms} prism${game.prisms === 1 ? '' : 's'}` : '';
-    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + pr;
+    const gz = game.grazes > 0 ? ` · ${game.grazes} graze${game.grazes === 1 ? '' : 's'}` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + pr + gz;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -237,6 +251,8 @@ function update(now) {
       const r = Ink.tick(game, { target });
       if (r.ate) { burst(game.mote.x, game.mote.y, game.hue); shake = Math.min(shake + 5, 12); }
       if (r.formation) showFormCue(r.formation);   // a notable spawn pattern just began
+      if (r.grazed) grazeSpark();                  // the hidden tech paid out
+      if (r.iridescent) { showToast('Iridescence'); shake = Math.max(shake, 8); }  // the reversal
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
       if (game.score !== prev) {
@@ -267,6 +283,16 @@ function draw() {
       ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
       ctx.lineWidth = 3 * stagePulse + 0.5;
       ctx.beginPath(); ctx.arc(game.head.x, game.head.y, (1 - stagePulse) * 200 + 10, 0, 7); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    // Iridescence — the ink shimmers while every point doubles (view-only; a colour
+    // cycle on the existing frame, no extra motion).
+    if (game.phase === 'play' && game.iri > 0) {
+      const ih = (game.t * 6) % 360;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = `hsla(${ih},95%,66%,0.5)`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(5, 5, W - 10, H - 10);
       ctx.globalCompositeOperation = 'source-over';
     }
   }
@@ -314,6 +340,12 @@ function draw() {
       const hd = g.trail[n];
       ctx.fillStyle = `hsla(${g.hue % 360},100%,80%,1)`;
       ctx.beginPath(); ctx.arc(hd.x, hd.y, r * 0.9, 0, 7); ctx.fill();
+      // iridescent halo on the head while the double-score window holds
+      if (g.iri > 0) {
+        ctx.strokeStyle = `hsla(${(t * 6 + 180) % 360},95%,72%,0.8)`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(hd.x, hd.y, r * 1.8, 0, 7); ctx.stroke();
+      }
     }
 
     // particles

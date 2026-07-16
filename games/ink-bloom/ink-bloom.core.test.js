@@ -17,7 +17,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIG, wrapAngle, dist2, radius, speedOf,
+  CONFIG, wrapAngle, dist2, radius, speedOf, minSelfDist2,
   createGame, reset, start, spawnMote,
   steer, stepHead, hitWall, hitSelf, tryEat, tick, headingToward, milestoneAt,
   ACHIEVEMENTS, stageIndexAt, stageAt, stageProgress, normalizeMeta, applyRun, newlyEarned,
@@ -227,7 +227,8 @@ test('a scripted run eats a planted mote, then dies into a wall', () => {
   assert.equal(died, true, 'eventually dies into the wall');
   assert.equal(g.phase, 'dead');
   // Dead games ignore further ticks.
-  assert.deepEqual(tick(g, { target: 0 }), { died: false, ate: false, formation: null });
+  assert.deepEqual(tick(g, { target: 0 }),
+    { died: false, ate: false, formation: null, grazed: false, iridescent: false });
 });
 
 // ── 9. Prism motes & milestones (growth) ─────────────────────────────────────
@@ -275,13 +276,25 @@ test('milestoneAt returns labels at thresholds and null otherwise', () => {
 });
 
 // ── 10. Escalation + prism greed ──────────────────────────────────────────────
-test('speedOf starts at the base and ramps with score, capped at SPEED_MAX', () => {
+test('speedOf is a smooth no-plateau asymptote: base at 0, always climbing, bounded', () => {
   const g = newGame();
-  assert.equal(speedOf(g), CONFIG.SPEED);
-  g.score = 10;
-  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED + 10 * CONFIG.SPEED_INC)) < 1e-9);
-  g.score = 1e6;
-  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+  assert.equal(speedOf(g), CONFIG.SPEED, 'score 0 is the base speed');
+  let prev = speedOf(g);
+  for (const s of [10, 50, 117, 200, 400, 800, 1600]) {
+    g.score = s;
+    const v = speedOf(g);
+    assert.ok(v > prev, `still climbing at score ${s} — no plateau`);
+    prev = v;
+  }
+  // …but bounded: approaches SPEED+SPEED_SPAN without reaching it, under the hard cap
+  g.score = 1e9;
+  assert.ok(speedOf(g) < CONFIG.SPEED + CONFIG.SPEED_SPAN + 1e-9, 'never crosses the asymptote');
+  assert.ok(speedOf(g) <= CONFIG.SPEED_HARD_MAX, 'hard cap holds');
+  // REGRESSION (the old flat-line): the old ramp capped at 4.4 near score ~117 and went
+  // flat forever; the asymptote must still be meaningfully moving deep past that point.
+  g.score = 117; const a = speedOf(g);
+  g.score = 400; const b = speedOf(g);
+  assert.ok(b > a + 0.1, 'meaningfully faster deep past the old cap point');
 });
 
 test('a prism grows the trail PRISM_GROW× as much as a normal mote (the greed cost)', () => {
@@ -327,13 +340,14 @@ test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
 });
 
 // ── 12. Meta-progression ──────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, stageIndex: 0, motes: 0, prisms: 0, ...o });
+const summary = (o = {}) =>
+  ({ score: 0, stageIndex: 0, motes: 0, prisms: 0, grazes: 0, iris: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 55);
   assert.equal(m.v, 1);
   assert.equal(m.best, 55);
-  assert.deepEqual(m.totals, { motes: 0, prisms: 0, points: 0 });
+  assert.deepEqual(m.totals, { motes: 0, prisms: 0, points: 0, grazes: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -525,4 +539,143 @@ test('loadFormation records identity and fills a non-empty queue', () => {
   assert.equal(typeof g.formNotable, 'boolean');
   assert.ok(g.moteQueue.length >= 1, 'queue filled');
   assert.equal(g.moteQueue[0].head, true, 'first spec is the formation head');
+});
+
+// ── 14. Depth inside the mechanic — graze tech, iridescence, secret stage ─────────
+/** Graze-band outer edge at score 0 (kill radius + the band). */
+const GRAZE_OUTER = () => CONFIG.BASE_R * CONFIG.HIT_K + CONFIG.GRAZE_BAND;
+
+/**
+ * Plant a collidable trail point so the NEXT tick's head sits `dist` px from it
+ * (heading is up and unsteered, so the next head is exactly speedOf(g) higher),
+ * and park the mote out of reach so scores stay exact.
+ */
+function plantGraze(g, dist) {
+  g.trail[1] = { x: g.head.x + dist, y: g.head.y - speedOf(g) };
+  g.mote = { x: -500, y: -500, born: 0, kind: 'normal' };
+}
+
+test('a razor pass along your own trail GRAZES: a point, a streak, a cooldown', () => {
+  const g = newGame(); start(g);
+  plantGraze(g, 13);                       // inside hitR..hitR+GRAZE_BAND at score 0
+  const r = tick(g, { target: null });
+  assert.equal(r.died, false, 'a graze is a survival, not a death');
+  assert.equal(r.grazed, true, 'the tech pays out');
+  assert.equal(g.grazes, 1);
+  assert.equal(g.grazeStreak, 1);
+  assert.equal(g.score, CONFIG.GRAZE_SCORE);
+  assert.equal(g.grazeCd, CONFIG.GRAZE_COOLDOWN);
+});
+
+test('the graze cooldown blocks a re-award while riding the band', () => {
+  const g = newGame(); start(g);
+  plantGraze(g, 13); tick(g, { target: null });
+  assert.equal(g.grazes, 1);
+  plantGraze(g, 13);
+  const r = tick(g, { target: null });
+  assert.equal(r.grazed, false, 'no second graze inside the cooldown');
+  assert.equal(g.grazes, 1);
+  assert.equal(g.score, CONFIG.GRAZE_SCORE, 'no banked score either');
+});
+
+test('the band is razor-thin: clear of it is no graze; inside the kill radius is death', () => {
+  const g = newGame(); start(g);
+  plantGraze(g, GRAZE_OUTER() + 6);        // just past the band — an ordinary pass
+  let r = tick(g, { target: null });
+  assert.equal(r.grazed, false);
+  assert.equal(g.grazes, 0);
+  const g2 = newGame(); start(g2);
+  plantGraze(g2, 2);                       // inside the kill radius — greed overreached
+  r = tick(g2, { target: null });
+  assert.equal(r.died, true, 'the trail is still lethal');
+  assert.equal(g2.grazes, 0, 'a death never counts as a graze');
+});
+
+test('REGRESSION: a fresh run and a straight neck never phantom-graze (frame-one guard)', () => {
+  const g = newGame(); start(g);
+  const outer = GRAZE_OUTER();
+  assert.ok(minSelfDist2(g) > outer * outer, 'the seeded trail starts clear of the band');
+  g.mote = { x: -500, y: -500, born: 0, kind: 'normal' };
+  for (let i = 0; i < 10; i++) {
+    const r = tick(g, { target: null });
+    assert.equal(r.grazed, false, `no phantom graze at tick ${i}`);
+  }
+  assert.equal(g.grazes, 0);
+});
+
+test('chaining IRI_TRIGGER grazes sets the ink IRIDESCENT (the earned reversal)', () => {
+  const g = newGame(); start(g);
+  let opened = false;
+  for (let i = 0; i < CONFIG.IRI_TRIGGER; i++) {
+    g.grazeCd = 0;                         // collapse the cooldown; the ticks stay well
+    plantGraze(g, 13);                     // inside the GRAZE_CHAIN window
+    const r = tick(g, { target: null });
+    assert.equal(r.grazed, true, `graze ${i + 1} lands`);
+    if (r.iridescent) opened = true;
+  }
+  assert.equal(opened, true, 'the window opened on the final chained graze');
+  assert.ok(g.iri > 0, 'iridescence is live');
+  assert.equal(g.iris, 1);
+  assert.equal(g.grazeStreak, 0, 'the streak banks into the window');
+});
+
+test('a stale graze does not chain — the streak restarts at 1', () => {
+  const g = newGame(); start(g);
+  plantGraze(g, 13); tick(g, { target: null });
+  assert.equal(g.grazeStreak, 1);
+  g.grazeCd = 0;
+  g.grazeStreak = 2;                                 // even a built streak…
+  g.lastGrazeT = g.t - (CONFIG.GRAZE_CHAIN + 1);     // …left too long…
+  plantGraze(g, 13); tick(g, { target: null });
+  assert.equal(g.grazeStreak, 1, '…restarts when the chain window lapses');
+  assert.equal(g.iri, 0, 'no unearned iridescence');
+});
+
+test('while iridescent every point doubles — but trail growth does not', () => {
+  const g = newGame(); start(g);
+  g.iri = 100;
+  const len = g.maxLen;
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'normal' };
+  tryEat(g);
+  assert.equal(g.score, 1 * CONFIG.IRI_MULT, 'a normal mote scores double');
+  assert.equal(g.maxLen, len + CONFIG.GROW_PER_MOTE, 'growth is NOT doubled — pure profit');
+  g.mote = { x: g.head.x, y: g.head.y, born: 0, kind: 'prism' };
+  tryEat(g);
+  assert.equal(g.score, (1 + CONFIG.PRISM_SCORE) * CONFIG.IRI_MULT, 'a prism doubles too');
+});
+
+test('iridescence doubles a graze and ticks down to expiry', () => {
+  const g = newGame(); start(g);
+  g.iri = 100;
+  plantGraze(g, 13);
+  tick(g, { target: null });
+  assert.equal(g.score, CONFIG.GRAZE_SCORE * CONFIG.IRI_MULT, 'a graze inside the window doubles');
+  g.iri = 3;
+  g.mote = { x: -500, y: -500, born: 0, kind: 'normal' };
+  for (let i = 0; i < 5; i++) tick(g, { target: null });
+  assert.equal(g.iri, 0, 'the window closes and stays closed');
+});
+
+test('Eclipse is a face-down card: secret-flagged, past Cosmic bloom, badge on reach', () => {
+  const last = CONFIG.STAGES[CONFIG.STAGES.length - 1];
+  assert.equal(last.name, 'Eclipse');
+  assert.equal(last.secret, true);
+  assert.equal(CONFIG.STAGES.filter(s => s.secret).length, 1, 'exactly one secret stage');
+  assert.equal(stageIndexAt(CONFIG, last.at - 1), CONFIG.STAGES.length - 2, 'hidden until reached');
+  assert.equal(stageIndexAt(CONFIG, last.at), CONFIG.STAGES.length - 1, 'revealed at the threshold');
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 260, stageIndex: 5, motes: 100 }));
+  assert.equal(m.achieved['reach-eclipse'], true);
+});
+
+test('depth badges + totals.grazes fold into the meta (legacy blobs upgrade losslessly)', () => {
+  let m = normalizeMeta({ totals: { motes: 5 } });   // an old blob with no grazes field
+  assert.equal(m.totals.grazes, 0, 'legacy meta upgrades with grazes at 0');
+  assert.equal(m.totals.motes, 5, 'nothing lost');
+  m = applyRun(m, summary({ score: 12, motes: 8, grazes: 4, iris: 1 }));
+  assert.equal(m.totals.grazes, 4);
+  assert.equal(m.achieved['featherbrush'], true);
+  assert.equal(m.achieved['iridescent'], true);
+  m = applyRun(m, summary({ score: 2, motes: 1, grazes: 2 }));
+  assert.equal(m.totals.grazes, 6, 'grazes accumulate');
 });

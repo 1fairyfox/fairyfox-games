@@ -14,18 +14,27 @@ pointer at a capped rate, so it flows in curves rather than snapping. Click or p
 Ink Bloom follows the shared **Growth Architecture**
 (`notes/reference/growth-architecture.md`):
 
-- **Escalation (the core-fun fix).** On top of the naturally shrinking safe space, the
-  ink now **speeds up with your score** (`speedOf`, capped) — the "panic" half of the
-  curve gets a real edge. And **prism motes are a genuine greed call**: triple the
-  points, but they grow your trail **3× as fast** (`PRISM_GROW`), eating your room that
-  much quicker.
+- **Escalation with no plateau.** On top of the naturally shrinking safe space, the ink
+  **speeds up with your score** — and the ramp is a smooth **asymptote** (`speedOf`:
+  always creeping upward, never flat-lining, hard-capped for safety), so there is no
+  score at which the game stops getting harder. **Prism motes are a genuine greed
+  call**: triple the points, but they grow your trail **3× as fast** (`PRISM_GROW`).
+- **Varied structure.** Motes arrive as a seeded **sequence of named spawn patterns**
+  (Scatter · Drift · Vine · Ring · Thicket · Spectrum) pulled from a stage-weighted
+  pool (`FORMATIONS`/`pickFormation`/`loadFormation`) — climbing the stages opens the
+  pool, and the notable patterns flash a quiet name cue.
 - **Stages (the run's arc).** Seed → Sprout → Tendril → Bloom → Cosmic bloom — a quiet
   HUD chip + progress bar, a wall frame tinted by stage, and a shockwave on stage change
-  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested). And past the end… the
+  stages may not be all there is.
+- **Depth inside the mechanic.** There is more underneath the one steer verb than the
+  game ever explains — discoverable technique for the player daring enough to look,
+  all of it strictly optional (`notes/reference/depth-inside-the-mechanic.md`). No
+  spoilers here.
 - **Meta-progression (across runs).** A persistent `inkbloom.meta` blob tracks lifetime
-  motes, prisms, furthest stage, and **badges** (first run, Tendril/Bloom, eat a prism,
-  10 prisms in a run, a century, 1,000 all-time motes, 25 runs). Game-over run report +
-  account line. Skill-safe: badges, never power. Legacy `inkbloom.best` preserved.
+  motes, prisms, furthest stage, and **11 badges** (some of them face-down feats).
+  Game-over run report + account line. Skill-safe: badges, never power. Legacy
+  `inkbloom.best` preserved.
 
 ## How it's built
 
