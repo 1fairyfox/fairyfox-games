@@ -31,12 +31,28 @@ Ricochet follows the shared **Varied Structure** pattern
   targets still shrink with score, so late-game angles stay mean.)
 - **Stages (the run's arc).** Rookie → Marksman → Trick shot → Bank master — a quiet HUD
   chip + progress bar, a stage-tinted floor line, and a shockwave on stage change
-  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested). Past Bank master waits a
+  **secret stage**, unlisted on the start screen and revealed only by reaching it.
+- **Depth inside the mechanic** (`notes/reference/depth-inside-the-mechanic.md`) — the
+  layer under the five minutes, all on the one aim-and-fire verb, all safe to not know:
+  - **No plateau.** The target shrink used to hard-floor at 12px around score ~55 and go
+    flat forever. `targetRadius` now rides a smooth **score asymptote** on the linear
+    ramp — always tightening, never arriving — hard-floored at `R_HARD_MIN` so no
+    override can spike past it.
+  - **The dead centre (hidden tech).** The drawn target circle hides a razor line: a
+    collected target whose closest pass threads within `PIN_BAND` (4px) of its centre
+    pays `PIN_BONUS` extra, bursts gold, and builds a streak. Taught nowhere; an
+    off-centre collect or a missed shot breaks it.
+  - **The blaze (the reversal).** `PIN_TRIGGER` dead centres in a row light the blaze:
+    the shot burns gold and the next `BLAZE_SHOTS` scoring shots pay **double** — the
+    precise thread quietly becomes the greedy line. The triggering shot is never
+    doubled; a miss doesn't consume the window (the lost life is enough).
 - **Meta-progression (across runs).** A persistent `ricochet.meta` blob tracks lifetime
-  targets hit, shots, furthest stage, biggest bank, and **badges** (first run,
-  Trick shot/Bank master, a triple, a full RICOCHET, a century, 1,000 all-time hits, 25
-  runs). Game-over run report + account line. Skill-safe: badges, never power. Legacy
-  `ricochet.best` preserved.
+  targets hit, shots, furthest stage, biggest bank, lifetime dead centres, and
+  **badges** (first run, Trick shot/Bank master, a triple, a full RICOCHET, a century,
+  1,000 all-time hits, 25 runs, plus the depth discoveries: a dead centre, a blaze, the
+  secret stage). Game-over run report + account line. Skill-safe: badges, never power.
+  Legacy `ricochet.best` preserved (old meta blobs upgrade losslessly).
 
 **Controls:** move the mouse (or finger) to aim — a dashed guide shows the first leg
 of the shot. Click, tap, or press **Space** to fire. Your best score is saved locally
@@ -95,7 +111,11 @@ zero, dead-state inertness, and a deterministic scripted run). The **formation**
 pinned too: a well-formed pool, stage-gated + deterministic picking, a pool that widens
 (and a calm share that fades) as the stages climb, slots that always resolve inside the
 spawn box and clear of the launcher and each other, a slot queue that never empties, and
-distinct seeds building distinctly-shaped runs.
+distinct seeds building distinctly-shaped runs. The **depth layer** is pinned as well:
+the no-plateau asymptote (strictly tightening past the old floor, override-proof hard
+floor), dead-centre detection inside the razor band only, the bonus + streak build/break
+rules, the blaze trigger/doubling/expiry (and that a miss doesn't consume it), the
+secret stage's placement and flag, and the lossless meta upgrade + new badges.
 
 ### Design note: reflection that never escapes the box
 

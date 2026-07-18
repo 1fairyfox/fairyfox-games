@@ -20,6 +20,14 @@
  * progression drives the variety and the late run leans on the bank-only layouts. No two
  * runs offer the same skeleton of angles; the same seed still replays exactly.
  *
+ * Underneath the five minutes sits the depth layer (see
+ * notes/reference/depth-inside-the-mechanic.md): the shrink never plateaus (a score
+ * asymptote rides on the linear ramp, hard-floored), the drawn target hides a razor
+ * DEAD-CENTRE line through its heart (thread it for a bonus and a streak — taught
+ * nowhere), three dead centres in a row light the BLAZE (the next shots score double),
+ * and a secret stage waits past Bank master. All of it on the one aim-and-fire verb,
+ * and all of it safe to not know.
+ *
  * Why a pure core: the whole shot — reflections off four walls and which targets
  * the path intersects — is computed deterministically as one pure function
  * ({@link computeShot}). The shell merely animates a dot along the returned
@@ -56,12 +64,39 @@ export const CONFIG = Object.freeze({
   SPAWN_CLEAR: 130,    // try to keep new targets this far from the launcher (px)
   SPAWN_TRIES: 30,     // attempts to satisfy spacing before accepting anyway
   MIN_UP: 0.18,        // minimum upward component of the aim (so it always fires up)
+  // ── Depth inside the mechanic (the layer under the five minutes) ────────────────
+  // NO PLATEAU: the linear shrink above hard-floors at TARGET_R_MIN around score ~55,
+  // after which nothing ever got harder. The radius now also rides a smooth score
+  // asymptote on top of the linear shrink — always creeping toward (never reaching)
+  // 1-R_SHRINK_SPAN of the linear radius, half-travelled at R_SHRINK_K — and the whole
+  // product is hard-floored at R_HARD_MIN so no override can spike past it.
+  R_SHRINK_SPAN: 0.18, // asymptotic extra radius shrink the score approaches
+  R_SHRINK_K: 150,     // score at which the extra shrink is half-travelled (the ramp's knee)
+  R_HARD_MIN: 9,       // absolute target-radius floor in px (guards rogue overrides)
+  // The TECH: the drawn target circle hides a razor line through its heart. A collected
+  // target whose closest pass sat within PIN_BAND of its CENTRE is a DEAD CENTRE — extra
+  // points on top of the bank score, and a streak. A dead centre is a subset of any hit
+  // (reach ≈ radius + PROJ_R ≥ 13px vs a 4px band), so it is discovered, never taught,
+  // and safe to not know. An off-centre collect or a missed shot breaks the streak.
+  PIN_BAND: 4,         // px the path's closest pass must stay within of a target's centre
+  PIN_BONUS: 2,        // extra points a dead-centre target scores on top of the bank score
+  // The REVERSAL the tech unlocks: PIN_TRIGGER dead centres in a row light the BLAZE —
+  // the shot catches fire and the next BLAZE_SHOTS scoring shots pay double. The precise
+  // thread quietly becomes the greedy line. The triggering shot itself is not doubled;
+  // a missed shot does not consume the window (the lost life already punishes it).
+  PIN_TRIGGER: 3,      // consecutive dead centres needed to light the blaze
+  BLAZE_SHOTS: 2,      // scoring shots the blaze holds for once lit
+  BLAZE_MULT: 2,       // score multiplier applied to every point while the blaze holds
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
   STAGES: Object.freeze([
     Object.freeze({ at: 0,   name: 'Rookie',      tint: '#ffd86a' }),
     Object.freeze({ at: 20,  name: 'Marksman',    tint: '#ffb26a' }),
     Object.freeze({ at: 60,  name: 'Trick shot',  tint: '#ff8f6a' }),
     Object.freeze({ at: 140, name: 'Bank master', tint: '#ff6ad0' }),
+    // A SECRET stage past Bank master — unlisted on the start screen, revealed only by
+    // reaching it (a card kept face-down for the shooter who pushes deep). `secret`
+    // flags it for the shell's reveal toast.
+    Object.freeze({ at: 240, name: 'Legend',      tint: '#c66aff', secret: true }),
   ]),
   // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer;
   // Polarity is the reference build). Instead of every target being one flat random point
@@ -225,6 +260,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.hits >= 1000 }),
   Object.freeze({ id: 'regular',     label: 'Regular',      desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth layer (skill-safe — they mark discoveries, never grant power)
+  Object.freeze({ id: 'dead-centre',  label: 'Dead centre', desc: 'Thread a shot through a target’s heart.',
+    test: (s) => (s.pins | 0) >= 1 }),
+  Object.freeze({ id: 'blaze',        label: 'Blaze',       desc: 'Light the blaze — three dead centres in a row.',
+    test: (s) => (s.blazes | 0) >= 1 }),
+  Object.freeze({ id: 'reach-legend', label: 'Legend',      desc: 'Reach the secret Legend stage.',
+    test: (s) => s.stageIndex >= 4 }),
 ]);
 
 /**
@@ -252,6 +294,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} lives              remaining lives
  * @property {number} shots              shots fired this run
  * @property {number} bestChain          most targets collected in a single shot
+ * @property {number} pins               dead-centre collects this run (the hidden tech)
+ * @property {number} pinStreak          consecutive dead centres toward a blaze
+ * @property {number} blaze              blaze scoring-shots remaining (0 = unlit; points double)
+ * @property {number} blazes             blazes lit this run
  * @property {Array<{fx:number,fy:number,head?:boolean}>} formSlots  remaining slots of the current layout
  * @property {?string} formId            id of the current layout
  * @property {?string} formName          display name of the current layout
@@ -272,12 +318,22 @@ export function dist2(a, b) {
 }
 
 /**
- * Current target radius — shrinks as the score climbs, then holds at the floor.
+ * Current target radius — the familiar linear shrink early, times a smooth score
+ * asymptote so it NEVER plateaus (the depth layer's no-plateau rule): the old linear
+ * shrink hard-floored at TARGET_R_MIN around score ~55, after which the game stopped
+ * getting harder forever. The asymptote keeps the radius tightening — approaching,
+ * never reaching, `1 - R_SHRINK_SPAN` of the linear radius, half-travelled at
+ * R_SHRINK_K — and the product is hard-floored at R_HARD_MIN so no config override
+ * can spike past it. Pure.
  * @param {GameState} g
  * @returns {number} radius in px
  */
 export function targetRadius(g) {
-  return Math.max(g.cfg.TARGET_R_MIN, g.cfg.TARGET_R0 - g.score * g.cfg.TARGET_SHRINK);
+  const c = g.cfg;
+  const lin = Math.max(c.TARGET_R_MIN, c.TARGET_R0 - g.score * c.TARGET_SHRINK);
+  const s = Math.max(0, g.score);
+  const asym = 1 - c.R_SHRINK_SPAN * (s / (s + c.R_SHRINK_K)); // always creeping, never arriving
+  return Math.max(c.R_HARD_MIN, lin * asym);
 }
 
 /**
@@ -462,6 +518,7 @@ export function createGame(width, height, opts = {}) {
     aim: -Math.PI / 2,
     targets: [],
     score: 0, lives: cfg.LIVES, shots: 0, bestChain: 0, hits: 0,
+    pins: 0, pinStreak: 0, blaze: 0, blazes: 0,   // depth layer: tech streak + reversal
     // current formation (the varied-structure layer)
     formSlots: [], formId: null, formName: null, formNotable: false, formCue: null,
   };
@@ -484,6 +541,10 @@ export function reset(g) {
   g.shots = 0;
   g.bestChain = 0;
   g.hits = 0;
+  g.pins = 0;         // depth layer: dead-centre collects this run
+  g.pinStreak = 0;    // consecutive dead centres toward a blaze
+  g.blaze = 0;        // blaze scoring-shots remaining (0 = unlit)
+  g.blazes = 0;       // blazes lit this run
   g.formSlots = [];
   g.formId = null;
   g.formName = null;
@@ -526,8 +587,10 @@ function segPointClosest(a, b, p) {
  * Result of a computed shot.
  * @typedef {Object} Shot
  * @property {Point[]} points   the bounce polyline: launcher → each wall hit → end
- * @property {{index:number, s:number}[]} hits  collected targets, in path order,
- *           each with the arc length `s` at which the path first reaches it
+ * @property {{index:number, s:number, pin:boolean}[]} hits  collected targets, in path
+ *           order, each with the arc length `s` at which the path first reaches it and
+ *           `pin` — whether the path's closest pass threaded within PIN_BAND of the
+ *           target's centre (a dead centre, the hidden tech)
  * @property {number} reachR    the pickup reach used (targetRadius + PROJ_R)
  * @property {number} length    total path length (px)
  */
@@ -549,8 +612,10 @@ export function computeShot(g, angle = g.aim) {
   let dx = Math.cos(angle), dy = Math.sin(angle);
   const points = [{ x: pos.x, y: pos.y }];
 
-  // earliest along-path arc length per target index
+  // earliest along-path arc length per target index + the path's closest pass to each
+  // centre (the dead-centre detector — depth layer)
   const best = new Array(g.targets.length).fill(Infinity);
+  const near2 = new Array(g.targets.length).fill(Infinity);
   let accLen = 0;
 
   const segments = g.cfg.MAX_BOUNCES + 1;
@@ -568,6 +633,7 @@ export function computeShot(g, angle = g.aim) {
     // collect along this segment
     for (let i = 0; i < g.targets.length; i++) {
       const c = segPointClosest(pos, end, g.targets[i]);
+      if (c.d2 < near2[i]) near2[i] = c.d2;
       if (c.d2 <= reach2) {
         const s = accLen + c.along;
         if (s < best[i]) best[i] = s;
@@ -583,9 +649,10 @@ export function computeShot(g, angle = g.aim) {
     pos = end;
   }
 
+  const pinBand2 = g.cfg.PIN_BAND * g.cfg.PIN_BAND;
   const hits = [];
   for (let i = 0; i < best.length; i++) {
-    if (isFinite(best[i])) hits.push({ index: i, s: best[i] });
+    if (isFinite(best[i])) hits.push({ index: i, s: best[i], pin: near2[i] <= pinBand2 });
   }
   hits.sort((a, b) => a.s - b.s);
   return { points, hits, reachR, length: accLen };
@@ -596,6 +663,10 @@ export function computeShot(g, angle = g.aim) {
  * @typedef {Object} FireResult
  * @property {Shot} shot       the traced shot (for the shell to animate)
  * @property {number} chain    targets collected this shot
+ * @property {number} pins     dead-centre collects this shot (the hidden tech)
+ * @property {number} gain     points the shot actually scored (bank + pin bonuses, blaze-doubled)
+ * @property {boolean} blazing this shot's points were doubled by a lit blaze
+ * @property {boolean} blazeStarted this shot just lit the blaze (for the shell's announcement)
  * @property {boolean} died    whether this shot ended the run
  * @property {?string} formation  name of a *notable* target layout that just began, else null
  */
@@ -612,27 +683,50 @@ export function fire(g) {
   const shot = computeShot(g, g.aim);
   g.shots++;
   const chain = shot.hits.length;
+  let pins = 0, gain = 0, blazing = false, blazeStarted = false;
 
   if (chain > 0) {
     // remove collected targets by descending index so earlier indices stay valid
     const idx = shot.hits.map(h => h.index).sort((a, b) => b - a);
     for (const i of idx) g.targets.splice(i, 1);
-    g.score += shotScore(chain);   // bank bonus — a big chain is worth far more
+    for (const h of shot.hits) if (h.pin) pins++;
+    // bank bonus — a big chain is worth far more — plus the hidden dead-centre bonus,
+    // the whole shot doubled while a blaze holds (the reversal the tech unlocks)
+    gain = shotScore(chain) + pins * g.cfg.PIN_BONUS;
+    blazing = g.blaze > 0;
+    if (blazing) { gain *= g.cfg.BLAZE_MULT; g.blaze--; }
+    g.score += gain;
     g.hits += chain;               // raw targets collected (distinct from bonus score)
+    g.pins += pins;
     if (chain > g.bestChain) g.bestChain = chain;
+    // the streak walks the hits in path order: a dead centre builds it, an off-centre
+    // collect breaks it; PIN_TRIGGER in a row light the blaze (the triggering shot is
+    // itself never doubled — the reward is the NEXT shots, Orbit's aurora shape)
+    for (const h of shot.hits) {
+      if (h.pin) {
+        g.pinStreak++;
+        if (g.pinStreak >= g.cfg.PIN_TRIGGER) {
+          g.blaze = g.cfg.BLAZE_SHOTS;
+          g.blazes++;
+          g.pinStreak = 0;
+          blazeStarted = true;
+        }
+      } else g.pinStreak = 0;
+    }
     fillTargets(g);                // may open a new named layout (raising g.formCue)
   } else {
-    g.lives--;
+    g.pinStreak = 0;               // a missed shot breaks the dead-centre streak
+    g.lives--;                     // (but does not consume a lit blaze — the life is enough)
     if (g.lives <= 0) {
       g.lives = 0;
       g.phase = 'dead';
       g.formCue = null;
-      return { shot, chain, died: true, formation: null };
+      return { shot, chain, pins, gain, blazing, blazeStarted, died: true, formation: null };
     }
   }
   const formation = g.formCue;
   g.formCue = null;
-  return { shot, chain, died: false, formation };
+  return { shot, chain, pins, gain, blazing, blazeStarted, died: false, formation };
 }
 
 /**
@@ -723,7 +817,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, hits:number, shots:number, bestChain:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, hits:number, shots:number, bestChain:number, pins:number, blazes:number}} RunSummary
  */
 
 /**
@@ -734,7 +828,7 @@ export function stageProgress(cfg, score) {
  * @property {number} best       best single-run score (mirrors `ricochet.best`)
  * @property {number} bestStage
  * @property {number} bestChain  biggest single-shot bank ever
- * @property {{hits:number, shots:number, points:number}} totals
+ * @property {{hits:number, shots:number, points:number, pins:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -753,7 +847,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestChain: src.bestChain | 0,
-    totals: { hits: t.hits | 0, shots: t.shots | 0, points: t.points | 0 },
+    totals: { hits: t.hits | 0, shots: t.shots | 0, points: t.points | 0, pins: t.pins | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -771,6 +865,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.hits += summary.hits | 0;
   next.totals.shots += summary.shots | 0;
   next.totals.points += summary.score | 0;
+  next.totals.pins += summary.pins | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestChain = Math.max(next.bestChain, summary.bestChain | 0);

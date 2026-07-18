@@ -93,6 +93,17 @@
   }
   #formCue.show { opacity:.82; transform:translateX(-50%) translateY(0); }
   @media (prefers-reduced-motion: reduce){ #formCue{ transition:opacity .2s ease } }
+
+  /* Dead-centre cue — a quiet gold line when a shot threads a target's heart (the
+     hidden tech; depth layer). Small on purpose: the discovery is the reward. */
+  #pinCue {
+    position:absolute; top:31%; left:50%; transform:translateX(-50%) translateY(-4px);
+    font-size:13px; letter-spacing:.2em; text-transform:uppercase; font-weight:600;
+    color:#ffd166; opacity:0; pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  #pinCue.show { opacity:.9; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce){ #pinCue{ transition:opacity .2s ease } }
 </style>
 </head>
 <body>
@@ -109,6 +120,7 @@
     <div id="stageBar"><div id="stageFill"></div></div>
   </div>
   <div id="formCue"></div>
+  <div id="pinCue"></div>
 
   <div class="panel" id="start">
     <div class="title">Ricochet</div>
@@ -117,14 +129,12 @@
       shot through several for a big chain.</div>
     <div class="tip"><b>Tip:</b> a shot that collects <em>nothing</em> costs a life — three
       misses ends the run. Aim off the walls, not just straight at a target: the targets
-      shrink as you score, so the easy line-of-sight shots dry up and banking becomes the
-      whole game. Sweep <b>two or more in one shot</b> for a bank — and a bank is worth far
-      more than the same targets picked off singly (a 3-bank scores 6, not 3), so greed pays.
-      Climb the <b>stages</b> (Rookie → Marksman → Trick shot → Bank master); feats earn
-      <b>badges</b> that stick across runs. The targets arrive as <b>layouts</b> — a loose
-      Scatter, a bunched Rack, a sweepable Gallery, a climbing Ladder, wall-hugging Pockets,
-      the dense Gauntlet — dealt in a different order every run, and climbing the stages
-      brings the meaner, bank-only ones out.</div>
+      keep shrinking as you score, so the easy line-of-sight shots dry up and banking
+      becomes the whole game. Sweep <b>two or more in one shot</b> for a bank — worth far
+      more than the same targets picked off singly (a 3-bank scores 6, not 3), so greed
+      pays. The targets arrive as named <b>layouts</b> dealt in a different order every
+      run, and climbing the stages brings out the meaner, bank-only ones. Sharpshooters
+      whisper that a truly clean line pays more than the scoreboard admits.</div>
     <div class="prompt">Aim &amp; click to fire</div>
   </div>
 

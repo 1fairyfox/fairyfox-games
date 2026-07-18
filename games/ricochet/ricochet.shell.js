@@ -44,6 +44,7 @@ const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast'
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
 const formCueEl = el('formCue');
+const pinCueEl = el('pinCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -70,6 +71,17 @@ function showFormCue(name) {
   formCueEl.classList.add('show');
   clearTimeout(formCueTimer);
   formCueTimer = setTimeout(() => formCueEl.classList.remove('show'), 1500);
+}
+
+// Dead-centre cue — a quiet gold line when a shot threads a target's heart (the hidden
+// tech; depth layer). Deliberately small: the discovery is the reward, not a fanfare.
+let pinCueTimer = 0;
+function showPinCue(text) {
+  if (!pinCueEl) return;
+  pinCueEl.textContent = text;
+  pinCueEl.classList.add('show');
+  clearTimeout(pinCueTimer);
+  pinCueTimer = setTimeout(() => pinCueEl.classList.remove('show'), 1400);
 }
 
 // Persistence (IO): the cross-run meta blob, backward-compatible with the legacy best.
@@ -109,9 +121,11 @@ function updateStageChip() {
 /** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) { showToast(st.name); shake = Math.max(shake, 10); }  // reveal the face-down stage
   updateStageChip();
 }
 function beginRun() {
@@ -204,7 +218,7 @@ function advanceFlight() {
       flight.popped.add(h.index);
       flight.combo++;
       const t = game.targets[h.index];
-      if (t) burst(t.x, t.y, flight.combo);
+      if (t) burst(t.x, t.y, flight.combo, h.pin);   // a threaded target bursts gold
       shake = Math.min(shake + 4, 14);
     }
   }
@@ -216,15 +230,22 @@ function advanceFlight() {
     if (res) {
       scoreEl.textContent = game.score;
       renderLives();
-      // Prefer the banked-shot label; otherwise flash a progression rank the first
-      // time the running score crosses a milestone (scanning so a bank can't skip one).
+      // Prefer the blaze announcement, then the banked-shot label; otherwise flash a
+      // progression rank the first time the running score crosses a milestone
+      // (scanning so a bank can't skip one).
       const lbl = R.chainLabel(res.chain);
-      if (lbl) showToast(lbl);
+      if (res.blazeStarted) showToast('BLAZE! ×2');
+      else if (lbl) showToast(lbl);
       else {
         for (let s = prevScore + 1; s <= game.score; s++) {
           const m = R.milestoneAt(s);
           if (m) { showToast(m); break; }
         }
+      }
+      // The hidden tech names itself only when it lands (discovered, never taught).
+      if (res.pins > 0) {
+        const bonus = res.pins * game.cfg.PIN_BONUS * (res.blazing ? game.cfg.BLAZE_MULT : 1);
+        showPinCue('● dead centre +' + bonus);
       }
       if (res.chain === 0) { shake = Math.max(shake, 8); flash = 0.6; }
       // Stage transition — the readable arc of the run (Growth Layer 1).
@@ -238,9 +259,9 @@ function advanceFlight() {
 }
 
 // ── Eye candy (view-only) ──────────────────────────────────────────────────────
-function burst(x, y, combo) {
-  const hue = 150 + combo * 26;
-  const n = 16 + combo * 4;
+function burst(x, y, combo, pin) {
+  const hue = pin ? 46 : 150 + combo * 26;   // gold for a dead centre
+  const n = (pin ? 22 : 16) + combo * 4;
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 5;
     particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 22 + Math.random() * 16, h: hue });
@@ -269,6 +290,7 @@ function onDeath() {
   shake = 18; flash = 0.7;
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
+  if (pinCueEl) pinCueEl.classList.remove('show');
   finalEl.textContent = game.score;
 
   // Fold the run into the persistent meta (all logic pure in the core).
@@ -276,6 +298,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex,
     hits: game.hits, shots: game.shots, bestChain: game.bestChain,
+    pins: game.pins, blazes: game.blazes,
   };
   const prev = meta;
   meta = R.applyRun(prev, summary, game.cfg);
@@ -283,7 +306,8 @@ function onDeath() {
 
   if (overSub) {
     const bc = game.bestChain > 1 ? ` · best shot ${game.bestChain} in one` : '';
-    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + bc;
+    const pc = game.pins > 0 ? ` · ${game.pins} dead centre${game.pins > 1 ? 's' : ''}` : '';
+    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + bc + pc;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -383,10 +407,13 @@ function draw() {
       ctx.setLineDash([]);
     }
 
-    // the flying shot: faint full path + bright traversed comet
+    // the flying shot: faint full path + bright traversed comet. While a blaze holds
+    // (the reversal the hidden tech unlocks) the shot burns gold — colour-only, so it
+    // stays legible and reduced-motion friendly.
     if (flight) {
+      const hot = game.blaze > 0;
       const pts = flight.points;
-      ctx.strokeStyle = 'rgba(138,180,255,0.16)';
+      ctx.strokeStyle = hot ? 'rgba(255,209,102,0.18)' : 'rgba(138,180,255,0.16)';
       ctx.lineWidth = 2; ctx.lineJoin = 'round';
       ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -396,18 +423,19 @@ function draw() {
       const tail = pointAt(Math.max(0, flight.travelled - 90));
       ctx.globalCompositeOperation = 'lighter';
       const cg = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
-      cg.addColorStop(0, 'rgba(138,180,255,0)');
-      cg.addColorStop(1, 'rgba(170,210,255,0.9)');
+      cg.addColorStop(0, hot ? 'rgba(255,209,102,0)' : 'rgba(138,180,255,0)');
+      cg.addColorStop(1, hot ? 'rgba(255,224,130,0.95)' : 'rgba(170,210,255,0.9)');
       ctx.strokeStyle = cg; ctx.lineWidth = 4; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(tail.x, tail.y); ctx.lineTo(head.x, head.y); ctx.stroke();
-      ctx.fillStyle = '#dbe9ff';
+      ctx.fillStyle = hot ? '#ffe082' : '#dbe9ff';
       ctx.beginPath(); ctx.arc(head.x, head.y, 5, 0, 7); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // launcher
-    ctx.fillStyle = '#8ab4ff';
-    ctx.shadowBlur = 16; ctx.shadowColor = '#8ab4ff';
+    // launcher (burns gold while a blaze holds)
+    const hotL = game.blaze > 0;
+    ctx.fillStyle = hotL ? '#ffd166' : '#8ab4ff';
+    ctx.shadowBlur = 16; ctx.shadowColor = hotL ? '#ffd166' : '#8ab4ff';
     ctx.beginPath(); ctx.arc(L.x, L.y, 10, 0, 7); ctx.fill();
     ctx.shadowBlur = 0;
 

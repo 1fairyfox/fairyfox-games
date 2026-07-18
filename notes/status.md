@@ -2,7 +2,17 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.23.2` (single source of truth: repo-root `VERSION`). **v0.23.2** is a **GROW** run:
+**Version:** `0.23.3` (single source of truth: repo-root `VERSION`). **v0.23.3** is a **GROW** run:
+**Ricochet** gets the **"depth inside the mechanic"** layer — the **6th game** to carry it
+(after Polarity, Brim, Echo Chamber, Ink Bloom and Orbit Slingshot; Tether + Reprise ship with
+it from birth). On the one aim-and-fire verb: a discoverable **Dead Centre** (thread a shot
+within a razor 4px of a target's centre → +2 on top of the bank + a gold burst + a streak,
+taught nowhere — every drawn target hides a line through its heart), the **Blaze** (3 dead
+centres in a row → the next 2 scoring shots pay double — the perfectionist's line becomes the
+greedy one), a **no-plateau target shrink** (a smooth score asymptote on the linear ramp,
+hard-floored at 9px — replacing the old hold-at-12px floor that flat-lined at score ~55), and
+a **secret Legend stage** past Bank master (score 240, revealed only by reaching it). 3 new
+badges (8 → 11); +9 pure-core tests (41 → 50). **v0.23.2** was a **GROW** run:
 **Orbit Slingshot** gets the **"depth inside the mechanic"** layer — the **5th game** to carry it
 (after Polarity, Brim, Echo Chamber and Ink Bloom; Tether + Reprise ship with it from birth). On
 the one hold-to-thrust verb: a discoverable **Kiss** (collect a target after passing within a
@@ -232,9 +242,17 @@ sole host), plus each game at `…/games/<game>/`.
   launcher, off its neighbours), `fire` emits a `formation` cue. Plus a **bank bonus**
   (`shotScore` — a 3-bank scores 6, not 3, so banking is worth chasing), a **stage arc** (Rookie →
   Marksman → Trick shot → Bank master) with HUD chip + tinted floor line, and
-  **meta-progression** (`ricochet.meta`: lifetime hits/biggest bank + 8 badges,
-  run-report) — legacy best preserved. Pure core (`computeShot`) + 41 tests. **(8th game on
-  varied structure.)**
+  **meta-progression** (`ricochet.meta`: lifetime hits/dead-centres/biggest bank + 11 badges,
+  run-report) — legacy best preserved. **Depth inside the one verb (v0.23.3, the 6th game on
+  the layer):** the targets **no longer plateau** (`targetRadius` rides a smooth score
+  asymptote on the linear ramp, hard-floored at `R_HARD_MIN` 9px — the old shrink hard-floored
+  at 12px around score ~55 and went flat forever); a hidden **Dead Centre** (every drawn target
+  hides a razor `PIN_BAND` 4px line through its centre — thread it and the collect pays +2 over
+  the bank, bursts gold and builds a streak, taught nowhere; an off-centre collect or a miss
+  breaks it); the **Blaze** it unlocks (3 dead centres in a row → the next 2 scoring shots pay
+  **double**, announced only when earned, gold comet colour-only); and a **secret Legend
+  stage** past Bank master (score 240, revealed only by reaching it). Pure core
+  (`computeShot`) + 50 tests. **(8th game on varied structure.)**
 - **Skyline** (`games/skyline/`) — drop a sliding slab onto your tower; the overhang is
   sliced off so only precision keeps it climbing. **On Varied Structure + Growth**: the slab
   no longer arrives from one flat rule — a run is a seeded **sequence of named wind patterns**
@@ -345,11 +363,29 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **572/572** green, released (Orbit Slingshot +10). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **581/581** green, released (Ricochet +9). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.23.3 (2026-07-18) — GROW: Ricochet gets "depth inside the mechanic" (6th game on the
+  layer).** The oldest game without it, with the exact plateau the sweep item flags
+  (`targetRadius` linear shrink hard-floored at 12px around score ~55; stages stop at Bank
+  master 140). All four depth items on the one aim-and-fire verb: the hidden **Dead Centre**
+  (`PIN_BAND` 4px razor line through each drawn target's centre → +2 + gold burst + a quiet
+  gold `#pinCue` + streak, taught nowhere; `computeShot` tracks per-target closest approach,
+  hits carry a pure `pin` flag), the **Blaze** (`PIN_TRIGGER` 3 in a row → next `BLAZE_SHOTS`
+  2 scoring shots doubled; the triggering shot never doubled, a miss doesn't consume the
+  window, gold comet colour-only), a **no-plateau target shrink** (linear ramp × score
+  asymptote, hard floor 9px — regression-pinned still tightening at score 600,
+  override-proof), and a **secret Legend stage** (score 240, reveal toast + badge; start tips
+  trimmed so the stage ladder + layout list are no longer printed). 3 new skill-safe badges
+  (8 → 11), `totals.pins` (lossless legacy upgrade), run-report dead centres. +9 pure-core
+  tests (41 → 50); collection **581/581** green. PRs #46/#31 (Dependabot majors) still held.
+  **Chrome MCP unavailable** → validated by **headless Chrome** probe renders; **a live
+  play-feel eyeball is still worth doing** (knobs: `PIN_BAND` 4 / `PIN_TRIGGER` 3 /
+  `BLAZE_SHOTS` 2). Player changelog + `_games` date + README re-gen. Released `dev → main`
+  by default on green (PATCH). **Depth-layer rollout: 6 of 13.**
 - **✅ v0.23.2 (2026-07-17) — GROW: Orbit Slingshot gets "depth inside the mechanic" (5th game on
   the layer).** The oldest game without it, with the exact stage-index plateau the sweep item
   flags (escalation keyed only on the stage index, stages stop at score 120). All four depth

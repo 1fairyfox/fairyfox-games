@@ -48,13 +48,29 @@ test('dist2 is squared euclidean distance', () => {
   assert.equal(dist2({ x: 0, y: 0 }, { x: 3, y: 4 }), 25);
 });
 
-test('targetRadius shrinks with score and holds at the floor', () => {
+test('targetRadius shrinks with score and NEVER plateaus (the depth layer\'s no-plateau rule)', () => {
   const g = newGame();
-  assert.equal(targetRadius(g), CONFIG.TARGET_R0);
+  assert.equal(targetRadius(g), CONFIG.TARGET_R0, 'starts at the full radius');
   g.score = 10;
-  assert.ok(Math.abs(targetRadius(g) - (CONFIG.TARGET_R0 - 10 * CONFIG.TARGET_SHRINK)) < 1e-9);
+  assert.ok(targetRadius(g) < CONFIG.TARGET_R0, 'shrinking early');
+  // the old model hard-floored at TARGET_R_MIN around score ~55 and went flat forever;
+  // the asymptote keeps tightening past it
+  g.score = 200;
+  assert.ok(targetRadius(g) < CONFIG.TARGET_R_MIN, 'dips below the old floor deep in a run');
+  let prev = Infinity;
+  for (let s = 60; s <= 600; s += 30) {
+    g.score = s;
+    const r = targetRadius(g);
+    assert.ok(r < prev, 'still strictly tightening at score ' + s);
+    assert.ok(r > CONFIG.R_HARD_MIN, 'approaches but never reaches the hard floor');
+    prev = r;
+  }
+});
+
+test('targetRadius hard floor holds even under a rogue config override', () => {
+  const g = newGame({ config: { R_SHRINK_SPAN: 5, TARGET_SHRINK: 100 } });
   g.score = 100000;
-  assert.equal(targetRadius(g), CONFIG.TARGET_R_MIN);
+  assert.equal(targetRadius(g), CONFIG.R_HARD_MIN, 'clamped at the absolute floor, never below');
 });
 
 // ── 2. Aim clamping ──────────────────────────────────────────────────────────────
@@ -198,13 +214,16 @@ test('hits come back ordered by arc length along the path', () => {
 test('a collecting shot scores the chain, records bestChain, and refills the field', () => {
   const g = newGame();
   start(g);
+  // offset the targets off the centre line (inside reach, outside the razor
+  // dead-centre band) so this pins nothing and the score is the pure bank bonus
   g.targets = [
-    { x: g.launcher.x, y: g.launcher.y - 80 },
-    { x: g.launcher.x, y: g.launcher.y - 160 },
+    { x: g.launcher.x + 10, y: g.launcher.y - 80 },
+    { x: g.launcher.x + 10, y: g.launcher.y - 160 },
   ];
   const res = fire(g);
   assert.equal(res.died, false);
   assert.equal(res.chain, 2, 'both stacked targets collected in one shot');
+  assert.equal(res.pins, 0, 'off-centre collects are not dead centres');
   assert.equal(g.score, shotScore(2), 'a 2-bank scores with the bank bonus (3)');
   assert.equal(g.hits, 2, 'raw targets collected');
   assert.equal(g.bestChain, 2);
@@ -332,7 +351,7 @@ test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => 
   const m = normalizeMeta(undefined, 44);
   assert.equal(m.v, 1);
   assert.equal(m.best, 44);
-  assert.deepEqual(m.totals, { hits: 0, shots: 0, points: 0 });
+  assert.deepEqual(m.totals, { hits: 0, shots: 0, points: 0, pins: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -542,4 +561,120 @@ test('fire() hands the shell a notable layout cue when a refill opens one', () =
     g.score = 200;                                 // pin the stage for the sweep
   }
   assert.ok(shots > 0 && cues > 0, 'notable layouts announce themselves during play');
+});
+
+// ── 13. Depth inside the mechanic — dead centres, the blaze, the secret stage ─────
+// (standard: notes/reference/depth-inside-the-mechanic.md — discovered, never taught,
+// safe to not know; the config values below are the razor sub-window and its reversal)
+
+/** Plant one target and fire straight up at it. dx offsets it off the centre line. */
+function shootAt(g, dx, dy = 240) {
+  g.targets = [{ x: g.launcher.x + dx, y: g.launcher.y - dy }];
+  setAim(g, -Math.PI / 2);
+  return fire(g);
+}
+
+test('computeShot flags a dead centre only inside the razor PIN_BAND', () => {
+  const g = newGame();
+  start(g);
+  g.targets = [
+    { x: g.launcher.x, y: g.launcher.y - 120 },                      // dead on the path
+    { x: g.launcher.x + CONFIG.PIN_BAND + 6, y: g.launcher.y - 220 }, // in reach, off-centre
+  ];
+  const shot = computeShot(g, -Math.PI / 2);
+  assert.equal(shot.hits.length, 2, 'both targets collected');
+  const byIndex = new Map(shot.hits.map(h => [h.index, h]));
+  assert.equal(byIndex.get(0).pin, true, 'the threaded target is a dead centre');
+  assert.equal(byIndex.get(1).pin, false, 'an ordinary hit is not');
+});
+
+test('a dead centre pays PIN_BONUS on top of the bank score and counts in the run', () => {
+  const g = newGame();
+  start(g);
+  const res = shootAt(g, 0);
+  assert.equal(res.chain, 1);
+  assert.equal(res.pins, 1);
+  assert.equal(res.gain, shotScore(1) + CONFIG.PIN_BONUS, 'bank score + the hidden bonus');
+  assert.equal(g.score, res.gain);
+  assert.equal(g.pins, 1);
+  assert.equal(g.pinStreak, 1);
+});
+
+test('an off-centre collect or a missed shot breaks the dead-centre streak', () => {
+  const g = newGame();
+  start(g);
+  shootAt(g, 0); shootAt(g, 0);
+  assert.equal(g.pinStreak, 2);
+  shootAt(g, 12);                        // collected, but off-centre
+  assert.equal(g.pinStreak, 0, 'an ordinary hit resets the streak');
+  shootAt(g, 0);
+  assert.equal(g.pinStreak, 1);
+  g.targets = [];                        // nothing to hit → a miss
+  setAim(g, -Math.PI / 2);
+  fire(g);
+  assert.equal(g.pinStreak, 0, 'a missed shot resets the streak');
+});
+
+test('PIN_TRIGGER dead centres in a row light the blaze; the triggering shot is not doubled', () => {
+  const g = newGame();
+  start(g);
+  let res = null;
+  for (let i = 0; i < CONFIG.PIN_TRIGGER; i++) res = shootAt(g, 0);
+  assert.equal(res.blazeStarted, true, 'the third dead centre lights it');
+  assert.equal(res.blazing, false, 'the triggering shot itself is never doubled');
+  assert.equal(res.gain, shotScore(1) + CONFIG.PIN_BONUS);
+  assert.equal(g.blaze, CONFIG.BLAZE_SHOTS);
+  assert.equal(g.blazes, 1);
+  assert.equal(g.pinStreak, 0, 'the streak resets when it cashes');
+});
+
+test('a lit blaze doubles the next scoring shots, then expires', () => {
+  const g = newGame();
+  start(g);
+  for (let i = 0; i < CONFIG.PIN_TRIGGER; i++) shootAt(g, 0);   // light it
+  const r1 = shootAt(g, 12);                                    // plain hit, blazing
+  assert.equal(r1.blazing, true);
+  assert.equal(r1.gain, shotScore(1) * CONFIG.BLAZE_MULT, 'every point doubles');
+  const r2 = shootAt(g, 0);                                     // a pinned hit, still blazing
+  assert.equal(r2.blazing, true);
+  assert.equal(r2.gain, (shotScore(1) + CONFIG.PIN_BONUS) * CONFIG.BLAZE_MULT,
+    'the hidden bonus doubles too');
+  assert.equal(g.blaze, 0, 'the window is spent');
+  const r3 = shootAt(g, 12);
+  assert.equal(r3.blazing, false, 'back to normal scoring');
+  assert.equal(r3.gain, shotScore(1));
+});
+
+test('a missed shot does not consume the blaze window (the lost life is enough)', () => {
+  const g = newGame();
+  start(g);
+  for (let i = 0; i < CONFIG.PIN_TRIGGER; i++) shootAt(g, 0);   // light it
+  g.targets = [];
+  setAim(g, -Math.PI / 2);
+  fire(g);                                                      // a miss while blazing
+  assert.equal(g.blaze, CONFIG.BLAZE_SHOTS, 'the window still holds');
+  assert.equal(g.lives, CONFIG.LIVES - 1);
+});
+
+test('the secret Legend stage sits past Bank master, flagged for the reveal', () => {
+  const last = CONFIG.STAGES[CONFIG.STAGES.length - 1];
+  assert.equal(last.name, 'Legend');
+  assert.equal(last.secret, true, 'kept face-down for the shell to reveal');
+  assert.equal(stageIndexAt(CONFIG, last.at - 1), CONFIG.STAGES.length - 2,
+    'Bank master holds right up to the threshold');
+  assert.equal(stageIndexAt(CONFIG, last.at), CONFIG.STAGES.length - 1);
+  assert.ok(CONFIG.STAGES.slice(0, -1).every(s => !s.secret), 'only the last stage is secret');
+});
+
+test('meta upgrades losslessly and folds dead centres + the new badges', () => {
+  const legacy = normalizeMeta({ totals: { hits: 5, shots: 7, points: 9 } }, 3);
+  assert.deepEqual(legacy.totals, { hits: 5, shots: 7, points: 9, pins: 0 },
+    'an old blob gains the pins counter without losing anything');
+  let m = applyRun(legacy, summary({ score: 12, hits: 8, pins: 4, blazes: 1 }));
+  assert.equal(m.totals.pins, 4, 'lifetime dead centres accumulate');
+  assert.equal(m.achieved['dead-centre'], true);
+  assert.equal(m.achieved['blaze'], true);
+  assert.equal(m.achieved['reach-legend'], undefined, 'not earned without the stage');
+  m = applyRun(m, summary({ score: 250, stageIndex: 4, hits: 1 }));
+  assert.equal(m.achieved['reach-legend'], true);
 });
