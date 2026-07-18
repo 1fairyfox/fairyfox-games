@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-hidden="true">
+  <!-- Neutral neon placeholder tile: shown only if a game's icon.png is missing, so a
+       card never renders a broken image. Matches the collection's dark app-icon look. -->
+  <defs>
+    <radialGradient id="ffbg" cx="50%" cy="40%" r="72%">
+      <stop offset="0" stop-color="#24242e"/>
+      <stop offset="0.6" stop-color="#16161d"/>
+      <stop offset="1" stop-color="#0b0b0f"/>
+    </radialGradient>
+    <linearGradient id="ffsp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7bf0ff"/>
+      <stop offset="1" stop-color="#ff7a48"/>
+    </linearGradient>
+    <filter id="ffglow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="40" y="40" width="432" height="432" rx="104" fill="url(#ffbg)"
+        stroke="rgba(255,255,255,0.07)" stroke-width="2.5"/>
+  <path d="M216 184 L216 328 L340 256 Z" fill="url(#ffsp)" filter="url(#ffglow)"/>
+</svg>

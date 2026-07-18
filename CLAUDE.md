@@ -2,7 +2,7 @@
 
 A collection of small, self-contained **canvas games** (one-mechanic,
 beat-your-own-score). A new polished experiment joins most days. Built by Fairy Fox
-(github.com/junebug12851). Part of the fairyfox.io project mesh; **contributions are
+(github.com/1fairyfox). Part of the fairyfox.io project mesh; **contributions are
 welcome** (public repo, issues + PRs open). Served at `fairyfox.io/fairyfox-games/`.
 
 ## Start Here
@@ -86,7 +86,7 @@ first-class citizens that earn ongoing investment. Hold to these, by default:
 ## Build / Run
 
 You CAN build, test, run, commit, and push — via PowerShell on the local machine
-(git + `gh` authed as `junebug12851`; Node 18+ installed). CI runs the tests on every
+(git + `gh` authed as `1fairyfox`; Node 18+ installed). CI runs the tests on every
 push and PR; GitHub Pages deploys on push to `main`.
 
 **Tooling (non-negotiable, per `notes/reference/agent-tooling.md`):** use **PowerShell +

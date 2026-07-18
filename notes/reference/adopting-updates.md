@@ -151,7 +151,7 @@ safe and never touches your own history:
 ```sh
 rm -rf assets/references/fairyfox.io
 git -C assets/references clone --branch dev --single-branch \
-    https://github.com/junebug12851/junebug12851.github.io fairyfox.io
+    https://github.com/1fairyfox/junebug12851.github.io fairyfox.io
 ```
 
 The standing "never `reset --hard` / `rebase` / `clean -fd` without an explicit
