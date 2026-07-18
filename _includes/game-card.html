@@ -1,6 +1,6 @@
 <article class="card game-card proj-card" data-updated="{{ include.game.updated | date: '%Y-%m-%d' }}" data-tags="{{ include.game.tags | join: ' ' }}">
   <div class="card-head">
-    <img class="game-icon" src="{{ include.game.slug | prepend: '/games/' | append: '/icon.png' | relative_url }}" alt="" width="56" height="56" loading="lazy">
+    <img class="game-icon" src="{{ include.game.slug | prepend: '/games/' | append: '/icon.png' | relative_url }}" alt="" width="56" height="56" loading="lazy" onerror="this.onerror=null;this.src='{{ '/assets/game-fallback.svg' | relative_url }}';">
     <h3>{{ include.game.title }}</h3>
   </div>
   <div class="tags">{% for t in include.game.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>

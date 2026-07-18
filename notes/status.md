@@ -2,7 +2,16 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.0` (single source of truth: repo-root `VERSION`). **v0.24.0** is a **PLANT** run:
+**Version:** `0.24.1` (single source of truth: repo-root `VERSION`). **v0.24.1** is a
+**HOUSEKEEPING** run: the owner rename (`junebug12851` → `1fairyfox`) across every live reference
++ the git remote (dated history left as an accurate record), the **three missing game icons**
+(Ward / Reprise / Brim now ship a 512×512 `icon.png` in the dark-neon app-tile style — this
+supersedes the old "owner supplies game icons" precedent for these three), a **missing-icon
+fallback** (`game-card.html` `onerror` → `assets/game-fallback.svg`, so a card can never show a
+broken image again), and a **fairyfox standards check** (hub v0.14.3 → v0.16.0; adopted standards
+current bar the username URL folded into the rename + a new shared-chrome docs-site bundle
+reported for a careful separate pass, not blind-copied over the diverged chrome). 630/630 green;
+clean Jekyll build. **v0.24.0** is a **PLANT** run:
 a new game, **Ward** — a genuinely new verb (**guard / deflect**), the collection's first
 **defence** game and its **15th**. Shards converge on a central core from every direction; you
 orbit **one shield** around it (mouse / touch / **← →**) and cover the threat. Cover a shard as
@@ -406,6 +415,24 @@ also walks the git-ignored `assets/references/` hub clone, whose unrelated tests
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.24.1 (2026-07-18) — HOUSEKEEPING: owner rename, the 3 missing icons, a fallback, a
+  fairyfox check.** (1) **Rename** `junebug12851` → `1fairyfox` across every live reference
+  (README badges, `package.json`, `CLAUDE.md`, `legal/{terms,privacy}.html` + their "Last
+  updated" bumps, `_includes/{header,footer}.html`, the issue-template config, and the adopted
+  `adopting-updates.md` URL) **and** the git `origin` remote (now `git@github.com:1fairyfox/
+  fairyfox-games.git`, `ls-remote` verified); dated history (session logs, past process reports)
+  left untouched. (2) **The 3 missing game icons** — Ward, Reprise and Brim had no `icon.png`, so
+  their landing cards rendered a broken image; each now ships a **512×512** `icon.png` in the
+  collection's dark neon app-tile style, code-rendered (canvas → headless-Chrome) and eyeballed at
+  card size beside the other 12. (3) **A missing-icon fallback** — `game-card.html` gains an
+  `onerror` that swaps to `assets/game-fallback.svg` (a neon placeholder tile), so no future card
+  can show a broken image. (4) **fairyfox check** — refreshed the hub mirror (v0.14.3 → v0.16.0);
+  the adopted standards are current except a username URL (folded into the rename) and a **new
+  shared-chrome docs-site bundle** (`hub/standards/docs-site/chrome/` + `12-shared-chrome.md`)
+  reported for a **careful separate pass** — it would touch this project's diverged `_includes/`
+  chrome, so it is NOT blind-copied. Standing ledger grant `adopt-standards-by-default` pre-
+  authorizes the standard refreshes. Collection **630/630** green; clean Jekyll build. Released
+  `dev → main` by default on green (PATCH).
 - **✅ v0.24.0 (2026-07-18) — PLANT: new game Ward (a genuinely new verb: guard / deflect).** The
   **15th** game and the collection's first **defence** mechanic — every prior verb is offence or
   navigation; none asks you to *guard a point*. Shards converge on a central core from every
