@@ -87,6 +87,7 @@ CI runs the full suite on every push and pull request.
 | Game | What you do | Folder |
 |------|-------------|--------|
 | **Ricochet** | Aim and fire one shot that ricochets off the walls, sweeping up every target in its path. Bank several in one shot — a shot that hits nothing costs a life. | [`games/ricochet/`](games/ricochet/) |
+| **Ward** | Shards close in on your core from every side — orbit your shield to block them before they land. Three strikes ends it. Catch one dead-centre and defence turns into a climbing multiplier. Point, hold the line, and see how deep you can hold. | [`games/ward/`](games/ward/) |
 | **Orbit Slingshot** | Your probe orbits a planet. Hold to fire a prograde thrust and bend your path through the targets — without crashing or flying off into space. | [`games/orbit-slingshot/`](games/orbit-slingshot/) |
 | **Ink Bloom** | Steer a growing line, drink glowing motes to grow, and don't cross your own trail. The longer you live, the less room you leave yourself. | [`games/ink-bloom/`](games/ink-bloom/) |
 | **Echo Chamber** | An echo ring expands from the centre — catch it the instant it crosses the target band. Every hit tightens the window. Three lives. | [`games/echo-chamber/`](games/echo-chamber/) |

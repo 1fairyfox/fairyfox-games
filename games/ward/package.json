@@ -1,0 +1,11 @@
+{
+  "name": "ward",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ward — a one-mechanic, beat-your-own-score radial guard game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

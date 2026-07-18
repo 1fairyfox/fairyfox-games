@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-18",
+    "game": "Ward",
+    "slug": "ward",
+    "kind": "new",
+    "text": "A brand-new game, and a brand-new thing to do: guard. Shards close in on a glowing core from every side, and you orbit one shield around it — point it where the threat is, with the mouse, a touch, or the arrow keys. Cover a shard as it reaches your shield and it's blocked; let one slip past where the shield isn't and it strikes the core, and three strikes end the run. That's the whole game in three seconds: face the incoming, hold the line. The shield turns only so fast, so shards from opposite sides make you choose which to save. The catch you discover by playing: block a shard on the bright point at the very centre of your shield — not just anywhere on it — and it's a parry, deflected gold, and your multiplier climbs; a loose, off-centre save still blocks but snaps the multiplier back to one. So surviving is easy and scoring asks you to meet each shard on the point. String enough parries together and the whole ring surges, doubling every point for a few seconds. And there's a stage past the ones the start screen lists, for anyone who holds out long enough to reach it."
+  },
+  {
+    "date": "2026-07-18",
     "game": "Ricochet",
     "slug": "ricochet",
     "kind": "grow",

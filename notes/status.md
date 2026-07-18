@@ -2,7 +2,17 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.23.3` (single source of truth: repo-root `VERSION`). **v0.23.3** is a **GROW** run:
+**Version:** `0.24.0` (single source of truth: repo-root `VERSION`). **v0.24.0** is a **PLANT** run:
+a new game, **Ward** — a genuinely new verb (**guard / deflect**), the collection's first
+**defence** game and its **15th**. Shards converge on a central core from every direction; you
+orbit **one shield** around it (mouse / touch / **← →**) and cover the threat. Cover a shard as
+it crosses the shield line → blocked + scored; let one through → it strikes the core (3 strikes
+end the run). The shield turns at a **capped rate**, so opposite threats force a read. **Depth =
+the parry:** a block dead-centre of the shield grows a **multiplier** (×2…×9) + reflects; a
+loose save breaks it to ×1 — survival is easy, *scoring* asks you to meet each shard on the
+point. A parry streak → **Surge** (double score ~5 s). Varied structure from birth (formations
+Drift/Fan/**Salvo**=greed/Pincer/Scatter/The Siege), stages Picket→…→Citadel + secret **Aegis**,
+no-plateau speed asymptote, meta (`ward.meta`, 13 badges). Pure core + 49 tests. **v0.23.3** was a **GROW** run:
 **Ricochet** gets the **"depth inside the mechanic"** layer — the **6th game** to carry it
 (after Polarity, Brim, Echo Chamber, Ink Bloom and Orbit Slingshot; Tether + Reprise ship with
 it from birth). On the one aim-and-fire verb: a discoverable **Dead Centre** (thread a shot
@@ -95,8 +105,36 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (14):**
+**Games so far (15):**
 
+- **Ward** (`games/ward/`) — a **guard / deflect** game (a genuinely new verb: the collection's
+  first **defence** mechanic — you're not steering, timing, aiming, metering, swinging or
+  remembering, you're **defending a point by orbiting a shield around it**). Shards converge on a
+  central **core** from the rim; you control one thing — the **angle of a shield arc** that orbits
+  the core at a fixed radius (point it where the threat is, with the mouse, a touch, or **← →**).
+  Cover a shard as it crosses the shield line → it's **blocked** and scores; let one cross where
+  the shield isn't → it slips past and **strikes the core**, and three strikes end the run. The
+  shield turns at a **capped rate** (`TURN_RATE`), so shards from spread or opposite angles are a
+  real read — whip across and cover it, or lose the one you can't reach. **The depth is the parry,
+  discovered not told:** a block within the wide arc (`SHIELD_HALF`) scores, but a block
+  **dead-centre** of the shield (the tight inner `PARRY_HALF`) is a **parry** — it deflects gold
+  and grows a **multiplier** (×2…up to MULT_MAX), while a loose, off-centre save still blocks but
+  snaps the combo back to ×1. So *survival is easy and scoring asks you to meet each shard on the
+  point* (the Polarity precise/safe tension, re-expressed radially). A streak of parries triggers
+  **Surge** — the whole ring blooms gold and every point doubles for ~5 s (the "safe" precise play
+  becoming the big play). **On Varied Structure + the Growth Architecture from birth:** a run is a
+  seeded **sequence of named volleys** (`FORMATIONS`/`pickFormation`/`loadFormation`, `minStage`-
+  gated so climbing the stages **opens the pool**; `spawnShard` pulls each shard from the current
+  volley's queue): **Drift** (calm lone shards) · **Fan** (a sweeping arc — ride the shield around)
+  · **Salvo** (a same-angle burst — the deliberate **greed window**, park the point and parry-chain)
+  · **Pincer** (staggered near-opposite pairs — the two-sided read) · **Scatter** (all-round
+  reaction) · **The Siege** (the dense crescendo). Notable volleys flash a quiet name cue. Plus a
+  **stage arc** (Picket → Vigil → Rampart → Bastion → Citadel) with HUD chip + ambient tint, a
+  **secret Aegis stage** past Citadel (score 200, revealed only by reaching it), a **no-plateau
+  speed asymptote** (`speedOf` — shards never stop getting faster), and **meta-progression**
+  (`ward.meta`: lifetime blocks/points/parries + best stage/mult + 13 badges, run-report) — legacy
+  `ward.best` preserved. Pure `tick`/`setAim`-split core + 49 tests. **(Ships on varied structure +
+  the depth layer from day one.)**
 - **Reprise** (`games/reprise/`) — a **call-and-response / recall** game (a genuinely new verb: the
   collection's first *memory* mechanic — you're not steering, timing, aiming or metering, you're
   **remembering a sequence and repeating it**). Four pads flash a **call**; you **echo** it back in
@@ -363,11 +401,36 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **581/581** green, released (Ricochet +9). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **630/630** green, released (Ward +49). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.24.0 (2026-07-18) — PLANT: new game Ward (a genuinely new verb: guard / deflect).** The
+  **15th** game and the collection's first **defence** mechanic — every prior verb is offence or
+  navigation; none asks you to *guard a point*. Shards converge on a central core from every
+  direction; you orbit one **shield** around it (mouse / touch / **← →**) and cover the threat.
+  Cover a shard as it crosses the shield line → blocked + scored; let one through → it strikes the
+  core (3 strikes end it). The shield turns at a **capped rate**, so opposite threats force a whip.
+  **The hook, discovered not told:** a block **dead-centre** of the shield (tight inner
+  `PARRY_HALF`) is a **parry** → `mult` ×2…×9 + a bonus + reflect, while a loose block breaks it to
+  ×1 — survival is easy, *scoring* asks you to meet each shard on the point (Polarity's precise/safe
+  tension, radial). Ships on **varied structure + the full Growth Architecture + the depth layer
+  from day one**: stage-gated formations (Drift · Fan · **Salvo**=greed window · Pincer · Scatter ·
+  The Siege), stages Picket → Vigil → Rampart → Bastion → Citadel + a **secret Aegis stage** (score
+  200), a **Surge** (5-parry streak → ~5 s double-score window), a **no-plateau speed asymptote**,
+  meta (`ward.meta`, 13 badges; legacy `ward.best` preserved). Pure `tick`/`setAim`-split core +
+  **49 tests** (geometry helpers, parry/loose/core-strike scoring, Surge, determinism under seed,
+  the frame-one guard, and the varied-structure invariants); collection **630/630** green.
+  **Chrome MCP unavailable** → validated by **headless Chrome** probe renders (menu + a live
+  desktop frame — HUD, PICKET chip, ×1, cyan shield with its bright parry sweet-spot, golden core,
+  guide rings — + a 400-wide mobile frame, all clean: correct layout, no clipping/overflow, no
+  boot fallback). The virtual-time captures didn't freeze a shard mid-flight, so **a live
+  play-feel eyeball is still worth doing** (knobs: `TURN_RATE` 0.16 / `SHIELD_HALF` 0.44 /
+  `PARRY_HALF` 0.16 / `SURGE_STREAK` 5). No per-game `icon.png` yet (Brim /
+  Reprise precedent — owner supplies game icons). Wired into `_games` (masthead **Games 15**) +
+  README re-gen + a `kind:"new"` changelog entry. Released `dev → main` by default on green (MINOR
+  via `release/0.24.0`). PRs #46/#31 (Dependabot majors) still held.
 - **✅ v0.23.3 (2026-07-18) — GROW: Ricochet gets "depth inside the mechanic" (6th game on the
   layer).** The oldest game without it, with the exact plateau the sweep item flags
   (`targetRadius` linear shrink hard-floored at 12px around score ~55; stages stop at Bank
