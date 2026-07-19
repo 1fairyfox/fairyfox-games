@@ -13,6 +13,12 @@
  * (no overlap) and the run ends. The slab slides faster the higher you build —
  * one mechanic, beat your own height.
  *
+ * The depth layer (depth-inside-the-mechanic, all on the one drop verb, all safe to
+ * not know): the flush window hides a razor KEYSTONE sub-window (extra pay + a streak,
+ * taught nowhere), three keystones in a row light the JET STREAM (the next drops score
+ * double), the speed ramp is a no-plateau asymptote, and a secret stage waits past
+ * the Spire.
+ *
  * Design note / the bug this structure guards against:
  * the tower never falls or auto-drops — a slab only resolves on an explicit
  * `drop()`. So there is no timer-driven "frame-one death": `tick()` merely slides
@@ -38,8 +44,13 @@ export const CONFIG = Object.freeze({
   BASE_W: 200,        // starting slab width (px)
   SLAB_H: 26,         // slab height (px) — purely for the shell's layout/feel
   SPEED_BASE: 3.4,    // slab slide speed at score 0 (px/tick)
-  SPEED_INC: 0.14,    // slide speed added per point of score (px/tick)
-  SPEED_MAX: 9.5,     // slide speed cap (px/tick) — the score-driven ramp's ceiling
+  // The ramp is a smooth ASYMPTOTE on the score — the tower never stops accelerating,
+  // it only approaches SPEED_BASE + SPEED_SPAN ever more slowly (no plateau: the old
+  // linear ramp hard-capped at score ≈ 44 and was flat forever after). SPEED_MAX is the
+  // honest hard cap on the base ramp so no config override can run away.
+  SPEED_SPAN: 7.1,    // asymptotic px/tick above SPEED_BASE the score approaches
+  SPEED_K: 60,        // score at which the extra speed is half-travelled (the ramp's knee)
+  SPEED_MAX: 10.5,    // absolute base-ramp cap (px/tick) — the asymptote never reaches it
   // The wind (varied structure): a formation can hand each slab its own slide-speed
   // multiplier, so an arriving slab is calm, gusting, or shearing. Bounded on both
   // sides, and the *final* speed is hard-capped so no formation can spike past the ramp.
@@ -50,6 +61,19 @@ export const CONFIG = Object.freeze({
   PERFECT_BONUS: 1,   // extra points a perfect drop pays (on top of the base +1)
   STREAK_BONUS_MAX: 4,// a run of perfects pays escalating extra — the greed/skill reward:
                       // the 2nd perfect in a row adds +1, the 3rd +2 … capped here
+  // ── The depth layer (depth-inside-the-mechanic, all on the one drop verb) ──────
+  // The KEYSTONE — hidden tech, taught nowhere: the flush window (PERFECT_EPS) hides a
+  // razor sub-window. A drop flush to the *pixel* (overhang ≤ KEYSTONE_EPS) is a
+  // keystone — it pays extra, flashes gold, and builds a streak; a loose flush still
+  // scores as ever but silently breaks it. Safe to not know.
+  KEYSTONE_EPS: 1.2,  // px of overhang at or below which a perfect drop is a keystone
+  KEYSTONE_BONUS: 2,  // extra points a keystone pays (on top of the perfect+streak pay)
+  // The reversal the tech unlocks: KEYSTONE_TRIGGER keystones in a row punch the tower
+  // into the JET STREAM — the next JET_DROPS placed drops pay double. The triggering
+  // drop is never doubled. Announced only when earned.
+  KEYSTONE_TRIGGER: 3,// consecutive keystones that light the jet stream
+  JET_DROPS: 3,       // placed drops the jet stream holds for once lit
+  JET_MULT: 2,        // score multiplier applied to every point while the jet holds
   // Height milestones: a label flashes the instant the score first reaches each
   // threshold. Ascending. Pure feedback — the shell reads these; the simulation
   // never branches on them.
@@ -62,11 +86,14 @@ export const CONFIG = Object.freeze({
     Object.freeze({ score: 150, label: 'Escape velocity' }),
   ]),
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
+  // The last one is SECRET — never printed on the start screen, revealed only by
+  // reaching it (a card kept face-down for the builder who pushes past the Spire).
   STAGES: Object.freeze([
     Object.freeze({ at: 0,   name: 'Foundation', tint: '#8ab4ff' }),
     Object.freeze({ at: 20,  name: 'Mid-rise',   tint: '#6ad0d0' }),
     Object.freeze({ at: 60,  name: 'High-rise',  tint: '#a98cff' }),
     Object.freeze({ at: 120, name: 'Spire',      tint: '#ff8f6a' }),
+    Object.freeze({ at: 240, name: 'Exosphere',  tint: '#ffd06a', secret: true }),
   ]),
 
   // ── Formations — the WIND (varied structure) ──────────────────────────────────
@@ -256,6 +283,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.floors >= 1000 }),
   Object.freeze({ id: 'regular',      label: 'Regular',       desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // The depth layer's badges — skill-safe (they mark discoveries, never grant power).
+  Object.freeze({ id: 'keystone',     label: 'Keystone',      desc: 'Set a slab flush to the pixel.',
+    test: (s) => s.keystones >= 1 }),
+  Object.freeze({ id: 'jet-stream',   label: 'Jet stream',    desc: 'Chain three keystones in a row.',
+    test: (s) => s.jets >= 1 }),
+  Object.freeze({ id: 'exosphere',    label: 'Exosphere',     desc: 'Reach the secret Exosphere stage.',
+    test: (s) => s.stageIndex >= 4 }),
 ]);
 
 /**
@@ -285,6 +319,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} perfects            perfect drops this run
  * @property {number} streak              current run of consecutive perfect drops
  * @property {number} bestStreak          longest perfect streak this run
+ * @property {number} keystones           keystone drops this run (the hidden tech)
+ * @property {number} kStreak             consecutive keystones toward a jet stream
+ * @property {number} jet                 placed drops the live jet stream still holds for
+ * @property {number} jets                jet streams earned this run
  * @property {number} t                   ticks elapsed this run
  * @property {Array<Object>} formSlabs    remaining slab specs of the live formation
  * @property {?string} formId             id of the live formation
@@ -310,6 +348,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     blocks: [], current: { x: 0, width: cfg.BASE_W, dir: 1, speedMul: 1 },
     score: 0, placed: 0, perfects: 0, streak: 0, bestStreak: 0, t: 0,
+    keystones: 0, kStreak: 0, jet: 0, jets: 0,   // depth layer: tech streak + reversal
     formSlabs: [], formId: null, formName: null, formNotable: false,
   };
   reset(g);
@@ -326,13 +365,18 @@ export function topBlock(g) {
 }
 
 /**
- * The score-driven base slide speed — scales with score, capped at SPEED_MAX. This is
+ * The score-driven base slide speed — a smooth ASYMPTOTE on the score, so the tower
+ * never stops accelerating (no plateau: the old linear ramp went flat at score ≈ 44
+ * forever). Approaches, never reaches, SPEED_BASE + SPEED_SPAN, half-travelled at
+ * SPEED_K — and hard-capped at SPEED_MAX so no config override can run away. This is
  * the honest difficulty ramp; the wind (a formation's `speedMul`) modulates it.
  * @param {GameState} g
  * @returns {number} px per tick
  */
 export function speedOf(g) {
-  return Math.min(g.cfg.SPEED_MAX, g.cfg.SPEED_BASE + g.score * g.cfg.SPEED_INC);
+  const c = g.cfg;
+  const s = Math.max(0, g.score);
+  return Math.min(c.SPEED_MAX, c.SPEED_BASE + c.SPEED_SPAN * (s / (s + c.SPEED_K)));
 }
 
 /**
@@ -398,6 +442,10 @@ export function reset(g) {
   g.streak = 0;
   g.bestStreak = 0;
   g.t = 0;
+  g.keystones = 0;    // keystone drops this run (the hidden tech)
+  g.kStreak = 0;      // consecutive keystones toward a jet stream
+  g.jet = 0;          // placed drops the live jet stream still holds for
+  g.jets = 0;         // jet streams earned this run
   // Clear the wind. At score 0 only the calm formations are stage-eligible, so the
   // opening is always a gentle on-ramp — the frame-one guard for varied structure.
   g.formSlabs = [];
@@ -440,6 +488,9 @@ export function moveCurrent(g) {
  * @property {boolean} placed  a slab was successfully placed
  * @property {boolean} died    the run ended (the slab missed the tower entirely)
  * @property {boolean} perfect the drop was dead-on (within PERFECT_EPS)
+ * @property {boolean} keystone the drop was flush to the pixel (within KEYSTONE_EPS) —
+ *   the hidden tech; pays KEYSTONE_BONUS extra and builds the streak
+ * @property {boolean} jetLit  this drop just lit the jet stream (announce it now)
  * @property {number}  sliced  width of overhang sliced away this drop (0 on perfect)
  * @property {?string} formation name of a *notable* wind pattern whose leading slab just
  *   arrived (Plumb Line / Gust / Shear / The Squall), else null — the shell's name cue
@@ -455,7 +506,8 @@ export function moveCurrent(g) {
  */
 export function drop(g) {
   if (g.phase !== 'play') {
-    return { placed: false, died: false, perfect: false, sliced: 0, formation: null };
+    return { placed: false, died: false, perfect: false, keystone: false, jetLit: false,
+      sliced: 0, formation: null };
   }
   const prev = topBlock(g);
   const cur = g.current;
@@ -465,12 +517,22 @@ export function drop(g) {
 
   if (overlap <= 0) {
     g.phase = 'dead';
-    return { placed: false, died: true, perfect: false, sliced: cur.width, formation: null };
+    return { placed: false, died: true, perfect: false, keystone: false, jetLit: false,
+      sliced: cur.width, formation: null };
   }
 
   const overhang = cur.width - overlap;
   const perfect = overhang <= g.cfg.PERFECT_EPS;
+  // The hidden tech: inside the flush window hides a razor sub-window. Flush to the
+  // pixel is a KEYSTONE — extra pay + a streak toward the jet stream. Taught nowhere;
+  // a loose flush still scores as ever but silently breaks the keystone streak.
+  const keystone = perfect && overhang <= g.cfg.KEYSTONE_EPS;
   g.t++;
+
+  // Was the jet stream already holding before this drop? (The triggering drop is never
+  // doubled — the window pays out on the drops AFTER it, Ricochet's Blaze shape.)
+  const jetting = g.jet > 0;
+  let gain;
 
   if (perfect) {
     // Snap flush to the slab below; full width preserved.
@@ -481,18 +543,42 @@ export function drop(g) {
     // Escalating streak reward — the 1st perfect adds nothing extra, the 2nd +1, the
     // 3rd +2 … capped. Chaining perfects is where the big scores come from.
     const streakBonus = Math.min(g.cfg.STREAK_BONUS_MAX, Math.max(0, g.streak - 1));
-    g.score += 1 + g.cfg.PERFECT_BONUS + streakBonus;
+    gain = 1 + g.cfg.PERFECT_BONUS + streakBonus;
+    if (keystone) {
+      gain += g.cfg.KEYSTONE_BONUS;
+      g.keystones++;
+      g.kStreak++;
+    } else {
+      g.kStreak = 0;
+    }
   } else {
     g.blocks.push({ x: left, width: overlap });
     g.streak = 0;
-    g.score += 1;
+    g.kStreak = 0;
+    gain = 1;
   }
+
+  // The jet stream doubles every point while it holds, and is consumed drop by drop.
+  if (jetting) { gain *= g.cfg.JET_MULT; g.jet--; }
+  g.score += gain;
+
+  // Three keystones in a row punch the tower into the jet stream (announce only when
+  // earned). Re-lighting mid-window simply refreshes it — mastery is never wasted.
+  let jetLit = false;
+  if (keystone && g.kStreak >= g.cfg.KEYSTONE_TRIGGER) {
+    g.jet = g.cfg.JET_DROPS;
+    g.jets++;
+    g.kStreak = 0;
+    jetLit = true;
+  }
+
   g.placed++;
   // The score has just moved, so the *next* slab is drawn against the new stage — this
   // is where climbing the tower opens the wind pool (progression drives the variation).
   const next = spawnCurrent(g);
   return {
-    placed: true, died: false, perfect, sliced: perfect ? 0 : overhang,
+    placed: true, died: false, perfect, keystone, jetLit,
+    sliced: perfect ? 0 : overhang,
     formation: next.formHead ? next.form : null,
   };
 }
@@ -586,7 +672,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, placed:number, perfects:number, bestStreak:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, placed:number, perfects:number, bestStreak:number, keystones:number, jets:number}} RunSummary
  */
 
 /**
@@ -597,7 +683,7 @@ export function stageProgress(cfg, score) {
  * @property {number} best        best single-run score (mirrors `skyline.best`)
  * @property {number} bestStage
  * @property {number} bestStreak  longest perfect streak ever
- * @property {{floors:number, perfects:number, points:number}} totals
+ * @property {{floors:number, perfects:number, points:number, keystones:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -616,7 +702,8 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestStreak: src.bestStreak | 0,
-    totals: { floors: t.floors | 0, perfects: t.perfects | 0, points: t.points | 0 },
+    totals: { floors: t.floors | 0, perfects: t.perfects | 0, points: t.points | 0,
+      keystones: t.keystones | 0 },   // absent in legacy metas — upgrades losslessly
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -634,6 +721,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.floors += summary.placed | 0;
   next.totals.perfects += summary.perfects | 0;
   next.totals.points += summary.score | 0;
+  next.totals.keystones += summary.keystones | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestStreak = Math.max(next.bestStreak, summary.bestStreak | 0);

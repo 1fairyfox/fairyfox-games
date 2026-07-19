@@ -74,14 +74,33 @@ test('a spawned slab matches the top slab width and stays inside the field', () 
   assert.ok(g.current.dir === 1 || g.current.dir === -1);
 });
 
-// ── 3. Speed ─────────────────────────────────────────────────────────────────────
-test('speed starts at SPEED_BASE, scales with score, and caps at SPEED_MAX', () => {
+// ── 3. Speed (the no-plateau asymptote) ──────────────────────────────────────────
+test('speed starts at SPEED_BASE and rises as a smooth asymptote', () => {
   const g = newGame();
   assert.equal(speedOf(g), CONFIG.SPEED_BASE);
-  g.score = 10;
-  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED_BASE + 10 * CONFIG.SPEED_INC)) < 1e-9);
-  g.score = 100000;
-  assert.equal(speedOf(g), CONFIG.SPEED_MAX);
+  g.score = CONFIG.SPEED_K;                       // the knee: half the span travelled
+  assert.ok(Math.abs(speedOf(g) - (CONFIG.SPEED_BASE + CONFIG.SPEED_SPAN / 2)) < 1e-9);
+  // Strictly monotone over a long climb — no flat-line anywhere.
+  let prev = -Infinity;
+  for (const s of [0, 5, 20, 44, 60, 120, 240, 400, 600]) {
+    g.score = s;
+    const v = speedOf(g);
+    assert.ok(v > prev, `speed still climbing at score ${s}`);
+    prev = v;
+  }
+});
+
+test('REGRESSION: the ramp never plateaus (still climbing at score 600) yet never busts the cap', () => {
+  const g = newGame();
+  g.score = 400; const a = speedOf(g);
+  g.score = 600; const b = speedOf(g);
+  assert.ok(b > a, 'the old linear ramp went flat at score ≈ 44 — the asymptote must not');
+  g.score = 10_000_000;
+  assert.ok(speedOf(g) <= CONFIG.SPEED_MAX + 1e-9, 'bounded by SPEED_MAX');
+  // Override-proof: a rogue config with a huge span still respects the hard cap.
+  const rogue = createGame(W, H, { rng: seeded(2), config: { SPEED_SPAN: 500 } });
+  rogue.score = 10_000;
+  assert.ok(speedOf(rogue) <= rogue.cfg.SPEED_MAX + 1e-9, 'the hard cap is override-proof');
 });
 
 // ── 4. Movement ──────────────────────────────────────────────────────────────────
@@ -247,16 +266,16 @@ test('REGRESSION: tick() only slides and never ends the run', () => {
 });
 
 test('drop() and tick() are inert before start and after death', () => {
+  const inert = { placed: false, died: false, perfect: false, keystone: false,
+    jetLit: false, sliced: 0, formation: null };
   const menu = newGame(); // menu phase
-  assert.deepEqual(drop(menu),
-    { placed: false, died: false, perfect: false, sliced: 0, formation: null });
+  assert.deepEqual(drop(menu), inert);
   assert.deepEqual(tick(menu), { died: false });
 
   const dead = newGame();
   start(dead);
   dead.phase = 'dead';
-  assert.deepEqual(drop(dead),
-    { placed: false, died: false, perfect: false, sliced: 0, formation: null });
+  assert.deepEqual(drop(dead), inert);
   assert.deepEqual(tick(dead), { died: false });
 });
 
@@ -267,7 +286,10 @@ test('a perfect streak pays an escalating bonus (1st adds 0, 2nd +1, 3rd +2, cap
   for (let i = 0; i < CONFIG.STREAK_BONUS_MAX + 3; i++) {
     const prev = topBlock(g);
     const before = g.score;
-    g.current = { x: prev.x, width: prev.width, dir: 1 }; // exactly flush → perfect
+    // A LOOSE flush — inside PERFECT_EPS but outside the keystone's razor window, so
+    // this pins the plain perfect line with no keystone pay mixed in.
+    g.current = { x: prev.x + (CONFIG.KEYSTONE_EPS + CONFIG.PERFECT_EPS) / 2,
+      width: prev.width, dir: 1 };
     drop(g);
     gains.push(g.score - before);
   }
@@ -300,13 +322,14 @@ test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
 });
 
 // ── 9. Meta-progression ────────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, stageIndex: 0, placed: 0, perfects: 0, bestStreak: 0, ...o });
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, placed: 0, perfects: 0, bestStreak: 0,
+  keystones: 0, jets: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 22);
   assert.equal(m.v, 1);
   assert.equal(m.best, 22);
-  assert.deepEqual(m.totals, { floors: 0, perfects: 0, points: 0 });
+  assert.deepEqual(m.totals, { floors: 0, perfects: 0, points: 0, keystones: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -536,6 +559,134 @@ test('slabSpeed multiplies the score ramp and is hard-capped', () => {
 
   delete g.current.speedMul;            // a hand-built slab (legacy shape) still rides the ramp
   assert.ok(Math.abs(slabSpeed(g) - speedOf(g)) < 1e-9);
+});
+
+// ── 12. The depth layer — keystone, jet stream, secret stage ────────────────────
+// The hidden tech and its reversal, all on the one drop verb. These pin: the razor
+// sub-window pays and streaks, a loose flush is safe but silent, the trigger lights the
+// jet stream WITHOUT doubling the triggering drop, the window is consumed drop by drop,
+// the secret stage sits face-down past the Spire, and the meta upgrade is lossless.
+
+/** Force the next drop at exactly `overhang` px off flush. */
+function forceDrop(g, overhang) {
+  const prev = topBlock(g);
+  g.current = { ...g.current, x: prev.x + overhang, width: prev.width };
+  return drop(g);
+}
+
+test('a drop flush to the pixel is a KEYSTONE: extra pay + a streak; state starts clean', () => {
+  const g = newGame(); start(g);
+  assert.equal(g.keystones, 0); assert.equal(g.kStreak, 0);
+  assert.equal(g.jet, 0); assert.equal(g.jets, 0);
+  const before = g.score;
+  const r = forceDrop(g, CONFIG.KEYSTONE_EPS - 0.1);       // inside the razor window
+  assert.equal(r.perfect, true);
+  assert.equal(r.keystone, true);
+  assert.equal(g.keystones, 1);
+  assert.equal(g.kStreak, 1);
+  // Pays the full perfect line PLUS the keystone bonus.
+  assert.equal(g.score - before, 1 + CONFIG.PERFECT_BONUS + CONFIG.KEYSTONE_BONUS);
+});
+
+test('a loose flush is still a perfect but NOT a keystone — and it breaks the keystone streak', () => {
+  const g = newGame(); start(g);
+  forceDrop(g, 0);                                          // keystone → streak 1
+  assert.equal(g.kStreak, 1);
+  const r = forceDrop(g, (CONFIG.KEYSTONE_EPS + CONFIG.PERFECT_EPS) / 2); // loose flush
+  assert.equal(r.perfect, true);
+  assert.equal(r.keystone, false);
+  assert.equal(g.kStreak, 0, 'the keystone streak breaks silently');
+  assert.equal(g.streak, 2, 'the ordinary perfect streak is untouched');
+});
+
+test('a sliced drop breaks the keystone streak too', () => {
+  const g = newGame(); start(g);
+  forceDrop(g, 0);
+  assert.equal(g.kStreak, 1);
+  forceDrop(g, 40);                                         // a real slice
+  assert.equal(g.kStreak, 0);
+});
+
+test('KEYSTONE_TRIGGER keystones light the jet stream — the triggering drop is never doubled', () => {
+  const g = newGame(); start(g);
+  let r;
+  const gains = [];
+  for (let i = 0; i < CONFIG.KEYSTONE_TRIGGER; i++) {
+    const before = g.score;
+    r = forceDrop(g, 0);
+    gains.push(g.score - before);
+  }
+  assert.equal(r.jetLit, true, 'the third keystone lights it');
+  assert.equal(g.jets, 1);
+  assert.equal(g.jet, CONFIG.JET_DROPS, 'the window is armed for the NEXT drops');
+  assert.equal(g.kStreak, 0, 'the streak resets on trigger');
+  // The triggering drop paid its normal (undoubled) line: base + perfect + streak(2) + keystone.
+  assert.equal(gains[2], 1 + CONFIG.PERFECT_BONUS + 2 + CONFIG.KEYSTONE_BONUS);
+});
+
+test('the jet stream doubles every point while it holds and is consumed drop by drop', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.KEYSTONE_TRIGGER; i++) forceDrop(g, 0);
+  assert.equal(g.jet, CONFIG.JET_DROPS);
+  // A plain sliced drop inside the window pays double the base point…
+  let before = g.score;
+  forceDrop(g, 40);
+  assert.equal(g.score - before, 1 * CONFIG.JET_MULT, 'a sliced drop pays double');
+  assert.equal(g.jet, CONFIG.JET_DROPS - 1, '…and consumes one charge');
+  // …and once the charges are spent, pay returns to normal.
+  while (g.jet > 0) forceDrop(g, 40);
+  before = g.score;
+  forceDrop(g, 40);
+  assert.equal(g.score - before, 1, 'the window expires honestly');
+});
+
+test('re-lighting mid-window refreshes the jet stream (mastery is never wasted)', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.KEYSTONE_TRIGGER; i++) forceDrop(g, 0);   // lit
+  forceDrop(g, 40);                                          // spend one charge, break kStreak
+  for (let i = 0; i < CONFIG.KEYSTONE_TRIGGER; i++) forceDrop(g, 0);   // re-light inside
+  assert.equal(g.jet, CONFIG.JET_DROPS, 'the window is topped back up');
+  assert.equal(g.jets, 2, 'both jets are counted');
+});
+
+test('the secret Exosphere stage sits face-down past the Spire', () => {
+  const top = CONFIG.STAGES[CONFIG.STAGES.length - 1];
+  assert.equal(top.name, 'Exosphere');
+  assert.equal(top.secret, true, 'flagged secret — the shell keeps it off the start screen');
+  assert.equal(stageIndexAt(CONFIG, top.at - 1), CONFIG.STAGES.length - 2, 'Spire holds until 240');
+  assert.equal(stageIndexAt(CONFIG, top.at), CONFIG.STAGES.length - 1, 'reached exactly at 240');
+  assert.ok(CONFIG.STAGES.filter(s => s.secret).length === 1, 'exactly one card face-down');
+});
+
+test('reset clears the depth-layer state (frame-one guard)', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.KEYSTONE_TRIGGER; i++) forceDrop(g, 0);
+  assert.ok(g.keystones > 0 && g.jet > 0);
+  start(g);
+  assert.equal(g.keystones, 0); assert.equal(g.kStreak, 0);
+  assert.equal(g.jet, 0); assert.equal(g.jets, 0);
+});
+
+test('meta upgrade is lossless: totals.keystones appears at 0 and accumulates', () => {
+  const legacy = { v: 1, plays: 7, best: 44, bestStage: 2, bestStreak: 4,
+    totals: { floors: 300, perfects: 80, points: 500 }, achieved: { 'first-run': true } };
+  const m = normalizeMeta(legacy);
+  assert.equal(m.totals.keystones, 0, 'absent in a legacy blob → starts at 0');
+  assert.equal(m.totals.floors, 300, 'nothing else is lost');
+  const m2 = applyRun(m, summary({ score: 30, placed: 20, perfects: 9, keystones: 4, jets: 1 }));
+  assert.equal(m2.totals.keystones, 4);
+  assert.equal(m2.achieved['keystone'], true);
+  assert.equal(m2.achieved['jet-stream'], true);
+});
+
+test('the depth badges are earned exactly when their feats land', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 10, placed: 8 }));
+  assert.equal(m.achieved['keystone'], undefined, 'no keystone → no badge');
+  assert.equal(m.achieved['exosphere'], undefined);
+  m = applyRun(m, summary({ score: 250, stageIndex: 4, placed: 90, keystones: 1 }));
+  assert.equal(m.achieved['keystone'], true);
+  assert.equal(m.achieved['exosphere'], true, 'reaching the secret stage marks the card');
 });
 
 test('moveCurrent honours the wind: a gusting slab outruns a calm one', () => {
