@@ -62,7 +62,7 @@ let best = meta.best;
 bestEl.textContent = best;
 
 let W = 0, H = 0, DPR = 1, game = null;
-let camY = 0, flash = 0, shake = 0;
+let camY = 0, flash = 0, goldFlash = 0, shake = 0;
 // Stage feel state (Growth Layer 1)
 let stageIdx = 0, stagePulse = 0;
 let tintCur = hexToRgb('#8ab4ff'), tintTarget = { ...tintCur };
@@ -75,12 +75,15 @@ function updateStageChip() {
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
 }
-/** Enter a new stage: ease the sky tint, pop the chip, kick a soft beat. */
+/** Enter a new stage: ease the sky tint, pop the chip, kick a soft beat. A SECRET
+ *  stage (kept off the start screen) also announces itself — the face-down card. */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) { showToast(st.name, true); shake = Math.max(shake, 10); }  // reveal
   updateStageChip();
 }
 // Formation cue — a quiet name flashed as a *notable* wind pattern arrives (the
@@ -111,9 +114,10 @@ const yTopFrac = 0.62;         // screen fraction where the top slab rests
 
 function slabHue(level) { return (BASE_HUE + level * 7) % 360; }
 
-function showToast(text) {
+function showToast(text, gold) {
   if (!toastEl) return;
   toastEl.textContent = text;
+  toastEl.classList.toggle('gold', gold === true);   // colour-only (reduced-motion safe)
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1100);
@@ -141,8 +145,14 @@ function press() {
     scoreEl.textContent = game.score;
     camY -= game.cfg.SLAB_H;                 // counter the level shift, then ease to 0
     if (r.perfect) {
-      flash = 1;
-      showToast(game.streak >= 2 ? ('Perfect ×' + game.streak) : 'Perfect!');
+      // A KEYSTONE (flush to the pixel — the hidden tech) flashes gold; announcing the
+      // jet stream outranks everything. A plain flush keeps the familiar blue beat.
+      if (r.jetLit) { goldFlash = 1; showToast('Jet stream! ×' + game.cfg.JET_MULT, true); }
+      else if (r.keystone) { goldFlash = 1; showToast(game.kStreak >= 2 ? ('Keystone ×' + game.kStreak) : 'Keystone!', true); }
+      else {
+        flash = 1;
+        showToast(game.streak >= 2 ? ('Perfect ×' + game.streak) : 'Perfect!');
+      }
     } else if (r.sliced > 0) {
       spawnShard(r.sliced);
     }
@@ -183,7 +193,7 @@ function stepShards() {
 }
 
 function onDeath() {
-  shake = 16; flash = 0;
+  shake = 16; flash = 0; goldFlash = 0;
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   spawnShard(game.current.width); // the missed slab tumbles
@@ -194,6 +204,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex,
     placed: game.placed, perfects: game.perfects, bestStreak: game.bestStreak,
+    keystones: game.keystones, jets: game.jets,
   };
   const prev = meta;
   meta = Sky.applyRun(prev, summary, game.cfg);
@@ -216,9 +227,10 @@ function onDeath() {
   }
   // Run summary — stage reached + precision play.
   if (statsEl) {
-    const p = game.perfects, s = game.bestStreak;
+    const p = game.perfects, s = game.bestStreak, k = game.keystones;
     const perf = p > 0 ? ` · ${p} perfect${p === 1 ? '' : 's'} (best streak ${s})` : '';
-    statsEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + perf;
+    const key = k > 0 ? ` · ${k} keystone${k === 1 ? '' : 's'}` : '';
+    statsEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + perf + key;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -247,6 +259,7 @@ function update(now) {
     if (game.phase === 'play') Sky.tick(game);
     if (camY < -0.2) camY *= 0.8; else camY = 0;
     if (flash > 0.01) flash *= 0.88; else flash = 0;
+    if (goldFlash > 0.01) goldFlash *= 0.88; else goldFlash = 0;
     if (shake > 0.3) shake *= 0.85; else shake = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
     tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
@@ -336,7 +349,10 @@ function draw() {
     // without reading the cue.
     if (game.phase === 'play') {
       const c = game.current;
-      const hue = slabHue(game.blocks.length);
+      // While the JET STREAM holds, the live slab burns gold (colour-only — the earned
+      // double-score window is legible without any extra motion).
+      const hot = game.jet > 0;
+      const hue = hot ? 46 : slabHue(game.blocks.length);
       const mul = c.speedMul || 1;
       const y = slabScreenY(game.blocks.length - 1) - game.cfg.SLAB_H;
       if (mul > 1.1 && !reduceMotion) {
@@ -345,8 +361,8 @@ function draw() {
         drawSlab(c.x - c.dir * streak, y, c.width, hue, false);
         ctx.globalAlpha = 1;
       }
-      ctx.shadowBlur = 18 + (mul - 1) * 26;
-      ctx.shadowColor = `hsl(${hue},90%,65%)`;
+      ctx.shadowBlur = (hot ? 26 : 18) + (mul - 1) * 26;
+      ctx.shadowColor = hot ? 'hsl(46,100%,62%)' : `hsl(${hue},90%,65%)`;
       drawSlab(c.x, y, c.width, hue, true);
       ctx.shadowBlur = 0;
     }
@@ -356,6 +372,13 @@ function draw() {
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = `rgba(150,220,255,${flash * 0.12})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (goldFlash > 0.01) {
+    // The keystone's gold bloom — the quiet "oh!" that marks the hidden tech.
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(255,208,106,${goldFlash * 0.14})`;
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
   }

@@ -2,7 +2,17 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.2` (single source of truth: repo-root `VERSION`). **v0.24.2** adopts the hub's
+**Version:** `0.24.3` (single source of truth: repo-root `VERSION`). **v0.24.3** is a **GROW**
+run: **Skyline** gets the **"depth inside the mechanic"** layer — the **7th game** to carry it
+(after Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot and Ricochet; Tether + Reprise +
+Ward ship with it from birth). On the one drop verb: a discoverable **Keystone** (the 3.5px flush
+window hides a razor 1.2px sub-window — set a slab flush to the *pixel* and it pays +2 over the
+perfect+streak line, blooms gold and builds a streak, taught nowhere), the **Jet Stream** (3
+keystones in a row → the next 3 placed drops pay double — the steadiest hand becomes the greedy
+one; the live slab burns gold while it holds), a **no-plateau slide-speed asymptote** (SPAN 7.1 /
+K 60, hard-capped 10.5 — replacing the linear ramp that flat-lined at score ≈ 44), and a **secret
+Exosphere stage** past the Spire (score 240, revealed only by reaching it). 3 new badges (8 → 11);
++11 pure-core tests (38 → 49). **v0.24.2** adopts the hub's
 **shared-chrome header** (chrome bundle **v2.0.0**): the fixed primary nav now groups Stories + Games
 under a **Farms** dropdown (a native `<details>`; `nav.js` adds one-open / outside-click / Escape).
 Surgical — the dropdown CSS + hamburger were already vendored, so only the header markup + `nav.js`
@@ -324,7 +334,15 @@ sole host), plus each game at `…/games/<game>/`.
   chip + tinted sky, and **meta-progression** (`skyline.meta`: lifetime floors/perfects/best-streak
   + 8 badges, run-report) — legacy best preserved. A **near-miss** line (`nearMissLine`) nudges
   "N floors short of your best — so close!" on non-record runs. Pure core (no timer-driven death)
-  + 38 tests. **(9th game on varied structure.)**
+  + 49 tests. **(9th game on varied structure.)** **Depth inside the one verb (v0.24.3, the 7th
+  game on the layer):** the slide **no longer plateaus** (`speedOf` is a smooth score asymptote,
+  hard-capped — the old linear ramp went flat at score ≈ 44 forever); a hidden **Keystone** (the
+  drawn/known 3.5px flush window hides a razor `KEYSTONE_EPS` 1.2px sub-window — a slab set flush
+  to the *pixel* pays +2 over the perfect+streak line, blooms gold and builds a streak, taught
+  nowhere; a loose flush still scores but silently breaks it); the **Jet Stream** it unlocks
+  (3 keystones in a row → the next `JET_DROPS` 3 placed drops pay **double**, the triggering drop
+  never doubled — announced only when earned, the live slab burning gold colour-only); and a
+  **secret Exosphere stage** past the Spire (score 240, revealed only by reaching it).
 - **Loft** (`games/loft/`) — keep the glowing orbs aloft; tap a **falling** orb to bat
   it up (a rhythm, not a mash). **On Varied Structure + Growth**: Loft's orbs are *permanent*
   (nothing spawns; the count caps at six), so its varied unit is **the air** — a run is a seeded
@@ -416,11 +434,27 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **630/630** green, released (Ward +49). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **641/641** green, released (Skyline +11). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.24.3 (2026-07-19) — GROW: Skyline gets "depth inside the mechanic" (7th game on the
+  layer).** The oldest game without it, with the exact plateau the sweep item flags (`speedOf`
+  linear, hard-capped 9.5 from score ≈ 44). All four depth items on the one drop verb: the hidden
+  **Keystone** (`KEYSTONE_EPS` 1.2px razor sub-window inside the 3.5px flush window → +2 + gold
+  bloom + streak, taught nowhere), the **Jet Stream** (`KEYSTONE_TRIGGER` 3 in a row → next
+  `JET_DROPS` 3 placed drops doubled; the triggering drop never doubled; live slab burns gold
+  colour-only), a **no-plateau speed asymptote** (`SPEED_SPAN` 7.1 / `SPEED_K` 60, hard cap 10.5,
+  `SPEED_INC` retired — regression-pinned still climbing at score 600, override-proof), and a
+  **secret Exosphere stage** (score 240, gold, reveal toast + badge; start tips trimmed so the
+  stage ladder + wind list are no longer printed). 3 new skill-safe badges (8 → 11),
+  `totals.keystones` (lossless legacy upgrade), run-report keystones. +11 pure-core tests
+  (38 → 49); collection **641/641** green. Headless-Chrome previewed (forced Exosphere + live jet
+  stream, desktop + mobile, all clean); **a live play-feel eyeball is still worth doing** (knobs:
+  `KEYSTONE_EPS` 1.2 / `KEYSTONE_TRIGGER` 3 / `JET_DROPS` 3). Player changelog + `_games` date +
+  README re-gen. Released `dev → main` by default on green (PATCH). **Depth-layer rollout:
+  7 of 13.**
 - **✅ v0.24.2 (2026-07-18) — Adopt the hub's shared-chrome header (Farms nav dropdown, chrome
   bundle v2.0.0).** The v0.24.1 check had reported this bundle as held; the owner then asked for it.
   The hub groups its two "grown daily" collections (Stories + Games) under a **Farms** `<details>`
@@ -896,11 +930,17 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
 - **✅ Varied-structure rollout: 13 of 13 — COMPLETE.** The **"depth inside the mechanic"** layer
-  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 5 of 13** —
-  Polarity, Brim, Echo Chamber, Ink Bloom, **Orbit Slingshot** (v0.23.2); Tether + Reprise carry
-  it from birth. Take the next game lowest-coverage first (remaining: Ricochet, Skyline, Loft,
-  Poise, Symmetry, Arc, Sluice — **Ricochet** is the oldest without the layer, a good default).
-  A game already on both layers can still take one new formation or a cross-run unlock.
+  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 7 of 13** —
+  Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, **Skyline** (v0.24.3);
+  Tether + Reprise + Ward carry it from birth. Take the next game lowest-coverage first
+  (remaining: **Loft** — the other original-seven game, a good default — then Poise, Symmetry,
+  Arc, Sluice). A game already on both layers can still take one new formation or a cross-run
+  unlock.
+- **Eyeball Skyline in a real browser** (validated by headless probe renders). Play-feel knobs:
+  `KEYSTONE_EPS` (1.2px) — is a keystone findable by a steady hand without being a fluke? —
+  `KEYSTONE_TRIGGER` (3) / `JET_DROPS` (3) — does the Jet Stream feel earned? — and the speed
+  asymptote `SPEED_SPAN` (7.1) / `SPEED_K` (60) — gentler early than the old ramp; does the
+  mid-game still press? Also: does **Exosphere** land as a real "there's more" surprise?
 - **Eyeball Orbit Slingshot in a real browser** (Chrome MCP was down; validated by headless probe
   renders). Play-feel knobs: `KISS_BAND` (7px) — is a kiss findable by a daring player without
   being a fluke? — `KISS_TRIGGER` (3) / `AURORA_TICKS` (300) — does the Aurora feel earned? — and
@@ -941,10 +981,10 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.23.2 release (tagged) |
-| Tests (`node --test`) | ✅ **572/572** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.24.3 release (tagged) |
+| Tests (`node --test`) | ✅ **641/641** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | Varied-structure rollout | ✅ **COMPLETE — 13/13 games** (Poise closed it out, v0.22.2) |
-| Depth-inside-the-mechanic rollout | 🔄 **5/13** (Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot; Tether + Reprise born with it) — the lead GROW lever |
+| Depth-inside-the-mechanic rollout | 🔄 **7/13** (Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline; Tether + Reprise + Ward born with it) — the lead GROW lever; next: Loft |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |
