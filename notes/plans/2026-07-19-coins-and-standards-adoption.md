@@ -99,3 +99,21 @@ Before *and* after each applying phase: `node --test "games/**/*.test.js"` green
 test), a headless-Chrome preview of any visual change, the standard's `## Verify`/compliance for what
 was touched, and the project constraints (pure-core split, no gate, ≤3/day earn, honest records).
 If verification can't complete, do not auto-apply — fall back to check-report-wait.
+
+## Progress
+
+- **Phases 1–3 — done 2026-07-19** (committed to `dev`, VERSION → 0.24.6; were left unpushed +
+  unreleased until the batch below).
+- **Phase 4, batch 1 — done 2026-07-20 (v0.24.7):** **Ward** (Aurora shield) + **Brim** (Fizz).
+  Uniform capped earn + a cosmetic-only fun mode each; additive render, records honest, never a
+  gate; 652/652 green; menus previewed headless. Released `dev → main` (this also shipped phases
+  1–3). **Rollout: 3 of 15.**
+  - **Note:** the hygiene scripts phase 1 planned (`check-links.mjs` / `check-tidy.mjs`) were
+    never actually added — the real test gate is still `node --test`. Add them, or drop the claim,
+    on a future run.
+- **Phase 4, next batches (queued, ~3 each):** **Tether** (Comet) · **Ink Bloom** (Neon rave) ·
+  **Echo Chamber** (Ripple), then Orbit Slingshot · Ricochet · Skyline · Loft · Poise · Symmetry
+  · Arc · Sluice. **Reprise (Choir) is deferred** — it wants a real audio layer, which the games
+  don't have yet; don't rush WebAudio into a daily run.
+- **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
+  reports (the per-batch releases mean `main` is already current).

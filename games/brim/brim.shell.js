@@ -25,6 +25,7 @@ import {
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, nearMissLine,
   ACHIEVEMENTS,
 } from './brim.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__brimBooted = true;
 
@@ -53,6 +54,7 @@ const formationEl = el('formation'), clutchEl = el('clutch'), livesEl = el('live
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const MULT_COLS = ['#6fd3e0', '#6fd3e0', '#7ee787', '#a9f77a', '#ffd166', '#ffab6a', '#ff8fa3', '#ff6ad0', '#ff5c8a'];
 
@@ -75,6 +77,45 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Fizz" fun mode (one run, cosmetic soda bubbles, score still counts) ──
+const FIZZ_COST = 1;
+let funArmed = false;    // Fizz bought for the NEXT run
+let fizzActive = false;  // Fizz applies to the CURRENT run
+let bubbles = [];        // {x,y,r,vy,life} — cosmetic fizz bubbles rising through the liquid
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;                 // already bought; can't double-spend
+    coinBuyText.textContent = 'Fizz armed ✓';
+    coinHint.textContent = 'A fizzy pour — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < FIZZ_COST;
+    coinBuyText.textContent = 'Fizz mode · ' + FIZZ_COST;
+    coinHint.textContent = bal < FIZZ_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();      // don't let a menu tap also start the pour
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(FIZZ_COST, 'brim:fizz')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null, scale = 1;
 
@@ -173,6 +214,8 @@ const fy = (f) => BY() - f * VH();
 
 function beginRun() {
   beatBest = false;
+  fizzActive = funArmed; funArmed = false; bubbles = [];  // consume the fun mode for this one run
+  refreshCoinUI();
   startGame(game);
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
@@ -254,6 +297,7 @@ function onCommit(c) {
       brimPulse = 1;
       flash = c.meniscus ? 2 : 1.3;
       burst(c.meniscus ? 16 : 10, '#ffd166', 3, c.level);
+      if (fizzActive) burst(c.meniscus ? 14 : 9, '#fff3c0', 3.4, c.level);   // fizz: a cosmetic foam head
       if (!reduceMotion) shake = Math.max(shake, c.meniscus ? 5 : 3);
     } else {
       burst(5, '#6fd3e0', 1.6, c.level);
@@ -278,6 +322,7 @@ function onCommit(c) {
 
 function onDeath() {
   shake = 18; ms = 0; fm = 0;
+  fizzActive = false;   // stop the fizz on the game-over screen (bubbles finish naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
@@ -343,6 +388,18 @@ function onDeath() {
     overTitle.textContent = 'Dry';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. All logic + the 3/day cap live in the
+  // pure shared core; here we just fold the run in and quietly note any coins earned.
+  const coinRes = grantForRun('brim', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -382,6 +439,27 @@ function update(now) {
       p.x += p.vx; p.y += p.vy;
       p.life -= 0.028;
       if (p.life <= 0) splash.splice(i, 1);
+    }
+
+    // Fizz fun mode — cosmetic soda bubbles rising through the liquid (never touches score).
+    if (fizzActive && game.phase === 'play' && !reduceMotion) {
+      const lvl = Math.min(1, game.level);
+      if (lvl > 0.03 && Math.random() < 0.6) {
+        bubbles.push({
+          x: CX() + (Math.random() - 0.5) * VW() * 0.78,
+          y: BY() - Math.random() * lvl * VH() * 0.55 - 2,   // start in the lower part of the liquid
+          r: (1 + Math.random() * 2.2) * scale,
+          vy: (0.5 + Math.random() * 0.9) * scale,
+          life: 1,
+        });
+      }
+      if (bubbles.length > 90) bubbles.splice(0, bubbles.length - 90);
+    }
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      b.y -= b.vy; b.life -= 0.012;
+      const surfaceY = BY() - Math.min(1, game.level) * VH();
+      if (b.life <= 0 || b.y <= surfaceY) bubbles.splice(i, 1);   // pop at the surface
     }
 
     // decays
@@ -549,6 +627,24 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(x0, ly); ctx.lineTo(x0 + vw, ly); ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
+
+  // Fizz bubbles — cosmetic soda rising through the glass (clipped to the vessel, drawn ON TOP
+  // of the liquid so the gold band + fill line stay perfectly readable underneath).
+  if (bubbles.length) {
+    ctx.save();
+    roundRect(x0, ty, vw, vh, rad);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,247,220,0.9)';
+    ctx.lineWidth = 1 * scale;
+    for (const b of bubbles) {
+      ctx.globalAlpha = Math.max(0, b.life) * 0.6;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
 
   // glass outline + rim
   ctx.strokeStyle = 'rgba(230,243,245,0.28)';

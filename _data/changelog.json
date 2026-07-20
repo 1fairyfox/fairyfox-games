@@ -1,5 +1,19 @@
 [
   {
+    "date": "2026-07-20",
+    "game": "Ward",
+    "slug": "ward",
+    "kind": "grow",
+    "text": "Coins have come to the games. As you explore Fairy Fox you quietly pick a few up — and now you can spend them here. One coin arms Aurora shield for a single run: your cyan guard shimmers through the whole rainbow and every block throws off a spray of coloured sparks. It's pure spectacle — your score counts exactly the same with it on or off, and all of Ward is yours at zero coins. Earning stays gentle too: reach a new stage or set a new record and Ward hands you a coin, at most a few a day, so it's a small thank-you for playing well and never a grind."
+  },
+  {
+    "date": "2026-07-20",
+    "game": "Brim",
+    "slug": "brim",
+    "kind": "grow",
+    "text": "Brim joins the coin economy with a fizz. Spend a single coin and Fizz mode turns your next pour bubbly — tiny bubbles rise through the glass, and a landing in the gold throws up a soda-foam head. It's cosmetic through and through: the fill line, the rim and your score are exactly as they were, so it's there for the fun of it, never for an edge. And you earn coins just by playing well — reaching a new stage or setting a record pours you one, a few a day at most, never a chore."
+  },
+  {
     "date": "2026-07-19",
     "game": "Skyline",
     "slug": "skyline",

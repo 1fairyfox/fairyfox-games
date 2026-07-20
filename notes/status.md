@@ -2,7 +2,19 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.3` (single source of truth: repo-root `VERSION`). **v0.24.3** is a **GROW**
+**Version:** `0.24.7` (single source of truth: repo-root `VERSION`). **v0.24.7** is a **GROW**
+run and **coins rollout batch 1**: **Ward** + **Brim** join the owner-authorized **coins**
+economy (the initiative's phases 1–3 — hub-standards adoption, coins infra + legal, the shared
+game-coins module + Polarity reference — were built on `dev` on 2026-07-19 but left **unpushed +
+unreleased**; this run advanced the rollout **and** released the whole stack). Each of Ward/Brim
+now earns the uniform capped coins (+1 new stage, +1 new record, ≤3/game/day, all in the pure
+shared `coins-earn.core.js`) and gains one **optional, consumable, cosmetic** fun mode bought for
+**1 coin**: Ward's **Aurora shield** (rainbow shield shimmer + block sparks) and Brim's **Fizz**
+(rising soda bubbles + a golden foam head on a brim). Both are **additive-only** — score, records,
+and the skill windows are untouched, **never a gate**, reduced-motion friendly. **Coins rollout:
+3 of 15** (Polarity, Ward, Brim). Player changelog + `_games` date bumps + README re-gen; legal
+already discloses the local-only balance (phase 2). 652/652 green; menus previewed headless
+(desktop + mobile). **v0.24.3** was a **GROW**
 run: **Skyline** gets the **"depth inside the mechanic"** layer — the **7th game** to carry it
 (after Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot and Ricochet; Tether + Reprise +
 Ward ship with it from birth). On the one drop verb: a discoverable **Keystone** (the 3.5px flush
@@ -434,7 +446,8 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **641/641** green, released (Skyline +11). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **652/652** green, released (coins-earn core +11 from the coins initiative; Ward/Brim
+coins are cosmetic shell-only, so no new core tests). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.

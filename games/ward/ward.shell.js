@@ -21,6 +21,7 @@ import {
   createGame, start as startGame, setAim, tick, milestoneAt,
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, ACHIEVEMENTS,
 } from './ward.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__wardBooted = true;
 
@@ -56,6 +57,7 @@ const formationEl = el('formation'), clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult'), livesEl = el('lives');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
 
@@ -79,6 +81,46 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Aurora shield" fun mode (one run, cosmetic, score still counts) ──
+const AURORA_COST = 1;
+let funArmed = false;      // Aurora bought for the NEXT run
+let auroraActive = false;  // Aurora applies to the CURRENT run
+let aurora = 0;            // rainbow-wash phase
+let sparks = [];           // {x,y,vx,vy,life,hue} — cosmetic block sparks
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;                 // already bought; can't double-spend
+    coinBuyText.textContent = 'Aurora armed ✓';
+    coinHint.textContent = 'A rainbow guard — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < AURORA_COST;
+    coinBuyText.textContent = 'Aurora shield · ' + AURORA_COST;
+    coinHint.textContent = bal < AURORA_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();      // don't let a menu tap also start the run
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(AURORA_COST, 'ward:aurora')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, R = 1, cx = 0, cy = 0, game = null;
 let flash = 0, shake = 0, ms = 0, fm = 0;
 let beatBest = false;
@@ -96,6 +138,18 @@ function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.
 
 function showMilestone(label) { if (milestoneEl) { milestoneEl.textContent = label; ms = 1; } }
 function showFormation(name) { if (formationEl && name) { formationEl.textContent = name; fm = 1; } }
+
+/** Aurora fun mode — a little burst of rainbow sparks where a shard was blocked.
+ *  Purely cosmetic (never touches score); honours reduced-motion by staying still. */
+function spawnSparks(n, ang) {
+  if (reduceMotion || !game) return;
+  const [bx, by] = polar(ang, game.cfg.SHIELD_R * R);
+  for (let i = 0; i < n; i++) {
+    sparks.push({ x: bx, y: by, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+      life: 1, hue: Math.floor(Math.random() * 360) });
+  }
+  if (sparks.length > 120) sparks.splice(0, sparks.length - 120);
+}
 
 function updateStageChip() {
   if (!stageChip) return;
@@ -157,6 +211,8 @@ renderLives();
 
 function beginRun() {
   beatBest = false;
+  auroraActive = funArmed; funArmed = false; aurora = 0; sparks = [];  // consume the fun mode for this one run
+  refreshCoinUI();
   startGame(game);
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
@@ -208,6 +264,7 @@ const KEY_STEP = 0.14;   // aim nudge per tick while a rotate key is held
 
 function onDeath() {
   shake = 20; ms = 0; fm = 0;
+  auroraActive = false;   // stop the aurora wash on the game-over screen (sparks finish naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
@@ -263,6 +320,18 @@ function onDeath() {
     newbestEl.textContent = '';
     overTitle.textContent = 'Core breached'; overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. All logic + the 3/day cap live in the
+  // pure shared core; here we just fold the run in and quietly note any coins earned.
+  const coinRes = grantForRun('ward', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 380);
 }
 
@@ -282,6 +351,7 @@ function update(now) {
       if (r.passed) {
         flash = r.precise ? 1.6 : 1;
         scoreEl.textContent = game.score;
+        if (auroraActive) spawnSparks(r.precise ? 12 : 6, game.shieldAngle);   // aurora: celebrate the block
         if (r.precise) {
           multPulse = 1; parryRing = 1; parryAng = game.shieldAngle;
           if (!reduceMotion) shake = Math.max(shake, 3);
@@ -319,6 +389,12 @@ function update(now) {
     if (flash > 0.01) flash *= 0.86; else flash = 0;
     if (ms > 0.001) ms *= 0.965; else ms = 0;
     if (fm > 0.001) fm *= 0.955; else fm = 0;
+    // Aurora fun mode: advance the rainbow phase + tumble the sparks (cosmetic only).
+    if (auroraActive) aurora += 0.03;
+    if (sparks.length) {
+      for (const p of sparks) { p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life *= 0.92; }
+      sparks = sparks.filter(p => p.life > 0.05);
+    }
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
     if (parryRing > 0.01) parryRing *= 0.9; else parryRing = 0;
     if (multPulse > 0.01 || breakPulse > 0.01) {
@@ -430,6 +506,30 @@ function draw() {
       ctx.lineWidth = 2.5 * parryRing + 0.5;
       ctx.beginPath(); ctx.arc(px, py, (1 - parryRing) * 34 + 6, 0, 7); ctx.stroke();
     }
+
+    // Aurora fun mode — a cosmetic rainbow shimmer over the shield + a faint cycling orbit
+    // ring. Additive and drawn ON TOP, so the cyan shield + its parry sweet-spot stay perfectly
+    // readable underneath (never a gameplay change — the score is identical with or without it).
+    if (auroraActive) {
+      const orbitR = cfg.SHIELD_R * R, sa = game.shieldAngle;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      // shimmer over the live shield band
+      const hs = (aurora * 60) % 360;
+      ctx.strokeStyle = 'hsla(' + hs + ',95%,65%,' + (reduceMotion ? 0.28 : 0.42) + ')';
+      ctx.lineWidth = 9 + multPulse * 4;
+      ctx.beginPath(); ctx.arc(cx, cy, orbitR, sa - cfg.SHIELD_HALF, sa + cfg.SHIELD_HALF); ctx.stroke();
+      // faint full-orbit rainbow ring
+      const seg = 24;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < seg; i++) {
+        const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
+        ctx.strokeStyle = 'hsla(' + ((aurora * 40 + i * (360 / seg)) % 360) + ',90%,62%,' + (reduceMotion ? 0.1 : 0.16) + ')';
+        ctx.beginPath(); ctx.arc(cx, cy, orbitR, a0, a1); ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
 
   // Core — the thing you defend. Pulses gently; flinches on the flash.
@@ -446,6 +546,16 @@ function draw() {
   ctx.shadowBlur = 0;
 
   ctx.restore();
+
+  // Aurora sparks — rainbow sparks bursting from each block (cosmetic; drawn in screen space).
+  if (sparks.length) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of sparks) {
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,66%,' + (p.life * 0.9).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.6 * p.life + 1, 0, 7); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';

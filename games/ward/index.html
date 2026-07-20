@@ -109,6 +109,25 @@
   .badge b { font-size:13px; color:#7af9d0; letter-spacing:.04em; }
   .badge span { font-size:11.5px; opacity:.6; }
   .metaLine { margin-top:16px; font-size:12px; letter-spacing:.06em; opacity:.45; font-variant-numeric:tabular-nums; }
+
+  /* Coins — an OPTIONAL, cheap fun-mode extra on the menu, and a quiet "+N" when a run
+     earns one. Never a gate: hidden entirely when no wallet is present, and the game plays
+     identically at zero coins. Kept small + peripheral so it never competes with the game. */
+  .coinrow { margin-top:22px; display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:auto; }
+  .coinrow[hidden] { display:none; }
+  .coinbuy {
+    display:inline-flex; align-items:center; gap:.5em; padding:9px 16px; border-radius:999px; cursor:pointer;
+    font:inherit; font-size:13px; font-weight:600; letter-spacing:.02em; color:#e8e8f0;
+    background:rgba(154,140,255,.10); border:1px solid rgba(154,140,255,.34);
+    transition:background .16s ease,border-color .16s ease,transform .16s ease,opacity .16s ease;
+  }
+  .coinbuy .coin-ic { display:inline-flex; width:16px; height:16px; opacity:.85; }
+  .coinbuy:hover { background:rgba(154,140,255,.18); border-color:rgba(154,140,255,.5); }
+  .coinbuy:disabled { cursor:default; opacity:.4; }
+  .coinbuy.armed { color:#7af9d0; background:rgba(122,249,208,.12); border-color:rgba(122,249,208,.42); }
+  .coinhint { font-size:11px; letter-spacing:.06em; opacity:.5; min-height:14px; }
+  .coinearn { margin-top:12px; font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; color:#ffd86a; min-height:15px; }
+  @media (prefers-reduced-motion: reduce){ .coinbuy{ transition:none } }
 </style>
 </head>
 <body>
@@ -136,6 +155,13 @@
     <div class="sub">Shards close in on your core. Aim your shield — mouse, touch, or
       <em>← →</em> — to block them. Catch one <em>dead-centre</em> to build your multiplier.</div>
     <div class="tip">The deeper you go, the more there is to find.</div>
+    <div class="coinrow" id="coinrow" hidden>
+      <button type="button" class="coinbuy" id="coinBuy">
+        <span class="coin-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.25"/></svg></span>
+        <span id="coinBuyText">Aurora shield · 1</span>
+      </button>
+      <div class="coinhint" id="coinHint"></div>
+    </div>
     <div class="prompt">Click / Space to begin</div>
   </div>
 
@@ -146,10 +172,16 @@
     <div class="newbest" id="newbest"></div>
     <div class="clutch" id="clutch"></div>
     <div class="badges" id="badges"></div>
+    <div class="coinearn" id="coinEarn"></div>
     <div class="metaLine" id="metaLine"></div>
     <div class="prompt">Click or press Space to try again</div>
   </div>
 </div>
+
+<!-- Shared Fairy Fox coins wallet (vendored verbatim). Classic defer, before the module,
+     so window.FairyFoxCoins exists when the shell runs. On a game page (no site header)
+     it exposes the API + the first-view earn; the game draws its own coin affordance. -->
+<script src="../../assets/coins.js" defer></script>
 
 <!-- The game logic core + render shell are external modules; this is the
      conventional, robust way to load them. -->
