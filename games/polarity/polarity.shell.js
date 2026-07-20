@@ -24,6 +24,7 @@ import {
   createGame, start as startGame, toggle, tick, milestoneAt,
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, ACHIEVEMENTS,
 } from './polarity.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__polarityBooted = true;
 
@@ -57,6 +58,7 @@ const clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 // Multiplier readout colours — ramp from calm to hot as the combo climbs (×1 … ×MAX).
 const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
@@ -80,6 +82,46 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Disco" fun mode (one run, cosmetic, score still counts) ──
+const DISCO_COST = 1;
+let funArmed = false;    // Disco bought for the NEXT run
+let discoActive = false; // Disco applies to the CURRENT run
+let disco = 0;           // rainbow-wash phase
+let confetti = [];       // {x,y,vx,vy,life,hue} — disco sparkle particles
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;                 // already bought; can't double-spend
+    coinBuyText.textContent = 'Disco armed ✓';
+    coinHint.textContent = 'A rainbow run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < DISCO_COST;
+    coinBuyText.textContent = 'Disco mode · ' + DISCO_COST;
+    coinHint.textContent = bal < DISCO_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();      // don't let a menu tap also start the run
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(DISCO_COST, 'polarity:disco')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 let flash = 0, shake = 0, ms = 0;   // ms: milestone-banner life, 1 → 0
@@ -114,6 +156,17 @@ function showFormation(name) {
   if (!formationEl || !name) return;
   formationEl.textContent = name;
   fm = 1;
+}
+
+/** Disco fun mode — spawn a little burst of rainbow confetti at the player on a pass.
+ *  Purely cosmetic (never touches score); honours reduced-motion by staying still. */
+function spawnConfetti(n) {
+  if (reduceMotion) return;
+  for (let i = 0; i < n; i++) {
+    confetti.push({ x: game.cfg.PLAYER_X, y: H / 2, vx: (Math.random() - 0.5) * 6.5,
+      vy: (Math.random() - 0.7) * 7, life: 1, hue: Math.floor(Math.random() * 360) });
+  }
+  if (confetti.length > 140) confetti.splice(0, confetti.length - 140);
 }
 
 /** Refresh the quiet HUD stage chip (name + progress bar) from the pure core. */
@@ -169,6 +222,8 @@ updateStageChip();
 
 function beginRun() {
   beatBest = false;
+  discoActive = funArmed; funArmed = false; disco = 0; confetti = [];  // consume the fun mode for this one run
+  refreshCoinUI();
   startGame(game);
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
@@ -196,6 +251,7 @@ window.addEventListener('keydown', e => {
 
 function onDeath() {
   shake = 18; ms = 0; fm = 0;
+  discoActive = false;   // stop the disco wash on the game-over screen (confetti finishes naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
@@ -262,6 +318,18 @@ function onDeath() {
     overTitle.textContent = 'Polarity clash';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. All logic + the 3/day cap live in the
+  // pure shared core; here we just fold the run in and quietly note any coins earned.
+  const coinRes = grantForRun('polarity', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -290,6 +358,7 @@ function update(now) {
         else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
         if (best > 0 && game.score > best) beatBest = true;
         if (r.formation) showFormation(r.formation);   // a notable formation just began
+        if (discoActive) spawnConfetti(r.snap ? 10 : r.precise ? 7 : 4);   // disco: celebrate the pass
         // Stage transition — the readable arc of the run (Growth Layer 1).
         const si = stageIndexAt(game.cfg, game.cleared);
         if (si !== stageIdx) {
@@ -307,6 +376,12 @@ function update(now) {
     if (flash > 0.01) flash *= 0.86; else flash = 0;
     if (ms > 0.001) ms *= 0.965; else ms = 0;
     if (fm > 0.001) fm *= 0.955; else fm = 0;
+    // Disco fun mode: advance the rainbow phase + tumble the confetti (cosmetic only).
+    if (discoActive) disco += 0.03;
+    if (confetti.length) {
+      for (const p of confetti) { p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.vx *= 0.98; p.life *= 0.93; }
+      confetti = confetti.filter(p => p.life > 0.05);
+    }
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
     if (multPulse > 0.01 || breakPulse > 0.01) {
       if (multPulse > 0.01) multPulse *= 0.9; else multPulse = 0;
@@ -351,6 +426,19 @@ function draw() {
     g1.addColorStop(1, rgbStr(tintCur, 0.06));
     ctx.fillStyle = g1;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Disco fun mode — a subtle rainbow wash cycling across the field. Deliberately faint and
+  // BEHIND the gates, so the cyan/magenta polarity cue stays perfectly readable (never a
+  // gameplay change — the score is identical with or without it).
+  if (discoActive) {
+    ctx.globalCompositeOperation = 'lighter';
+    const a = reduceMotion ? 0.05 : 0.075;
+    const gg = ctx.createLinearGradient(0, 0, W, 0);
+    for (let i = 0; i <= 6; i++) { const h = (disco * 40 + i * 60) % 360; gg.addColorStop(i / 6, 'hsla(' + h + ',90%,60%,' + a + ')'); }
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // Overcharge — a warm golden bloom washing the field while the earned double-score window
@@ -419,6 +507,16 @@ function draw() {
     ctx.fillText(game.pol ? '+' : '−', px, midY + 1);
   }
   ctx.restore();
+
+  // Disco confetti — rainbow sparks tumbling from each pass (cosmetic; drawn in screen space).
+  if (confetti.length) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of confetti) {
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,65%,' + (p.life * 0.9).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3 * p.life + 1, 0, 7); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
