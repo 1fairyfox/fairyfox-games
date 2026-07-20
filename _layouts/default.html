@@ -8,9 +8,12 @@
 {{ content }}
 {% include footer.html %}
 
-<!-- Chrome behaviour + reader menu (shared, browser-imported), then any page module. -->
+<!-- Chrome behaviour + reader menu (shared, browser-imported), then coins, then any page module.
+     coins.js is the shared reading-engagement layer (vendored verbatim from the hub master);
+     loaded after reader.js so the coin button docks beside the "Aa" button. -->
 <script src="{{ '/assets/nav.js' | relative_url }}" defer></script>
 <script src="{{ '/assets/reader.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/coins.js' | relative_url }}" defer></script>
 {% if page.script %}<script type="module" src="{{ '/assets/' | append: page.script | append: '.js' | relative_url }}"></script>
 {% endif %}</body>
 </html>
