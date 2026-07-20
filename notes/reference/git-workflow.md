@@ -177,6 +177,22 @@ branch-protection config (require PR, **0 approvals**, strict checks, enforce-ad
 linear history **off** so `--no-ff` merges pass) lives in
 [supply-chain-hardening](supply-chain-hardening.md).
 
+### Release posture — the brand rule (green-and-CI-gated, not per-release approval)
+
+One brand posture, resolving earlier per-project divergence (one node said "approval
+first", another "release by default"): **a release proceeds on its own once the work is
+green — through the CI-gated PR — rather than pausing for a separate human approval each
+time.** Concretely: commit/push freely on `dev`; when the suite is green and it's worth
+shipping, open the PR to `main`, **wait for CI to pass on the PR** (`gh pr checks --watch`
+— main is protected, so this gate is real), then merge and tag. **Hold only when something
+is off** — tests fail or can't finish, a visual preview looks wrong, or the change is
+genuinely risky/ambiguous — in which case commit WIP to `dev` and report the blocker.
+
+This is deliberately narrower than "don't wait on CI": routine `dev` pushes do **not**
+block on CI, but the **`main` release gate does** — you wait for the PR's checks before
+merging to `main`. A project that wants a stricter always-ask posture may state it in its
+own `CLAUDE.md`, but the mesh default is green-and-CI-gated auto-proceed.
+
 ## Hotfixes
 
 A production problem that can't wait for the next `dev` cycle is fixed on a branch

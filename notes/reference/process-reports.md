@@ -103,6 +103,29 @@ The hub triages these exactly like any other report (they ride the same inbound 
 but the fixed `procedure: propose-standard` lets the review pass pick them out as
 "candidate standards" rather than run feedback.
 
+## Surfacing meta-refinements (not just code)
+
+Feature and bug work is the obvious thing to post about — but the mesh's most reusable output is
+often the **meta-work**: a sharpened `CLAUDE.md`, a better notes convention, a new system or
+procedure a project invents to manage itself. **Every project surfaces these, not only code:**
+
+- **Post about them in the project's own updates / changelog.** A `CLAUDE.md` refinement, a notes
+  reorganization, a new workflow or automation, a procedure that made the repo easier to run — these
+  are notable changes and belong in the project's updates the same as a feature does. Don't let
+  them pass silently as "just housekeeping."
+- **Flag the brand-shareable ones upward.** When a refinement is generic enough to help other
+  projects — a convention, a policy, a procedure, a piece of tooling — raise it as a
+  **[`procedure: propose-standard`](#a-node-proposing-a-standard-upward-node--hub)** report so the
+  hub can consider promoting it mesh-wide. Improvements that stay in one repo don't compound; the
+  brand gets better when the good ideas travel.
+- **The hub actively looks for these.** The inbound review pass and the round-up scan siblings'
+  `CLAUDE.md` and non-log notes (context, reference, decisions, plans, systems) precisely for
+  conventions worth standardizing — the process reports are the ongoing channel, but a periodic
+  manual deep-read of the notes catches what no single report thought to propose.
+
+The bar is the same as everywhere: honest, direct, no hype — and biased toward **sharing** the
+improvement rather than hoarding it.
+
 ## Where reports live, and what they're named
 
 In the node's **own** repo:
