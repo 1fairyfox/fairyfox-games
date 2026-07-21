@@ -12,6 +12,7 @@
  * fails to load, so a load failure is never a silently dead screen.
  */
 import * as Ink from './ink-bloom.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__inkBloomBooted = true;
@@ -41,6 +42,7 @@ const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
 const formCueEl = el('formCue');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -93,6 +95,44 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Neon rave" fun mode (one run, cosmetic, score still counts) ──
+const RAVE_COST = 1;
+let funArmed = false;    // Neon rave bought for the NEXT run
+let raveActive = false;  // applies to the CURRENT run
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Neon rave armed ✓';
+    coinHint.textContent = 'A neon run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < RAVE_COST;
+    coinBuyText.textContent = 'Neon rave · ' + RAVE_COST;
+    coinHint.textContent = bal < RAVE_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(RAVE_COST, 'inkbloom:rave')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, game = null;
 const pointer = { x: 0, y: 0, has: false };
 let particles = [], shake = 0;
@@ -129,6 +169,7 @@ function grazeSpark() {
   shake = Math.max(shake, 3);
 }
 function beginRun() {
+  raveActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Ink.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -151,6 +192,8 @@ pointer.x = W / 2; pointer.y = H / 2;
 
 // ── Input ────────────────────────────────────────────────────────────────────
 function pointAt(e) {
+  // Don't let interacting with the on-menu coin button start the run (this game begins on move).
+  if (game.phase === 'menu' && e.target && e.target.closest && e.target.closest('#coinrow')) return;
   const r = canvas.getBoundingClientRect();
   const t = e.touches && e.touches[0];
   pointer.x = (t ? t.clientX : e.clientX) - r.left;
@@ -188,6 +231,7 @@ function stepParticles() {
 }
 
 function onDeath() {
+  raveActive = false;   // stop the rave on the game-over screen
   burst(game.head.x, game.head.y, game.hue);
   shake = 16;
   if (stageChip) stageChip.classList.add('hide');
@@ -234,6 +278,17 @@ function onDeath() {
     overTitle.textContent = 'Bloom collapsed';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('inkbloom', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 
@@ -278,6 +333,16 @@ function draw() {
     ctx.strokeStyle = rgbStr(tintCur, 0.22);
     ctx.lineWidth = 2;
     ctx.strokeRect(3, 3, W - 6, H - 6);
+    // Neon rave fun mode — a pulsing rainbow wall frame (cosmetic; the trail's collision is
+    // unchanged, so the score is identical). Reduced-motion → a steady, non-pulsing glow.
+    if (raveActive && game.phase === 'play') {
+      const beat = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(game.t * 0.35);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'hsla(' + ((game.t * 10) % 360) + ',100%,60%,' + (0.14 + beat * 0.24).toFixed(3) + ')';
+      ctx.lineWidth = 3 + beat * 3;
+      ctx.strokeRect(4, 4, W - 8, H - 8);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     if (stagePulse > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
@@ -345,6 +410,16 @@ function draw() {
         ctx.strokeStyle = `hsla(${(t * 6 + 180) % 360},95%,72%,0.8)`;
         ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(hd.x, hd.y, r * 1.8, 0, 7); ctx.stroke();
+      }
+      // Neon rave — a fast-cycling rainbow shimmer laid over the ink body (cosmetic overlay).
+      if (raveActive) {
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const base = (t * 8) % 360;
+        ctx.lineWidth = r * 1.25;
+        for (let i = 1; i < g.trail.length; i++) {
+          ctx.strokeStyle = 'hsla(' + ((base + i * 8) % 360) + ',100%,65%,0.28)';
+          ctx.beginPath(); ctx.moveTo(g.trail[i - 1].x, g.trail[i - 1].y); ctx.lineTo(g.trail[i].x, g.trail[i].y); ctx.stroke();
+        }
       }
     }
 
