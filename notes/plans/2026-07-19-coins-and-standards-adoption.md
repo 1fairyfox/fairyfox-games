@@ -111,9 +111,12 @@ If verification can't complete, do not auto-apply — fall back to check-report-
   - **Note:** the hygiene scripts phase 1 planned (`check-links.mjs` / `check-tidy.mjs`) were
     never actually added — the real test gate is still `node --test`. Add them, or drop the claim,
     on a future run.
-- **Phase 4, next batches (queued, ~3 each):** **Tether** (Comet) · **Ink Bloom** (Neon rave) ·
-  **Echo Chamber** (Ripple), then Orbit Slingshot · Ricochet · Skyline · Loft · Poise · Symmetry
-  · Arc · Sluice. **Reprise (Choir) is deferred** — it wants a real audio layer, which the games
-  don't have yet; don't rush WebAudio into a daily run.
+- **Phase 4, batch 2 — done 2026-07-20 (v0.24.8):** **Tether** (Comet) · **Ink Bloom** (Neon rave)
+  · **Echo Chamber** (Ripple pool). Uniform capped earn + a cosmetic-only fun mode each; additive
+  render, records honest, never a gate; 652/652 green; menus previewed headless. Ink Bloom needed
+  a guard so the on-menu coin button doesn't trigger its move-to-begin start. **Rollout: 6 of 15.**
+- **Phase 4, next batches (queued, ~3 each):** Orbit Slingshot · Ricochet · Skyline, then Loft ·
+  Poise · Symmetry, then Arc · Sluice. **Reprise (Choir) is deferred** — it wants a real audio
+  layer, which the games don't have yet; don't rush WebAudio into a daily run.
 - **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
   reports (the per-batch releases mean `main` is already current).

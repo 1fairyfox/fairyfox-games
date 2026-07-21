@@ -12,6 +12,7 @@
  * silently dead screen.
  */
 import * as Echo from './echo-chamber.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__echoChamberBooted = true;
@@ -39,6 +40,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast'), comboEl = el('combo'), cadenceEl = el('cadence');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -91,6 +93,45 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Ripple pool" fun mode (one run, cosmetic, score still counts) ──
+const RIPPLE_COST = 1;
+let funArmed = false;      // Ripple pool bought for the NEXT run
+let rippleActive = false;  // applies to the CURRENT run
+let ripples = [];          // {r, life} — expanding water ripples
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Ripple pool armed ✓';
+    coinHint.textContent = 'A watery run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < RIPPLE_COST;
+    coinBuyText.textContent = 'Ripple pool · ' + RIPPLE_COST;
+    coinHint.textContent = bal < RIPPLE_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(RIPPLE_COST, 'echochamber:ripple')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, game = null;
 let flashes = [];      // expanding hit/miss rings (view-only)
 let shake = 0, flash = 0, flashHit = true;
@@ -131,6 +172,7 @@ renderLives();
 
 // ── Input — one discrete "act" bound to click / space / touch ─────────────────
 function beginRun() {
+  rippleActive = funArmed; funArmed = false; ripples = []; refreshCoinUI();   // consume the fun mode for this one run
   Echo.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -146,6 +188,7 @@ function act() {
   const prev = game.score;
   const res = Echo.echo(game);
   ringFlash(res.hit, res.node);
+  if (rippleActive) spawnRipples(game.ringR);   // ripple pool: a watery splash on every act
   if (res.hit) {
     scoreEl.textContent = game.score;
     renderCombo();
@@ -167,6 +210,13 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); act(); }
 });
 
+// Ripple pool fun mode — expanding concentric water rings from a splash point (cosmetic).
+function spawnRipples(originR) {
+  const n = reduceMotion ? 1 : 3;
+  for (let i = 0; i < n; i++) ripples.push({ r: Math.max(1, originR) + i * 7, life: 34 });
+  if (ripples.length > 60) ripples.splice(0, ripples.length - 60);
+}
+
 // ── Eye candy (view-only) ──────────────────────────────────────────────────────
 function ringFlash(hit, node) {
   flash = 1; flashHit = hit;
@@ -176,6 +226,7 @@ function ringFlash(hit, node) {
 function stepFx() {
   for (const f of flashes) { f.r += 3; f.life--; }
   flashes = flashes.filter(f => f.life > 0);
+  if (ripples.length) { for (const p of ripples) { p.r += 4; p.life--; } ripples = ripples.filter(p => p.life > 0); }
   if (shake > 0.3) shake *= 0.84; else shake = 0;
   if (flash > 0.01) flash *= 0.88; else flash = 0;
   if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
@@ -193,6 +244,7 @@ function renderLives() {
 
 function onDeath() {
   shake = 16;
+  rippleActive = false;   // stop the ripple wash on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (cadenceEl) cadenceEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -245,6 +297,17 @@ function onDeath() {
     overTitle.textContent = 'Echo lost';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('echochamber', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -271,6 +334,18 @@ function draw() {
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#0a0a12';
   ctx.fillRect(0, 0, W, H);
+
+  // Ripple pool fun mode — a faint watery blue wash behind the chamber (cosmetic; the catch
+  // window + score are untouched).
+  if (rippleActive && game.phase === 'play') {
+    ctx.globalCompositeOperation = 'lighter';
+    const wg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.55);
+    wg.addColorStop(0, 'rgba(40,120,200,0.05)');
+    wg.addColorStop(1, 'rgba(30,90,170,0)');
+    ctx.fillStyle = wg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   ctx.save();
   if (shake > 0.4) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
@@ -319,6 +394,12 @@ function draw() {
       ctx.strokeStyle = `hsla(${col},95%,${f.node ? 62 : 65}%,${f.life / 28})`;
       ctx.lineWidth = f.node ? 5 : 4;
       ctx.beginPath(); ctx.arc(cx, cy, f.r, 0, 7); ctx.stroke();
+    }
+    // Ripple pool — soft blue water rings spreading from each splash (cosmetic).
+    for (const p of ripples) {
+      ctx.strokeStyle = 'hsla(200,85%,68%,' + (p.life / 60).toFixed(3) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, p.r, 0, 7); ctx.stroke();
     }
   }
   ctx.restore();

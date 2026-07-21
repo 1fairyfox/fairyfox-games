@@ -21,6 +21,7 @@ import {
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, nearMissLine,
   ACHIEVEMENTS,
 } from './tether.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__tetherBooted = true;
 
@@ -49,6 +50,7 @@ const formationEl = el('formation'), clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
 
@@ -71,6 +73,45 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Comet" fun mode (one run, cosmetic, score still counts) ──
+const COMET_COST = 1;
+let funArmed = false;    // Comet bought for the NEXT run
+let cometActive = false; // Comet applies to the CURRENT run
+let embers = [];         // {x,y,vx,vy,life} — comet embers, in world space
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;                 // already bought; can't double-spend
+    coinBuyText.textContent = 'Comet armed ✓';
+    coinHint.textContent = 'A blazing swing — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < COMET_COST;
+    coinBuyText.textContent = 'Comet mode · ' + COMET_COST;
+    coinHint.textContent = bal < COMET_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();      // don't let a menu tap also start the run
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(COMET_COST, 'tether:comet')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 let scale = 1, camX = 0;
@@ -154,6 +195,8 @@ function beginRun() {
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
   tintTarget = { ...tintCur };
   stagePulse = 0; whipPulse = 0; breakPulse = 0; fm = 0; ms = 0; slipGlow = 0;
+  cometActive = funArmed; funArmed = false; embers = [];   // consume the fun mode for this one run
+  refreshCoinUI();
   trail.length = 0;
   camX = game.px - (W / scale) * 0.32;
   if (formationEl) formationEl.style.opacity = 0;
@@ -222,6 +265,7 @@ window.addEventListener('blur', () => letGo());
 
 function onDeath() {
   shake = 18; ms = 0; fm = 0;
+  cometActive = false;   // stop the comet on the game-over screen (embers finish naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
@@ -285,6 +329,18 @@ function onDeath() {
     overTitle.textContent = 'Fell';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. All logic + the 3/day cap live in the
+  // pure shared core; here we just fold the run in and quietly note any coins earned.
+  const coinRes = grantForRun('tether', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -318,9 +374,14 @@ function update(now) {
       if (r.formation) showFormation(r.formation);
       if (r.grabbed) flash = Math.max(flash, 0.7);
 
-      // flight streak
+      // flight streak (a longer tail while the Comet fun mode is on)
       trail.push({ x: game.px, y: game.py });
-      if (trail.length > 22) trail.shift();
+      if (trail.length > (cometActive ? 42 : 22)) trail.shift();
+      if (cometActive && !reduceMotion) {   // comet: shed a couple of embers from the head
+        for (let i = 0; i < 2; i++) embers.push({ x: game.px, y: game.py,
+          vx: (Math.random() - 0.5) * 1.6, vy: (Math.random() - 0.4) * 1.6, life: 1 });
+        if (embers.length > 110) embers.splice(0, embers.length - 110);
+      }
 
       if (r.died) { shake = 18; onDeath(); }
     }
@@ -335,6 +396,10 @@ function update(now) {
     if (ms > 0.001) ms *= 0.965; else ms = 0;
     if (fm > 0.001) fm *= 0.955; else fm = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+    if (embers.length) {   // comet embers drift + fade (cosmetic; world space)
+      for (const p of embers) { p.x += p.vx; p.y += p.vy; p.vy += 0.03; p.life *= 0.92; }
+      embers = embers.filter(p => p.life > 0.05);
+    }
     if (whipPulse > 0.01 || breakPulse > 0.01) {
       if (whipPulse > 0.01) whipPulse *= 0.9; else whipPulse = 0;
       if (breakPulse > 0.01) breakPulse *= 0.9; else breakPulse = 0;
@@ -485,6 +550,38 @@ function draw() {
       ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
       ctx.lineWidth = 3 * stagePulse + 0.5;
       ctx.beginPath(); ctx.arc(sx(game.px), sy(game.py), rad, 0, 7); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Comet fun mode — a blazing tapering tail + embers trailing the player. Purely cosmetic
+    // (never touches the swing physics or the score); honours reduced-motion (no embers).
+    if (cometActive && trail.length > 1) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (let i = 1; i < trail.length; i++) {
+        const t = i / (trail.length - 1);            // 0 tail → 1 head
+        ctx.strokeStyle = 'rgba(255,' + (150 + Math.round(t * 80)) + ',70,' + (t * t * 0.55).toFixed(3) + ')';
+        ctx.lineWidth = (1 + t * 8) * scale;
+        ctx.beginPath();
+        ctx.moveTo(sx(trail[i - 1].x), sy(trail[i - 1].y));
+        ctx.lineTo(sx(trail[i].x), sy(trail[i].y));
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      const hx = sx(game.px), hy = sy(game.py);
+      const hg = ctx.createRadialGradient(hx, hy, 0, hx, hy, 26 * scale);
+      hg.addColorStop(0, 'rgba(255,225,150,0.6)');
+      hg.addColorStop(1, 'rgba(255,180,80,0)');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.arc(hx, hy, 26 * scale, 0, 7); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    if (embers.length) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of embers) {
+        ctx.fillStyle = 'rgba(255,200,110,' + (p.life * 0.8).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(sx(p.x), sy(p.y), (1 + p.life * 2.5) * scale, 0, 7); ctx.fill();
+      }
       ctx.globalCompositeOperation = 'source-over';
     }
 
