@@ -1,0 +1,11 @@
+{
+  "name": "drove",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Drove — a one-mechanic, beat-your-own-score firefly-herding game. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
