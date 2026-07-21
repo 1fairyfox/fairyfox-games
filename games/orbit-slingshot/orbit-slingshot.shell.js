@@ -12,6 +12,7 @@
  * silently dead screen.
  */
 import * as Orbit from './orbit-slingshot.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__orbitSlingshotBooted = true;
 
@@ -37,6 +38,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -87,6 +89,44 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Retro" (green vector-CRT) fun mode (one run, cosmetic) ──
+const RETRO_COST = 1;
+let funArmed = false;    // Retro bought for the NEXT run
+let retroActive = false; // applies to the CURRENT run
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Retro armed ✓';
+    coinHint.textContent = 'A CRT run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < RETRO_COST;
+    coinBuyText.textContent = 'Retro mode · ' + RETRO_COST;
+    coinHint.textContent = bal < RETRO_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(RETRO_COST, 'orbitslingshot:retro')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, game = null;
 let holding = false;          // is the thrust control currently held?
 let trail = [], flames = [], stars = [], shake = 0;
@@ -134,6 +174,7 @@ trail = [];
 
 // ── Input — hold to thrust; press also starts / restarts ──────────────────────
 function beginRun() {
+  retroActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Orbit.start(game); trail = []; kissFlashes = [];
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -157,6 +198,7 @@ window.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
 
 function onDeath() {
   shake = 18;
+  retroActive = false;   // drop CRT on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -206,6 +248,17 @@ function onDeath() {
     overTitle.textContent = game.cause === 'crash' ? 'Crashed into the planet' : 'Lost to deep space';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('orbitslingshot', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 380);
 }
 
@@ -355,6 +408,27 @@ function draw() {
   }
   ctx.restore();
   ctx.globalCompositeOperation = 'source-over';
+
+  // Retro fun mode — a green vector-CRT wash + scanlines + vignette over the whole frame.
+  // A post overlay only: it recolours pixels, never the simulation or the score. Reduced
+  // motion → still scanlines (no roll).
+  if (retroActive) {
+    ctx.globalCompositeOperation = 'multiply';   // pull everything toward green phosphor
+    ctx.fillStyle = 'rgba(120,255,140,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';    // add a faint green glow back
+    ctx.fillStyle = 'rgba(40,150,60,0.10)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';          // scanlines
+    const off = reduceMotion ? 0 : (Math.floor(game.t) % 3);
+    for (let y = off; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.62);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
 }
 
 function loop(now) {

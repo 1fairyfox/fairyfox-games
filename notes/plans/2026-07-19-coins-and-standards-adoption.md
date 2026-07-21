@@ -115,8 +115,12 @@ If verification can't complete, do not auto-apply — fall back to check-report-
   · **Echo Chamber** (Ripple pool). Uniform capped earn + a cosmetic-only fun mode each; additive
   render, records honest, never a gate; 652/652 green; menus previewed headless. Ink Bloom needed
   a guard so the on-menu coin button doesn't trigger its move-to-begin start. **Rollout: 6 of 15.**
-- **Phase 4, next batches (queued, ~3 each):** Orbit Slingshot · Ricochet · Skyline, then Loft ·
-  Poise · Symmetry, then Arc · Sluice. **Reprise (Choir) is deferred** — it wants a real audio
-  layer, which the games don't have yet; don't rush WebAudio into a daily run.
+- **Phase 4, batch 3 — done 2026-07-20 (v0.24.9):** **Orbit Slingshot** (Retro CRT) · **Ricochet**
+  (Fireworks) · **Skyline** (Jelly wobble). Uniform capped earn + a cosmetic-only fun mode each;
+  additive/overlay render, records honest, never a gate; 652/652 green; menus previewed headless.
+  **Rollout: 9 of 15.**
+- **Phase 4, next batches (queued, ~3 each):** Loft · Poise · Symmetry, then Arc · Sluice.
+  **Reprise (Choir) is deferred** — it wants a real audio layer, which the games don't have yet;
+  don't rush WebAudio into a daily run.
 - **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
   reports (the per-batch releases mean `main` is already current).
