@@ -125,8 +125,12 @@ If verification can't complete, do not auto-apply — fall back to check-report-
 - **Phase 4, batch 5 — done 2026-07-20 (v0.24.11):** **Arc** (Rainbow arc) · **Sluice** (Paint).
   Uniform capped earn + a cosmetic-only fun mode each; particle/overlay render, records honest,
   never a gate; 652/652 green; menus previewed headless. **Rollout: 14 of 15.**
-- **Reprise — reconsider the deferral:** the planned **Choir** (audio) is out without a sound
-  layer, but a *visual* fun mode (e.g. a pad "light show") would complete 15/15 with no audio.
-  Do that as the final rollout step, then close.
+- **Reprise — done 2026-07-20 (v0.24.12):** the audio **Choir** was swapped for a purely visual
+  **Light show** (rainbow sparks off each lit pad, call + echo), so coins landed with no audio
+  dependency. Uniform capped earn + cosmetic fun mode; records honest, never a gate; 652/652
+  green; menu previewed. **Rollout: 15 of 15 — COMPLETE.**
+- **Phase 5 — close (remaining):** update `status.md`; write the adopting-updates process report;
+  the `check-links.mjs` / `check-tidy.mjs` repo-hygiene scripts were never added (still a `node
+  --test`-only gate) — add them or drop the claim on a future run.
 - **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
   reports (the per-batch releases mean `main` is already current).

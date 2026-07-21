@@ -15,6 +15,7 @@ import {
   createGame, start as startGame, tick, press, beatAt, milestoneAt,
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, ACHIEVEMENTS,
 } from './reprise.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__repriseBooted = true;
 
@@ -48,6 +49,7 @@ const clutchEl = el('clutch');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult'), livesEl = el('lives');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
 
@@ -70,6 +72,57 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Light show" fun mode (one run, cosmetic, score still counts) ──
+const LIGHT_COST = 1;
+let funArmed = false;   // Light show bought for the NEXT run
+let lightActive = false;
+let lights = [];        // {x,y,vx,vy,life,hue} — light-show sparks off each lit pad
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Light show armed ✓';
+    coinHint.textContent = 'A dazzling run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < LIGHT_COST;
+    coinBuyText.textContent = 'Light show · ' + LIGHT_COST;
+    coinHint.textContent = bal < LIGHT_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(LIGHT_COST, 'reprise:lightshow')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
+// Light show fun mode — a rainbow spark burst from a pad as it lights (cosmetic).
+function lightBurst(i) {
+  if (i < 0 || !pads[i]) return;
+  const p = pads[i], bx = p.x + p.w / 2, by = p.y + p.h / 2;
+  const n = reduceMotion ? 8 : 18;
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + Math.random() * 0.3, s = 2 + Math.random() * 4;
+    lights.push({ x: bx, y: by, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, hue: Math.floor(Math.random() * 360) });
+  }
+  if (lights.length > 220) lights.splice(0, lights.length - 220);
+}
 
 let W = 0, H = 0, DPR = 1, game = null, pads = [];
 let flash = 0, shake = 0, ms = 0, fm = 0;
@@ -167,6 +220,7 @@ function beginRun() {
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
   tintTarget = { ...tintCur };
   stagePulse = 0; multPulse = 0; breakPulse = 0; fm = 0; resGlow = 0;
+  lightActive = funArmed; funArmed = false; lights = []; refreshCoinUI();   // consume for one run
   for (let i = 0; i < 4; i++) padFlash[i] = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.remove('hide');
@@ -192,6 +246,7 @@ function doPress(pad) {
   const r = press(game, pad);
   if (!r.ok) return;
   padFlash[pad] = 1;
+  if (lightActive) lightBurst(pad);   // light show: sparks on your echo too
   if (r.wrong) {
     padFlashCol[pad] = '#ff5b5b';
     breakPulse = 1; if (!reduceMotion) shake = Math.max(shake, 10);
@@ -252,6 +307,7 @@ window.addEventListener('keydown', e => {
 
 function onDeath() {
   shake = 18; ms = 0; fm = 0;
+  lightActive = false;   // light show off on the game-over screen (sparks finish naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (phaseEl) phaseEl.style.opacity = 0;
@@ -308,6 +364,17 @@ function onDeath() {
     newbestEl.textContent = '';
     overTitle.textContent = 'Out of tune'; overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('reprise', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -320,7 +387,7 @@ function update(now) {
   while (acc >= STEP_MS) {
     if (game.phase === 'call' || game.phase === 'respond') {
       const r = tick(game);
-      if (r.lit >= 0) { padFlash[r.lit] = 1; padFlashCol[r.lit] = PAD_COL[r.lit]; }
+      if (r.lit >= 0) { padFlash[r.lit] = 1; padFlashCol[r.lit] = PAD_COL[r.lit]; if (lightActive) lightBurst(r.lit); }
       if (r.formation) showFormation(r.formation);
       if (r.callJustFinished) showPhase('Your turn');
     }
@@ -336,6 +403,10 @@ function update(now) {
     if (fm > 0.001) fm *= 0.955; else fm = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
     for (let i = 0; i < 4; i++) { if (padFlash[i] > 0.01) padFlash[i] *= 0.88; else padFlash[i] = 0; }
+    if (lights.length) {   // light-show sparks drift + fade (cosmetic)
+      for (const p of lights) { p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life *= 0.92; }
+      lights = lights.filter(p => p.life > 0.05);
+    }
     if (multPulse > 0.01 || breakPulse > 0.01) {
       if (multPulse > 0.01) multPulse *= 0.9; else multPulse = 0;
       if (breakPulse > 0.01) breakPulse *= 0.9; else breakPulse = 0;
@@ -440,6 +511,17 @@ function draw() {
       ctx.font = '600 ' + Math.round(p.w * 0.18) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), p.x + p.w / 2, p.y + p.h / 2);
+    }
+
+    // Light show — rainbow sparks flying off each lit pad (cosmetic; the call, the echo, and
+    // the score are untouched).
+    if (lights.length) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of lights) {
+        ctx.fillStyle = 'hsla(' + p.hue + ',100%,66%,' + (p.life * 0.85).toFixed(3) + ')';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2 + p.life * 3, 0, 7); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     // Response progress dots — one per pad of the call, filled up to what you've echoed.
