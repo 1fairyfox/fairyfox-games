@@ -51,9 +51,10 @@ function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.
 // the core's milestoneAt). Scans the crossed range so a multi-catch tick can't skip
 // a threshold.
 let toastTimer = 0;
-function showToast(text) {
+function showToast(text, gold = false) {
   if (!toastEl) return;
   toastEl.textContent = text;
+  toastEl.classList.toggle('gold', gold);
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1300);
@@ -137,12 +138,16 @@ function updateStageChip() {
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
 }
-/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. A SECRET
+ *  stage additionally announces itself — the one time the game says its name out loud
+ *  (it appears on no start screen; reaching it *is* the reveal). */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) { showToast(st.name, true); if (!reduceMotion) shake = Math.max(shake, 10); }
   updateStageChip();
 }
 // Current cue — a quiet name flashed as a *notable* air current arrives (the
@@ -258,6 +263,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex,
     catches: game.catches, bestOrbs: game.best, bestCluster: game.bestCluster,
+    swoops: game.swoops, tails: game.tails,
   };
   const prev = meta;
   meta = Loft.applyRun(prev, summary, game.cfg);
@@ -265,7 +271,8 @@ function onDeath() {
 
   if (overSub) {
     const orbs = game.best > 1 ? ` · ${game.best} orbs at once` : '';
-    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + orbs;
+    const sw = game.swoops > 0 ? ` · ${game.swoops} swoop${game.swoops === 1 ? '' : 's'}` : '';
+    overSub.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + orbs + sw;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -327,6 +334,10 @@ function update(now) {
           for (const o of game.orbs) { if (o.vy < 0 && Loft.dist2(o, pendingTap) < 200 * 200) burst(o.x, o.y, o.hue); }
           shake = Math.min(shake + 3 + r.scored, 12);
         }
+        // A SWOOP (a floor-graze rescue — the hidden tech) blooms gold; announcing the
+        // tailwind outranks it. A comfortable catch keeps the familiar splash.
+        if (r.tailLit) { burst(pendingTap.x, pendingTap.y, 46); showToast('Tailwind! ×' + game.cfg.TAIL_MULT, true); }
+        else if (r.swooped > 0) { burst(pendingTap.x, pendingTap.y, 46); showToast(game.swoopStreak >= 2 ? 'Swoop ×' + game.swoopStreak : 'Swoop!', true); }
         pendingTap = null;
       }
       scoreEl.textContent = game.score;
@@ -417,6 +428,13 @@ function draw() {
       ctx.beginPath(); ctx.arc(o.x, o.y, glow, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.beginPath(); ctx.arc(o.x, o.y, R * 0.5, 0, 7); ctx.fill();
+      // While the TAILWIND blows, every orb rides a gold ring (colour-only — the
+      // earned double-score window made visible; physics + score maths untouched).
+      if (game.tailT > 0) {
+        ctx.strokeStyle = 'rgba(255,208,106,0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, R + 6, 0, 7); ctx.stroke();
+      }
       // Googly fun mode — two wobbly cartoon eyes on each orb, pupils rolling toward the orb's
       // travel (with a little jiggle). Purely a drawn overlay; the orb's physics + score are
       // untouched.
