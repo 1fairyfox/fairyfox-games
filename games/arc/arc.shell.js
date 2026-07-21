@@ -14,6 +14,7 @@
  * is never a silently dead screen.
  */
 import * as Arc from './arc.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__arcBooted = true;
@@ -41,6 +42,7 @@ const newbestEl = el('newbest'), overTitle = el('overTitle'), overSubEl = el('ov
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const livesEl = el('lives');
 const formCueEl = el('formCue');
 
@@ -95,6 +97,44 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Rainbow arc" fun mode (one run, cosmetic, score still counts) ──
+const RAINBOW_COST = 1;
+let funArmed = false;   // Rainbow arc bought for the NEXT run
+let rainbowActive = false;
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Rainbow armed ✓';
+    coinHint.textContent = 'A prismatic run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < RAINBOW_COST;
+    coinBuyText.textContent = 'Rainbow arc · ' + RAINBOW_COST;
+    coinHint.textContent = bal < RAINBOW_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(RAINBOW_COST, 'arc:rainbow')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, game = null;
 let particles = [], shake = 0;
 
@@ -141,6 +181,7 @@ function updateLives() {
   for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('spent', i >= game.lives);
 }
 function beginRun() {
+  rainbowActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Arc.start(game);
   stageIdx = 0; stagePulse = 0;
   charging = false; power = 0; flying = false; flight = null;
@@ -216,6 +257,7 @@ function onFlightEnd() {
     burst(lx, groundY, 12, 16);             // dull amber dust on a miss
     shake = Math.min(shake + 6, 14);
   }
+  if (rainbowActive) { for (let i = 0; i < 8; i++) burst(lx, groundY, Math.floor(Math.random() * 360), 5); }   // prismatic splash
   scoreEl.textContent = game.score;
   updateLives();
   checkMilestone(flight.prevScore, game.score);
@@ -227,6 +269,7 @@ function onFlightEnd() {
 }
 
 function onDeath() {
+  rainbowActive = false;   // colours off on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -273,6 +316,17 @@ function onDeath() {
     overTitle.textContent = 'Out of lives';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('arc', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 
@@ -378,13 +432,17 @@ function draw() {
     const peak = arcPeakPx(landX);
     const px = fx(u * landX);
     const py = groundY - 4 * u * (1 - u) * peak;
-    // trail
+    // trail — a rainbow ribbon under the Rainbow-arc fun mode, else the stage tint (cosmetic;
+    // the shot's landing point + score are unchanged).
     ctx.globalCompositeOperation = 'lighter';
-    for (let k = 1; k <= 6; k++) {
+    const rainbowLen = rainbowActive ? 12 : 6;
+    for (let k = 1; k <= rainbowLen; k++) {
       const uu = Math.max(0, u - k * 0.045);
       const tx = fx(uu * landX), ty = groundY - 4 * uu * (1 - uu) * peak;
-      ctx.fillStyle = rgbStr(tintCur, 0.18 * (1 - k / 7));
-      ctx.beginPath(); ctx.arc(tx, ty, 6 - k * 0.6, 0, 7); ctx.fill();
+      ctx.fillStyle = rainbowActive
+        ? 'hsla(' + ((u * 300 + k * 26) % 360) + ',95%,64%,' + (0.4 * (1 - k / (rainbowLen + 1))).toFixed(3) + ')'
+        : rgbStr(tintCur, 0.18 * (1 - k / 7));
+      ctx.beginPath(); ctx.arc(tx, ty, 6 - k * (rainbowActive ? 0.35 : 0.6), 0, 7); ctx.fill();
     }
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(px, py, 6, 0, 7); ctx.fill();

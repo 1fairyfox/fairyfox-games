@@ -22,6 +22,7 @@ import {
   createGame, start as startGame, route, tick, milestoneAt,
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, ACHIEVEMENTS,
 } from './sluice.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__sluiceBooted = true;
 
@@ -56,6 +57,7 @@ const livesEl = el('lives');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const multEl = el('mult');
 const stageReachedEl = el('stageReached'), badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 // Multiplier readout colours — ramp from calm to hot as the combo climbs (×1 … ×MAX).
 const MULT_COLS = ['#8ab4ff', '#8ab4ff', '#7af9d0', '#a9f77a', '#ffd86a', '#ff9a6a', '#ff6ad0', '#ff5c8a', '#ff4d4d'];
@@ -79,6 +81,58 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Paint" fun mode (one run, cosmetic, score still counts) ──
+const PAINT_COST = 1;
+let funArmed = false;   // Paint bought for the NEXT run
+let paintActive = false;
+let paint = [];         // {x,y,vx,vy,life,r,color} — paint splat blobs
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Paint armed ✓';
+    coinHint.textContent = 'A messy run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < PAINT_COST;
+    coinBuyText.textContent = 'Paint mode · ' + PAINT_COST;
+    coinHint.textContent = bal < PAINT_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(PAINT_COST, 'sluice:paint')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
+// Paint fun mode — a splat of the channel's colour when a spark is sorted in (cosmetic).
+function paintSplat(slot) {
+  if (slot < 0) return;
+  const gx = channelX(slot), gy = channelGeom().top;
+  const col = COL[game.bins[slot]] || '#fff';
+  const n = reduceMotion ? 6 : 14;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 4.5;
+    paint.push({ x: gx, y: gy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.5, life: 1, r: 2 + Math.random() * 4, color: col });
+  }
+  if (paint.length > 170) paint.splice(0, paint.length - 170);
+}
 
 let W = 0, H = 0, DPR = 1, game = null;
 let flash = 0, shake = 0, ms = 0, fm = 0;
@@ -188,6 +242,7 @@ updateLives();
 
 function beginRun() {
   beatBest = false;
+  paintActive = funArmed; funArmed = false; paint = []; refreshCoinUI();   // consume the fun mode for this run
   startGame(game);
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
@@ -207,6 +262,8 @@ function handleResult(r) {
     flash = r.precise ? 1.5 : 1;
     scoreEl.textContent = game.score;
     flashSlot = r.slot; flashKind = 'good'; flashLife = 1;
+    if (paintActive) paintSplat(r.slot);   // paint mode: splatter the channel's colour
+
     if (r.precise) { multPulse = 1; if (!reduceMotion) shake = Math.max(shake, 3); }
     const label = milestoneAt(game.cfg, game.cleared);
     if (label) showMilestone(label);
@@ -257,6 +314,7 @@ window.addEventListener('keydown', e => {
 
 function onDeath() {
   shake = 18; ms = 0; fm = 0;
+  paintActive = false;   // paint off on the game-over screen (blobs finish naturally)
   if (milestoneEl) milestoneEl.style.opacity = 0;
   if (formationEl) formationEl.style.opacity = 0;
   if (stageChip) stageChip.classList.add('hide');
@@ -311,6 +369,17 @@ function onDeath() {
     overTitle.textContent = 'Washed out';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('sluice', { runStage: summary.stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 360);
 }
 
@@ -428,6 +497,18 @@ function draw() {
     ctx.lineWidth = 3 * stagePulse + 0.5;
     ctx.beginPath(); ctx.arc(cx, H * 0.5, rad, 0, 7); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Paint fun mode — colourful blobs splattering from each sorted spark (cosmetic; step + draw).
+  if (paint.length) {
+    for (const p of paint) { p.x += p.vx; p.y += p.vy; p.vy += 0.28; p.vx *= 0.97; p.life -= 0.028; }
+    paint = paint.filter(p => p.life > 0.04);
+    for (const p of paint) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.5 + p.life * 0.6), 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   ctx.restore();
