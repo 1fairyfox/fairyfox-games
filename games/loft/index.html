@@ -56,6 +56,8 @@
     -webkit-background-clip:text; background-clip:text; color:transparent;
     opacity:0; pointer-events:none; transition:opacity .4s ease, transform .4s ease; }
   .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  .toast.gold { background:linear-gradient(90deg,#ffd06a,#ffb37a);
+    -webkit-background-clip:text; background-clip:text; }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:opacity .2s ease } }
 
   /* Stage chip — quiet HUD readout of the run's stage + progress (Growth L1). */
@@ -133,10 +135,9 @@
     <div class="tip"><b>Tip:</b> you can only strike an orb while it's <b>descending</b>, so
       find a rhythm — let it rise and fall, then catch it low. One well-placed tap can rescue a
       whole <b>cluster</b> at once — and a cluster catch is worth <em>extra</em> (a 3-catch scores 6,
-      not 3), so reading a bunch pays. Watch the <b>air</b>: it turns as you climb — a Thermal
-      holds the orbs up (the best place to let them bunch), a Gust shoves them sideways, a
-      Downdraft drops the floor out. Every few points a new orb joins (up to six). Climb the
-      <b>stages</b> (Solo → Cascade → Flock → Zero-G); feats earn <b>badges</b> that stick.</div>
+      not 3), so reading a bunch pays. Watch the <b>air</b>: it turns as you climb — some winds
+      hold the orbs up, others drop the floor out. Every few points a new orb joins (up to six).
+      Climb the <b>stages</b>; feats earn <b>badges</b> that stick.</div>
     <div class="coinrow" id="coinrow" hidden>
       <button type="button" class="coinbuy" id="coinBuy">
         <span class="coin-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.25"/></svg></span>

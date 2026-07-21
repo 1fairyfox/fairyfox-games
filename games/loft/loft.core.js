@@ -27,6 +27,13 @@
  * ramp*, band-clamped and hard-capped, so no weather can spike past what the score
  * earned.
  *
+ * Depth inside the one verb (discovered, not told): the drawn danger glow along the
+ * floor hides a razor rescue window — striking an orb a feather above the floor is a
+ * **swoop** (extra pay + a gold bloom + a streak, taught nowhere), three swoops in a
+ * row whip up the **Tailwind** (every point doubles for ~5s), gravity already rides a
+ * no-plateau asymptote (`gravScale`), and a secret stage waits past Zero-G for anyone
+ * who climbs far enough. All of it on the same single tap; all of it safe to not know.
+ *
  * Design note / the bug this structure guards against:
  * a bat must only fire on a *falling* orb (vy > 0). An early instinct is to let a
  * tap reset velocity on any nearby orb — but that lets a single tap re-hit an orb
@@ -56,12 +63,31 @@ export const CONFIG = Object.freeze({
   MAX_ORBS: 6,         // hard cap on orbs in the air (keeps it fair, not chaos)
   SPAWN_VX: 3,         // |horizontal| launch speed spread for a new orb (px/tick)
   SPAWN_SPREAD: 0.34,  // fraction of width a new orb can appear off-centre
+  // ── Depth inside the one verb (discovered, not told) ──────────────────────────
+  // The SWOOP — hidden tech, taught nowhere: the drawn danger glow along the floor
+  // hides a razor rescue window. Strike a falling orb while its lowest edge is within
+  // SWOOP_BAND of the floor and the catch is a *swoop* — it pays extra, blooms gold,
+  // and builds a streak; a comfortable mid-air catch still scores as ever but silently
+  // breaks the streak. Safe to not know; daring by construction (the floor is fatal,
+  // and the strike itself is what launches the orb clear — the rescue *is* the tech).
+  SWOOP_BAND: 44,      // px above the floor (orb's lowest edge) that count as a swoop
+  SWOOP_BONUS: 2,      // extra points per swooped orb, on top of the cluster score
+  // The reversal the tech unlocks: TAIL_TRIGGER swoop-catches in a row whip up the
+  // TAILWIND — for TAIL_TICKS every point scores double. The triggering tap is never
+  // doubled; announced only when earned (gold, colour-only in the shell).
+  TAIL_TRIGGER: 3,     // consecutive swoop-catches that raise the tailwind
+  TAIL_TICKS: 300,     // ~5s at 60fps the tailwind blows for
+  TAIL_MULT: 2,        // score multiplier while the tailwind holds
+
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on score.
+  // The last one is SECRET — never printed on the start screen, revealed only by
+  // reaching it (the shell announces it as it arrives).
   STAGES: Object.freeze([
     Object.freeze({ at: 0,   name: 'Solo',    tint: '#7af9d0' }),
     Object.freeze({ at: 20,  name: 'Cascade', tint: '#6ad0ff' }),
     Object.freeze({ at: 55,  name: 'Flock',   tint: '#a98cff' }),
     Object.freeze({ at: 110, name: 'Zero-G',  tint: '#ff8f6a' }),
+    Object.freeze({ at: 240, name: 'Stratosphere', tint: '#ffd06a', secret: true }),
   ]),
 
   // ── The air (varied structure + the honest ramp) ───────────────────────────────
@@ -234,6 +260,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.catches >= 1000 }),
   Object.freeze({ id: 'regular',      label: 'Regular',      desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // The depth layer (all skill-safe — cosmetically announced, never power):
+  Object.freeze({ id: 'swoop',        label: 'Swoop',        desc: 'Rescue an orb a feather above the floor.',
+    test: (s) => s.swoops >= 1 }),
+  Object.freeze({ id: 'tailwind',     label: 'Tailwind',     desc: 'Chain three swoops in a row.',
+    test: (s) => s.tails >= 1 }),
+  Object.freeze({ id: 'stratosphere', label: 'Stratosphere', desc: 'Reach the secret Stratosphere stage.',
+    test: (s) => s.stageIndex >= 4 }),
 ]);
 
 /** A rotating palette of orb hues (deg), assigned per orb by spawn order. */
@@ -442,6 +475,8 @@ export function createGame(width, height, opts = {}) {
     // The air (varied structure): the live current + its remaining beat queue.
     formAir: [], formId: null, formName: null, formNotable: false,
     airGrav: 1, airDrift: 0, airT: 0,
+    // The depth layer: swoop tech streak + the tailwind it raises.
+    swoops: 0, swoopStreak: 0, tails: 0, tailT: 0,
   };
   reset(g);
   return g;
@@ -461,6 +496,10 @@ export function reset(g) {
   g.catches = 0;
   g.bestCluster = 0;
   g.t = 0;
+  g.swoops = 0;       // swoop catches this run (the hidden tech)
+  g.swoopStreak = 0;  // consecutive swoop-catches toward a tailwind
+  g.tails = 0;        // tailwinds earned this run
+  g.tailT = 0;        // ticks the live tailwind still blows for
   // Frame-one guard + on-ramp: every run opens on dead-still air with an empty queue,
   // so the first seconds are never weather. The first current loads when this expires.
   g.formAir = [];
@@ -482,31 +521,65 @@ export function start(g) {
 }
 
 /**
+ * Result of a single tap.
+ * @typedef {Object} TapResult
+ * @property {number} struck  orbs caught by this tap (0 for a whiff)
+ * @property {number} swooped how many of them were SWOOPS — caught with their lowest
+ *   edge inside the razor floor band (the hidden tech; each pays SWOOP_BONUS extra)
+ * @property {number} points  points this tap banked (cluster score + swoop bonuses,
+ *   doubled if the tailwind was already blowing)
+ * @property {boolean} tailLit this tap just raised the tailwind (announce it now)
+ */
+
+/**
  * Apply a tap at a point: strike every *falling* orb within reach, knocking it
  * upward (and nudging it away from the tap horizontally). Each struck orb scores a
  * point. Rising orbs (vy ≤ 0) ignore the tap — that gate is what makes the mechanic
  * a rhythm and prevents one tap from re-hitting an orb it just launched.
+ *
+ * The depth layer, on the same tap: an orb caught with its lowest edge inside the
+ * razor SWOOP_BAND above the floor is a **swoop** — extra pay + a streak. A tap that
+ * catches only comfortable mid-air orbs silently breaks the streak; a whiff is no
+ * evidence either way and leaves it alone. TAIL_TRIGGER swoops in a row raise the
+ * **tailwind** (every point doubles for TAIL_TICKS; the triggering tap never doubled).
  * @param {GameState} g
  * @param {Point} tap tap position (px)
- * @returns {number} how many orbs were struck (== points scored) this tap
+ * @returns {TapResult}
  */
 export function applyTap(g, tap) {
   const { cfg } = g;
   const reach = cfg.BAT_REACH + cfg.ORB_R;
   const reach2 = reach * reach;
-  let struck = 0;
+  const swoopY = g.h - cfg.SWOOP_BAND;       // an orb whose lowest edge is past this line…
+  let struck = 0, swooped = 0;
   for (const o of g.orbs) {
     if (o.vy <= 0) continue;                 // only descending orbs can be caught
     if (dist2(o, tap) > reach2) continue;    // out of reach
+    if (o.y + cfg.ORB_R >= swoopY) swooped++; // …is a swoop (checked before the launch)
     o.vy = cfg.BAT_VY;                        // launch it upward
     const dir = o.x >= tap.x ? 1 : -1;       // nudge away from the tap point
     o.vx = clamp(o.vx + dir * cfg.BAT_PUSH, -cfg.MAX_VX, cfg.MAX_VX);
     struck++;
   }
-  g.score += tapScore(struck);           // cluster bonus — a multi-catch is worth extra
+  // Cluster bonus + swoop bonuses; the tailwind doubles every point while it blows
+  // (the tap that *raises* it is scored first, so the trigger is never doubled).
+  let points = tapScore(struck) + swooped * cfg.SWOOP_BONUS;
+  if (g.tailT > 0) points *= cfg.TAIL_MULT;
+  g.score += points;
   g.catches += struck;                   // raw orbs caught (distinct from bonus points)
+  g.swoops += swooped;
   if (struck > g.bestCluster) g.bestCluster = struck;
-  return struck;
+  let tailLit = false;
+  if (struck > 0) {
+    g.swoopStreak = swooped > 0 ? g.swoopStreak + 1 : 0;
+    if (g.swoopStreak >= cfg.TAIL_TRIGGER) {
+      g.tailT = cfg.TAIL_TICKS;          // the tailwind rises…
+      g.tails++;
+      g.swoopStreak = 0;                 // …and the next one needs a fresh chain
+      tailLit = true;
+    }
+  }
+  return { struck, swooped, points, tailLit };
 }
 
 /**
@@ -555,38 +628,41 @@ export function topUpOrbs(g) {
 
 /**
  * Result of a single {@link tick}. `formation` names a *notable* current the moment it
- * arrives (null otherwise) — the shell's quiet name cue.
- * @typedef {{died:boolean, scored:number, added:number, formation:(string|null)}} TickResult
+ * arrives (null otherwise) — the shell's quiet name cue. `swooped`/`tailLit` surface
+ * the depth layer's events for the shell's gold cues.
+ * @typedef {{died:boolean, scored:number, added:number, formation:(string|null), swooped:number, tailLit:boolean}} TickResult
  */
 
 /**
  * Advance the simulation one fixed tick.
  * Order: age the air (pull the next current beat when this one expires) → strike (if a
- * tap) → top up orbs → move every orb → floor check. A grounded orb ends the run. No-op
- * unless phase is 'play'.
+ * tap) → top up orbs → age the tailwind → move every orb → floor check. A grounded orb
+ * ends the run. No-op unless phase is 'play'.
  * @param {GameState} g
  * @param {{tap:(Point|null)}} [input] a tap this tick, or null for none
  * @returns {TickResult}
  */
 export function tick(g, input = { tap: null }) {
-  if (g.phase !== 'play') return { died: false, scored: 0, added: 0, formation: null };
+  if (g.phase !== 'play') return { died: false, scored: 0, added: 0, formation: null, swooped: 0, tailLit: false };
   g.t++;
-  let scored = 0, added = 0, formation = null;
+  let scored = 0, added = 0, formation = null, swooped = 0, tailLit = false;
   g.airT--;
   if (g.airT <= 0) formation = nextAir(g);   // the weather turns over
   if (input && input.tap) {
-    scored = applyTap(g, input.tap);
+    const tr = applyTap(g, input.tap);
+    scored = tr.struck; swooped = tr.swooped; tailLit = tr.tailLit;
     if (scored > 0) added = topUpOrbs(g);
   }
+  if (g.tailT > 0) g.tailT--;                // the tailwind blows itself out
   for (const o of g.orbs) stepOrb(g, o);
   if (g.orbs.length > g.best) g.best = g.orbs.length;
   for (const o of g.orbs) {
     if (orbGrounded(g, o)) {
       g.phase = 'dead';
-      return { died: true, scored, added, formation };
+      return { died: true, scored, added, formation, swooped, tailLit };
     }
   }
-  return { died: false, scored, added, formation };
+  return { died: false, scored, added, formation, swooped, tailLit };
 }
 
 /**
@@ -674,7 +750,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, catches:number, bestOrbs:number, bestCluster:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, catches:number, bestOrbs:number, bestCluster:number, swoops:number, tails:number}} RunSummary
  */
 
 /**
@@ -686,7 +762,7 @@ export function stageProgress(cfg, score) {
  * @property {number} bestStage
  * @property {number} bestOrbs    most orbs kept aloft at once, ever
  * @property {number} bestCluster biggest single-tap catch, ever
- * @property {{catches:number, points:number}} totals
+ * @property {{catches:number, points:number, swoops:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -706,7 +782,8 @@ export function normalizeMeta(m, legacyBest = 0) {
     bestStage: src.bestStage | 0,
     bestOrbs: src.bestOrbs | 0,
     bestCluster: src.bestCluster | 0,
-    totals: { catches: t.catches | 0, points: t.points | 0 },
+    totals: { catches: t.catches | 0, points: t.points | 0,
+      swoops: t.swoops | 0 },   // absent in legacy metas — upgrades losslessly
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -723,6 +800,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.plays += 1;
   next.totals.catches += summary.catches | 0;
   next.totals.points += summary.score | 0;
+  next.totals.swoops += summary.swoops | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestOrbs = Math.max(next.bestOrbs, summary.bestOrbs | 0);

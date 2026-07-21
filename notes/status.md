@@ -2,7 +2,19 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.12` (single source of truth: repo-root `VERSION`). **The coins initiative is
+**Version:** `0.24.14` (single source of truth: repo-root `VERSION`). **v0.24.14** is a **GROW**
+run: **Loft** gets the **"depth inside the mechanic"** layer — the **8th game** to carry it (after
+Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet and Skyline; Tether + Reprise +
+Ward ship with it from birth). On the one tap verb: a discoverable **Swoop** (the drawn red danger
+glow along the floor hides a razor 44px rescue window — a floor-graze catch pays +2 over the
+cluster score, blooms gold and builds a streak, taught nowhere; the strike itself launches the orb
+clear, so the rescue *is* the tech), the **Tailwind** (3 swoops in a row → ~5s where every point
+doubles — the riskiest habit becomes the richest one; trigger never doubled, gold colour-only),
+and a **secret Stratosphere stage** past Zero-G (score 240, revealed only by reaching it; the
+start tip no longer prints the stage ladder or current names). Loft's no-plateau gravity asymptote
+already shipped in v0.22.1, completing the four-item layer. 3 new badges (8 → 11); +10 pure-core
+tests (43 → 53); collection **662/662** green. **Depth rollout: 8 of 13.** Earlier: **the coins
+initiative is
 COMPLETE — all 15 games now carry coins** (v0.24.4 → v0.24.12, released across batches). The
 owner-authorized **coins** economy landed in five parts: **(1) standards** — the hub batch
 (v0.16.0 → v0.20.2, 10 new + 5 changed) vendored into `notes/reference/`; **(2) infra + legal** —
@@ -380,8 +392,17 @@ sole host), plus each game at `…/games/<game>/`.
   motes** is carried by the live current, so the air is legible *before* it's named. Plus a
   **cluster bonus** (`tapScore` — a 3-catch scores 6, so reading a bunch pays), a **stage arc**
   (Solo → Cascade → Flock → Zero-G) with HUD chip + tinted wash, and **meta-progression**
-  (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 8 badges, run-report + near-miss) —
-  legacy best preserved. Pure core + 43 tests. **(11th game on varied structure.)**
+  (`loft.meta`: lifetime catches/most-orbs/biggest-cluster + 11 badges, run-report + near-miss) —
+  legacy best preserved. Pure core + 53 tests. **(11th game on varied structure.)** **Depth inside
+  the one verb (v0.24.14, the 8th game on the layer):** gravity already rode its no-plateau
+  asymptote (v0.22.1); now the drawn red danger glow hides a razor **Swoop** window (`SWOOP_BAND`
+  44px — catch an orb with its lowest edge inside it and the rescue pays +2 over the cluster
+  score, blooms gold and builds a streak, taught nowhere; a comfortable catch silently breaks it,
+  and the strike itself is what launches the orb clear, so the rescue *is* the tech); the
+  **Tailwind** it raises (3 swoops in a row → ~5s where **every point doubles** — trigger never
+  doubled, announced only when earned, gold orb-rings colour-only); and a **secret Stratosphere
+  stage** past Zero-G (score 240, revealed only by reaching it — the start tip no longer prints
+  the stage ladder or the current names).
 - **Poise** (`games/poise/`) — a **balance** game: tilt a beam to keep a rolling ball on
   it and roll it over the target to score. **On Varied Structure + Growth**: only one target is
   ever alive, so Poise's varied unit isn't a spawn wave — it's **the route the targets trace along
@@ -454,12 +475,24 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **652/652** green, released (coins-earn core +11 from the coins initiative; Ward/Brim
-coins are cosmetic shell-only, so no new core tests). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **662/662** green (Loft depth layer +10, v0.24.14). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.24.14 (2026-07-21) — GROW: Loft gets "depth inside the mechanic" (8th game on the
+  layer).** The named next target (the other original-seven game); its no-plateau gravity
+  asymptote already landed in v0.22.1, so this run added the other three items on the one tap
+  verb: the hidden **Swoop** (`SWOOP_BAND` 44px razor rescue window inside the drawn red danger
+  glow → +2 + gold bloom + streak, taught nowhere; the strike launches the orb clear, so the
+  rescue *is* the tech; a comfortable catch silently breaks the chain, a whiff leaves it alone),
+  the **Tailwind** (`TAIL_TRIGGER` 3 in a row → `TAIL_TICKS` 300 of double score; the trigger
+  never doubled; gold orb-rings colour-only), and a **secret Stratosphere stage** (score 240,
+  gold, reveal toast + badge; start tip trimmed — stage ladder + current names no longer
+  printed). `applyTap` now returns a rich `TapResult`; 3 new skill-safe badges (8 → 11),
+  `totals.swoops` (lossless legacy upgrade), run-report swoops. +10 pure-core tests (43 → 53);
+  collection **662/662** green. Headless-Chrome previewed. Released `dev → main` by default on
+  green (PATCH). **Depth-layer rollout: 8 of 13.**
 - **✅ v0.24.3 (2026-07-19) — GROW: Skyline gets "depth inside the mechanic" (7th game on the
   layer).** The oldest game without it, with the exact plateau the sweep item flags (`speedOf`
   linear, hard-capped 9.5 from score ≈ 44). All four depth items on the one drop verb: the hidden
@@ -951,12 +984,11 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
   with a headless render). Everything checked out, but a live play-feel pass on the carry timing
   (`LAG` = 8, `BRIM_BAND` = 0.10, `MENISCUS` = 0.965) is worth doing — those are the tuning knobs.
 - **✅ Varied-structure rollout: 13 of 13 — COMPLETE.** The **"depth inside the mechanic"** layer
-  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 7 of 13** —
-  Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, **Skyline** (v0.24.3);
-  Tether + Reprise + Ward carry it from birth. Take the next game lowest-coverage first
-  (remaining: **Loft** — the other original-seven game, a good default — then Poise, Symmetry,
-  Arc, Sluice). A game already on both layers can still take one new formation or a cross-run
-  unlock.
+  (v0.20.0, Polarity = reference) is the **sole lead GROW lever**. **Depth rollout: 8 of 13** —
+  Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, **Loft**
+  (v0.24.14); Tether + Reprise + Ward carry it from birth. Take the next game lowest-coverage
+  first (remaining: **Poise**, Symmetry, Arc, Sluice). A game already on both layers can still
+  take one new formation or a cross-run unlock.
 - **Eyeball Skyline in a real browser** (validated by headless probe renders). Play-feel knobs:
   `KEYSTONE_EPS` (1.2px) — is a keystone findable by a steady hand without being a fluke? —
   `KEYSTONE_TRIGGER` (3) / `JET_DROPS` (3) — does the Jet Stream feel earned? — and the speed
@@ -983,8 +1015,11 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
   whole ceiling shows in minutes. Others likely share the shape: check each speed/gravity/density ramp
   for a **score-driven asymptote** and add one (band-clamped + hard-capped) where it's missing. Cheap,
   and genuinely felt. (Convenient to fold into the depth-layer pass for a game, as this run did.)
-- **Eyeball Loft in a real browser** (Chrome MCP was down; validated by headless render). The knobs
-  worth a play-feel pass: `GRAV_SCALE_MAX` (1.30), `AIR_GRAV_MIN/MAX` (0.78/1.30), `DRIFT_MAX`
+- **Eyeball Loft in a real browser** (validated by headless render). The knobs worth a play-feel
+  pass: the depth layer's `SWOOP_BAND` (44px) — is a swoop findable by a daring hand without being
+  a fluke, given orbs fall ~15–20px/tick near the floor? — `TAIL_TRIGGER` (3) / `TAIL_TICKS` (300)
+  — does the Tailwind feel earned? — does **Stratosphere** land as a real "there's more" surprise?
+  Plus the older air knobs: `GRAV_SCALE_MAX` (1.30), `AIR_GRAV_MIN/MAX` (0.78/1.30), `DRIFT_MAX`
   (0.075) — i.e. is a Downdraft/Vortex *tense* rather than unfair, and does a Thermal read as a gift?
 - **Eyeball Poise in a real browser** (Chrome MCP down again; validated by headless render). Knobs:
   `GRAV_SCALE_MAX` (1.22) / `GRAV_SCALE_K` (70) — does the beam keep getting meaningfully heavier
@@ -1002,10 +1037,10 @@ git-ignored), so CI's `node --test` sees only the game tests and is green.
 
 | Area | Status |
 |------|--------|
-| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.24.3 release (tagged) |
-| Tests (`node --test`) | ✅ **641/641** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
+| Repo + branches (dev/main) | ✅ Clean — `dev` = `main` at the v0.24.14 release (tagged) |
+| Tests (`node --test`) | ✅ **662/662** green (scope to `games/**`; the git-ignored `assets/references/` clone has unrelated failing tests, not in CI) |
 | Varied-structure rollout | ✅ **COMPLETE — 13/13 games** (Poise closed it out, v0.22.2) |
-| Depth-inside-the-mechanic rollout | 🔄 **7/13** (Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline; Tether + Reprise + Ward born with it) — the lead GROW lever; next: Loft |
+| Depth-inside-the-mechanic rollout | 🔄 **8/13** (Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft; Tether + Reprise + Ward born with it) — the lead GROW lever; next: Poise |
 | CI (node --test) | ✅ Workflow in place |
 | GitHub Pages (`fairyfox.io/fairyfox-games/`) | ✅ Sole host — deploys on push to `main` |
 | Netlify | ⛔ Retired 2026-07-02 (`games.fairyfox.io` gone; workflow + config removed) |

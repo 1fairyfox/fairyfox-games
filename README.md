@@ -86,6 +86,7 @@ CI runs the full suite on every push and pull request.
 
 | Game | What you do | Folder |
 |------|-------------|--------|
+| **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it back up. You can only strike on the way down, and every few points another orb joins the air. | [`games/loft/`](games/loft/) |
 | **Brim** | Hold to pour, let go to stop — except the stream is still falling, and it lands anyway. Stop above the line, under the rim, and stop in the gold to build your multiplier. You can't stop where you want; you have to stop early. | [`games/brim/`](games/brim/) |
 | **Ward** | Shards close in on your core from every side — orbit your shield to block them before they land. Three strikes ends it. Catch one dead-centre and defence turns into a climbing multiplier. Point, hold the line, and see how deep you can hold. | [`games/ward/`](games/ward/) |
 | **Skyline** | Drop a sliding slab onto your tower — only the overlap stays, so the overhang is sliced off. Flush drops keep the full width; precision is the only way up. The wind shifts as you climb, so no two towers rise the same. | [`games/skyline/`](games/skyline/) |
@@ -95,7 +96,6 @@ CI runs the full suite on every push and pull request.
 | **Echo Chamber** | An echo ring expands from the centre — catch it the instant it crosses the target band. Every hit tightens the window. Three lives. | [`games/echo-chamber/`](games/echo-chamber/) |
 | **Reprise** | The pads play a phrase — watch it, then echo it back in the same order. Each call you land grows by one and plays a touch faster. Echo on the beat and you'll find there's more here than that. | [`games/reprise/`](games/reprise/) |
 | **Poise** | Tilt the beam to balance a rolling ball — roll it over the glowing target to score, without letting it slip off either end. The targets arrive in named routes, and it grows twitchier the longer you last. | [`games/poise/`](games/poise/) |
-| **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it back up. You can only strike on the way down, and every few points another orb joins the air. | [`games/loft/`](games/loft/) |
 | **Tether** | Hold to rope onto an anchor and swing; let go in the glowing arc to whip yourself across the gap. Too early and you fly flat into the ground, too late and you stall — the sweet spot is both your score and your survival. | [`games/tether/`](games/tether/) |
 | **Polarity** | Charged gates rush in — flip your charge, cyan or magenta, to match each one and phase through. Clash and it's over. The deeper you go, the more there is to find. | [`games/polarity/`](games/polarity/) |
 | **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the bright centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |

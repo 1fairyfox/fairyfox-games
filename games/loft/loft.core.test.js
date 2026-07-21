@@ -149,8 +149,9 @@ test('a tap strikes a falling orb in reach, launching it up and scoring', () => 
   const g = newGame(); start(g);
   const o = g.orbs[0];
   o.x = 400; o.y = 300; o.vy = 5; // falling
-  const scored = applyTap(g, { x: 400, y: 300 });
-  assert.equal(scored, 1);
+  const r = applyTap(g, { x: 400, y: 300 });
+  assert.equal(r.struck, 1);
+  assert.equal(r.swooped, 0, 'a comfortable mid-air catch is no swoop');
   assert.equal(g.score, 1);
   assert.equal(o.vy, CONFIG.BAT_VY, 'launched upward');
 });
@@ -159,8 +160,8 @@ test('REGRESSION: a rising orb ignores a tap (only descending orbs are caught)',
   const g = newGame(); start(g);
   const o = g.orbs[0];
   o.x = 400; o.y = 300; o.vy = -6; // rising
-  const scored = applyTap(g, { x: 400, y: 300 });
-  assert.equal(scored, 0, 'no strike on a rising orb');
+  const r = applyTap(g, { x: 400, y: 300 });
+  assert.equal(r.struck, 0, 'no strike on a rising orb');
   assert.equal(o.vy, -6, 'velocity untouched');
   assert.equal(g.score, 0);
 });
@@ -171,7 +172,7 @@ test('REGRESSION: one tap cannot score the same orb twice', () => {
   o.x = 400; o.y = 300; o.vy = 5;
   applyTap(g, { x: 400, y: 300 });      // first strike launches it upward (vy < 0)
   const again = applyTap(g, { x: 400, y: 300 }); // same spot, orb now rising
-  assert.equal(again, 0, 'the just-launched orb is rising and cannot be re-hit');
+  assert.equal(again.struck, 0, 'the just-launched orb is rising and cannot be re-hit');
   assert.equal(g.score, 1);
 });
 
@@ -179,8 +180,8 @@ test('a tap out of reach does nothing', () => {
   const g = newGame(); start(g);
   const o = g.orbs[0];
   o.x = 100; o.y = 100; o.vy = 5;
-  const scored = applyTap(g, { x: 700, y: 500 });
-  assert.equal(scored, 0);
+  const r = applyTap(g, { x: 700, y: 500 });
+  assert.equal(r.struck, 0);
   assert.equal(g.score, 0);
 });
 
@@ -191,8 +192,8 @@ test('one tap can catch several falling orbs in a cluster', () => {
     { x: 430, y: 320, vx: 0, vy: 4, hue: 0 },
     { x: 900, y: 300, vx: 0, vy: 4, hue: 0 }, // far away, off-field
   ];
-  const scored = applyTap(g, { x: 415, y: 310 });
-  assert.equal(scored, 2, 'both nearby orbs caught, the distant one missed');
+  const r = applyTap(g, { x: 415, y: 310 });
+  assert.equal(r.struck, 2, 'both nearby orbs caught, the distant one missed');
   assert.equal(g.score, tapScore(2), 'a 2-catch scores with the cluster bonus (3)');
   assert.equal(g.catches, 2, 'raw orbs caught');
   assert.equal(g.bestCluster, 2, 'biggest single-tap catch tracked');
@@ -222,10 +223,11 @@ test('the run ends when an orb touches the floor', () => {
 });
 
 test('tick is inert before start and after death', () => {
+  const inert = { died: false, scored: 0, added: 0, formation: null, swooped: 0, tailLit: false };
   const g = newGame(); // menu
-  assert.deepEqual(tick(g, { tap: null }), { died: false, scored: 0, added: 0, formation: null });
+  assert.deepEqual(tick(g, { tap: null }), inert);
   g.phase = 'dead';
-  assert.deepEqual(tick(g, { tap: { x: 1, y: 1 } }), { died: false, scored: 0, added: 0, formation: null });
+  assert.deepEqual(tick(g, { tap: { x: 1, y: 1 } }), inert);
 });
 
 test('lowestFalling returns the most-endangered descending orb, or null', () => {
@@ -310,7 +312,7 @@ test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => 
   const m = normalizeMeta(undefined, 31);
   assert.equal(m.v, 1);
   assert.equal(m.best, 31);
-  assert.deepEqual(m.totals, { catches: 0, points: 0 });
+  assert.deepEqual(m.totals, { catches: 0, points: 0, swoops: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -545,4 +547,122 @@ test('loadFormation records the current and marks its head beat (the cue carrier
   assert.ok(g.formAir.length >= 1);
   assert.equal(g.formAir[0].head, true, 'the leading beat carries the name cue');
   assert.ok(g.formAir.slice(1).every(b => !b.head), 'only the head announces');
+});
+
+// ── 12. Depth inside the one verb: swoop → tailwind → the secret stage ──────────
+
+test('SWOOP: the drawn danger band hides a razor rescue window that pays extra', () => {
+  const g = newGame(); start(g);
+  const o = g.orbs[0];
+  // Lowest edge inside the band: y + ORB_R within SWOOP_BAND of the floor.
+  o.x = 400; o.y = H - CONFIG.ORB_R - 10; o.vy = 5;
+  const r = applyTap(g, { x: 400, y: o.y });
+  assert.equal(r.struck, 1);
+  assert.equal(r.swooped, 1, 'a floor-graze catch is a swoop');
+  assert.equal(g.score, tapScore(1) + CONFIG.SWOOP_BONUS, 'swoop pays on top of the catch');
+  assert.equal(g.swoops, 1);
+  assert.equal(g.swoopStreak, 1, 'the streak begins');
+});
+
+test('an orb just above the band pays no bonus (the window is razor, not the glow)', () => {
+  const g = newGame(); start(g);
+  const o = g.orbs[0];
+  o.x = 400; o.y = H - CONFIG.ORB_R - CONFIG.SWOOP_BAND - 2; o.vy = 5; // 2px too high
+  const r = applyTap(g, { x: 400, y: o.y });
+  assert.equal(r.struck, 1);
+  assert.equal(r.swooped, 0);
+  assert.equal(g.score, tapScore(1), 'no hidden bonus outside the band');
+});
+
+test('a comfortable catch silently breaks the swoop streak; a whiff leaves it alone', () => {
+  const g = newGame(); start(g);
+  g.orbs = [{ x: 400, y: H - CONFIG.ORB_R - 8, vx: 0, vy: 5, hue: 0 }];
+  applyTap(g, { x: 400, y: H - 30 });                       // swoop → streak 1
+  assert.equal(g.swoopStreak, 1);
+  applyTap(g, { x: 40, y: 40 });                            // whiff: no orb near
+  assert.equal(g.swoopStreak, 1, 'a whiff is no evidence of timid play');
+  g.orbs = [{ x: 400, y: 300, vx: 0, vy: 5, hue: 0 }];
+  applyTap(g, { x: 400, y: 300 });                          // mid-air catch
+  assert.equal(g.swoopStreak, 0, 'a comfortable catch breaks the chain');
+});
+
+test('the rescue survives its own tick: a swooped orb is launched, not lost', () => {
+  const g = newGame(); start(g);
+  const o = g.orbs[0];
+  o.x = 400; o.y = H - CONFIG.ORB_R - 1; o.vx = 0; o.vy = 8; // one tick from death
+  const r = tick(g, { tap: { x: 400, y: o.y } });
+  assert.equal(r.swooped, 1);
+  assert.equal(r.died, false, 'the swoop is exactly the save');
+  assert.ok(o.vy < 0, 'the orb is rising again');
+});
+
+test('TAIL_TRIGGER swoops in a row raise the tailwind; the trigger is never doubled', () => {
+  const g = newGame(); start(g);
+  let lit = false;
+  for (let i = 0; i < CONFIG.TAIL_TRIGGER; i++) {
+    g.orbs = [{ x: 400, y: H - CONFIG.ORB_R - 8, vx: 0, vy: 5, hue: 0 }];
+    const before = g.score;
+    const r = applyTap(g, { x: 400, y: H - 30 });
+    assert.equal(r.swooped, 1, `swoop ${i + 1} lands`);
+    assert.equal(g.score - before, tapScore(1) + CONFIG.SWOOP_BONUS,
+      'every chain tap — the trigger included — pays single');
+    lit = r.tailLit;
+  }
+  assert.equal(lit, true, 'the last swoop of the chain lights it');
+  assert.equal(g.tails, 1);
+  assert.equal(g.tailT, CONFIG.TAIL_TICKS, 'the tailwind is at full strength');
+  assert.equal(g.swoopStreak, 0, 'the next tailwind needs a fresh chain');
+});
+
+test('while the tailwind blows every point doubles, and it blows itself out', () => {
+  const g = newGame(); start(g);
+  g.tailT = 5;
+  g.orbs = [{ x: 400, y: 300, vx: 0, vy: 5, hue: 0 }];
+  const r = applyTap(g, { x: 400, y: 300 });
+  assert.equal(r.points, tapScore(1) * CONFIG.TAIL_MULT, 'a plain catch pays double');
+  assert.equal(g.score, tapScore(1) * CONFIG.TAIL_MULT);
+  g.orbs = [{ x: 400, y: 60, vx: 0, vy: 0, hue: 0 }];       // parked high: no death
+  for (let i = 0; i < 5; i++) tick(g, { tap: null });
+  assert.equal(g.tailT, 0, 'the tailwind expires');
+  g.orbs = [{ x: 400, y: 300, vx: 0, vy: 5, hue: 0 }];
+  const r2 = applyTap(g, { x: 400, y: 300 });
+  assert.equal(r2.points, tapScore(1), 'pay returns to normal');
+});
+
+test('the secret Stratosphere stage waits past Zero-G, revealed only by score', () => {
+  const last = CONFIG.STAGES[CONFIG.STAGES.length - 1];
+  assert.equal(last.name, 'Stratosphere');
+  assert.equal(last.secret, true, 'marked secret — never printed on the start screen');
+  assert.equal(stageIndexAt(CONFIG, last.at - 1), CONFIG.STAGES.length - 2, 'Zero-G holds until the line');
+  assert.equal(stageIndexAt(CONFIG, last.at), CONFIG.STAGES.length - 1, 'reaching it is the reveal');
+  assert.equal(stageProgress(CONFIG, 110).isLast, false, 'Zero-G now points onward');
+  assert.equal(stageProgress(CONFIG, last.at).isLast, true);
+});
+
+test('applyRun accumulates swoops and the three depth badges fire (lossless upgrade)', () => {
+  const legacy = normalizeMeta({ totals: { catches: 7, points: 9 } });
+  assert.equal(legacy.totals.swoops, 0, 'legacy meta upgrades losslessly');
+  const m = applyRun(legacy, summary({ score: 250, stageIndex: 4, swoops: 2, tails: 1 }), CONFIG);
+  assert.equal(m.totals.swoops, 2);
+  assert.equal(m.achieved['swoop'], true);
+  assert.equal(m.achieved['tailwind'], true);
+  assert.equal(m.achieved['stratosphere'], true);
+});
+
+test('reset clears the depth state (frame-one guard)', () => {
+  const g = newGame(); start(g);
+  g.orbs = [{ x: 400, y: H - CONFIG.ORB_R - 8, vx: 0, vy: 5, hue: 0 }];
+  applyTap(g, { x: 400, y: H - 30 });
+  g.tailT = 100; g.tails = 1;
+  start(g);
+  assert.equal(g.swoops, 0);
+  assert.equal(g.swoopStreak, 0);
+  assert.equal(g.tails, 0);
+  assert.equal(g.tailT, 0, 'no tailwind can leak into a fresh run');
+});
+
+test('ACHIEVEMENTS grew to 11 with the depth layer, ids unique', () => {
+  assert.equal(ACHIEVEMENTS.length, 11);
+  const ids = ACHIEVEMENTS.map(a => a.id);
+  assert.equal(new Set(ids).size, ids.length, 'no duplicate ids');
 });
