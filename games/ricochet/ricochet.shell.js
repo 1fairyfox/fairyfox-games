@@ -17,6 +17,7 @@
  * a classic-script boot-failure fallback so a load error is never a dead screen.
  */
 import * as R from './ricochet.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__ricochetBooted = true;
 
@@ -43,6 +44,7 @@ const livesEl = el('lives');
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const formCueEl = el('formCue');
 const pinCueEl = el('pinCue');
 
@@ -102,6 +104,44 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Fireworks" fun mode (one run, cosmetic, score still counts) ──
+const FW_COST = 1;
+let funArmed = false;   // Fireworks bought for the NEXT run
+let fireworksActive = false;
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Fireworks armed ✓';
+    coinHint.textContent = 'A dazzling run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < FW_COST;
+    coinBuyText.textContent = 'Fireworks · ' + FW_COST;
+    coinHint.textContent = bal < FW_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(FW_COST, 'ricochet:fireworks')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 const SHOT_SPEED = 26;      // px the flying dot covers per tick
 let W = 0, H = 0, DPR = 1, game = null;
 const pointer = { x: 0, y: 0, has: false };
@@ -129,6 +169,7 @@ function enterStage(i) {
   updateStageChip();
 }
 function beginRun() {
+  fireworksActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   R.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -260,6 +301,17 @@ function advanceFlight() {
 
 // ── Eye candy (view-only) ──────────────────────────────────────────────────────
 function burst(x, y, combo, pin) {
+  if (fireworksActive) {
+    // Fireworks fun mode — a bigger, rainbow, longer-lived burst (cosmetic only; the shot
+    // result + score are identical). A quick bloom of light on each pop.
+    const n = 34 + combo * 6;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 6.5;
+      particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30 + Math.random() * 26, h: Math.floor(Math.random() * 360) });
+    }
+    flash = Math.max(flash, 0.5);
+    return;
+  }
   const hue = pin ? 46 : 150 + combo * 26;   // gold for a dead centre
   const n = (pin ? 22 : 16) + combo * 4;
   for (let i = 0; i < n; i++) {
@@ -268,7 +320,8 @@ function burst(x, y, combo, pin) {
   }
 }
 function stepParticles() {
-  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life--; }
+  const grav = fireworksActive ? 0.14 : 0;   // fireworks fall like sparks
+  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vy += grav; p.vx *= 0.9; p.vy *= 0.9; p.life--; }
   particles = particles.filter(p => p.life > 0);
   if (shake > 0.3) shake *= 0.85; else shake = 0;
   if (flash > 0.01) flash *= 0.88; else flash = 0;
@@ -288,6 +341,7 @@ function renderLives() {
 
 function onDeath() {
   shake = 18; flash = 0.7;
+  fireworksActive = false;   // stop fireworks on the game-over screen (particles finish naturally)
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   if (pinCueEl) pinCueEl.classList.remove('show');
@@ -336,6 +390,17 @@ function onDeath() {
     overTitle.textContent = 'Out of shots';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('ricochet', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 

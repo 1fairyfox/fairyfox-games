@@ -13,6 +13,7 @@
  * silently dead screen.
  */
 import * as Sky from './skyline.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 window.__skylineBooted = true;
 
@@ -37,6 +38,7 @@ const newbestEl = el('newbest'), overTitle = el('overTitle'), statsEl = el('stat
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -60,6 +62,46 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Jelly" fun mode (one run, cosmetic, score still counts) ──
+const JELLY_COST = 1;
+let funArmed = false;    // Jelly bought for the NEXT run
+let jellyActive = false;
+let landWobble = 0;      // 1 → 0 squash-stretch timer for the just-placed slab
+let wobbleLevel = -1;    // which placed level is wobbling
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Jelly armed ✓';
+    coinHint.textContent = 'A wobbly tower — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < JELLY_COST;
+    coinBuyText.textContent = 'Jelly mode · ' + JELLY_COST;
+    coinHint.textContent = bal < JELLY_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(JELLY_COST, 'skyline:jelly')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 let camY = 0, flash = 0, goldFlash = 0, shake = 0;
@@ -98,6 +140,7 @@ function showFormCue(name) {
 }
 
 function beginRun() {
+  jellyActive = funArmed; funArmed = false; landWobble = 0; wobbleLevel = -1; refreshCoinUI();   // consume for one run
   Sky.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -144,6 +187,7 @@ function press() {
   if (r.placed) {
     scoreEl.textContent = game.score;
     camY -= game.cfg.SLAB_H;                 // counter the level shift, then ease to 0
+    if (jellyActive) { landWobble = 1; wobbleLevel = game.blocks.length - 1; }   // jelly: wobble the fresh slab
     if (r.perfect) {
       // A KEYSTONE (flush to the pixel — the hidden tech) flashes gold; announcing the
       // jet stream outranks everything. A plain flush keeps the familiar blue beat.
@@ -194,6 +238,7 @@ function stepShards() {
 
 function onDeath() {
   shake = 16; flash = 0; goldFlash = 0;
+  jellyActive = false; landWobble = 0;   // no wobble on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   spawnShard(game.current.width); // the missed slab tumbles
@@ -246,6 +291,17 @@ function onDeath() {
     metaLineEl.textContent = 'Run ' + meta.plays + ' · ' + meta.totals.floors
       + ' floors all-time · ' + earned + '/' + Sky.ACHIEVEMENTS.length + ' badges';
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('skyline', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 380);
 }
 
@@ -262,6 +318,7 @@ function update(now) {
     if (goldFlash > 0.01) goldFlash *= 0.88; else goldFlash = 0;
     if (shake > 0.3) shake *= 0.85; else shake = 0;
     if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
+    if (landWobble > 0.001) landWobble = Math.max(0, landWobble - 0.045); else landWobble = 0;   // jelly settle
     tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
     tintCur.g += (tintTarget.g - tintCur.g) * 0.08;
     tintCur.b += (tintTarget.b - tintCur.b) * 0.08;
@@ -331,7 +388,23 @@ function draw() {
       const b = game.blocks[i];
       const y = slabScreenY(i);
       if (y > H + game.cfg.SLAB_H || y < -game.cfg.SLAB_H) continue;
-      drawSlab(b.x, y, b.width, slabHue(i), false);
+      // Jelly fun mode — the freshly-dropped slab squash-stretches as it settles. Purely a
+      // draw-time transform around the slab's base; the block's real rect (overlap, scoring)
+      // is untouched, so the tower and score are identical.
+      if (jellyActive && i === wobbleLevel && landWobble > 0) {
+        const t = 1 - landWobble;                                  // 0 → 1 as it settles
+        const damp = Math.exp(-t * 4);
+        const sy = 1 - 0.32 * damp * Math.cos(t * 20);             // squash first, then bounce
+        const sx = 1 + (1 - sy) * 0.55;                            // widen when squashed
+        const h = game.cfg.SLAB_H;
+        ctx.save();
+        ctx.translate(b.x + b.width / 2, y + h);                   // pivot at the slab's base
+        ctx.scale(sx, sy);
+        drawSlab(-b.width / 2, -h, b.width, slabHue(i), false);
+        ctx.restore();
+      } else {
+        drawSlab(b.x, y, b.width, slabHue(i), false);
+      }
     }
     // falling shards
     for (const s of shards) {
