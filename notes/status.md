@@ -2,7 +2,19 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.14` (single source of truth: repo-root `VERSION`). **v0.24.14** is a **GROW**
+**Version:** `0.25.0` (single source of truth: repo-root `VERSION`). **v0.25.0** is a **PLANT**
+run: a new game, **Drove** — a genuinely new verb (**herd / shepherd**), the collection's first
+**indirect-control** game and its **16th**. Fireflies flee your fox-glow; you place yourself so
+that away-from-you is toward-the-lantern and press each flock into the ring. A slow push always
+works (but breaks the combo); a measured lunge into a razor band darts a mote **dead-straight
+away from you** — line up fox–mote–lantern and it flies home for a **nick** (+2, mult ×2…×9);
+a shade deeper is a **panic** (a wall-blind bolt that can stray — 3 strays end the night). 3
+nicks → **Muster** (~5s double, trigger never doubled). Ships on varied structure (flocks Amble
+· Scatter · **Moonpool**=greed · Flicker · The Split · The Stampede, pure `placeSpec` spawn
+guarantees), one night of stages (Dusk → … → The Small Hours) + secret **First Light** (150
+penned), a no-plateau liveliness asymptote, meta (`drove.meta`, 13 badges, legacy `drove.best`
+preserved) and the **Prism wisps** coin fun mode — all from birth. Pure core + 42 tests;
+collection **704/704** green. Earlier: **v0.24.14** is a **GROW**
 run: **Loft** gets the **"depth inside the mechanic"** layer — the **8th game** to carry it (after
 Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet and Skyline; Tether + Reprise +
 Ward ship with it from birth). On the one tap verb: a discoverable **Swoop** (the drawn red danger
@@ -162,8 +174,37 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (15):**
+**Games so far (16):**
 
+- **Drove** (`games/drove/`) — a **herd / shepherd** game (a genuinely new verb: the
+  collection's first **indirect-control** mechanic — you're not steering, timing, aiming,
+  metering, swinging, remembering or guarding, you're **moving the one thing the quarry flees
+  from**). Fireflies wander a round night pasture; a lantern ring glows inside it; you control
+  one thing — where your **fox-glow** is (mouse / touch / arrows; the glow *travels* at a
+  capped `FOX_SPEED`, so it never teleports). Motes inside your drawn `INFLUENCE` ring drift
+  away from you — press them into the lantern to pen them and score. **The depth is the lunge,
+  discovered not told:** closing faster than `LUNGE_CLOSE` with the gap inside the razor
+  `NICK_BAND` (just outside `PANIC_R` — neither band is drawn) startles the mote into a
+  **dead-straight, wall-safe dart away from you**, so standing on its far side *aims* it at the
+  lantern; penned mid-dart it's a **nick** (+`NICK_BONUS` 2, mult ×2…×9), while the same lunge
+  a shade deeper is a **panic** — a wild, wall-blind bolt that can cross the hedge for a
+  **stray** (3 strays end the run). A plain pushed pen scores but breaks the combo — precise/
+  safe tension re-expressed as pressure, with greed and ruin on the same input. A 3-nick streak
+  → **Muster** (~5s every point doubles; trigger never doubled). **On Varied Structure + the
+  Growth Architecture from birth:** a run is a seeded **sequence of named flocks**
+  (`FORMATIONS`/`pickFormation`/`loadFormation`, `minStage`-gated; a pure `placeSpec` gives
+  every spawn in-field + clear-of-lantern guarantees *by construction*): **Amble** (calm) ·
+  **Scatter** (strewn wide) · **Moonpool** (pooled beside the lantern — the deliberate **greed
+  window**) · **Flicker** (temper 1.5: hair-trigger startles) · **The Split** (two droves,
+  opposite sides) · **The Stampede** (the crescendo). Fresh motes carry a `GRACE` fade-in
+  (inert), so frame one can never pen, panic or stray. Plus a **stage arc** — one night of
+  herding (Dusk → Gloaming → Midnight → Moonset → The Small Hours) with HUD chip + tint, a
+  **secret First Light stage** (150 penned, revealed only by reaching it), a **no-plateau
+  liveliness asymptote** (`livelinessOf`, hard-capped + override-proof), **meta-progression**
+  (`drove.meta`: lifetime penned/points/nicks + best stage/mult + 13 badges, run-report) —
+  legacy `drove.best` preserved — and the **Prism wisps** coin fun mode (1 coin, additive
+  render only). Pure core + 42 tests. **(Ships on varied structure + the depth layer from
+  day one.)**
 - **Ward** (`games/ward/`) — a **guard / deflect** game (a genuinely new verb: the collection's
   first **defence** mechanic — you're not steering, timing, aiming, metering, swinging or
   remembering, you're **defending a point by orbiting a shield around it**). Shards converge on a
@@ -475,11 +516,25 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **662/662** green (Loft depth layer +10, v0.24.14). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **704/704** green (Drove +42, v0.25.0). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.25.0 (2026-07-21) — PLANT: new game Drove (a genuinely new verb: herd / shepherd).**
+  The **16th** game and the collection's first **indirect-control** mechanic — every prior verb
+  acts on the world directly; Drove moves *the thing the quarry flees from*. Fireflies + a
+  lantern ring + a fox-glow with one control (move, `FOX_SPEED`-capped so a lunge is a
+  deliberate act). The hook, discovered not told: a measured lunge into the razor `NICK_BAND`
+  darts the mote dead-straight away from you (aimable → the **nick**: +2, mult ×2…×9); a shade
+  deeper is the **panic** (wall-blind bolt → **stray**, 3 end the run); a plain push scores but
+  breaks the combo. 3 nicks → **Muster** (~5s double, trigger never doubled). Varied structure
+  from birth (Amble · Scatter · **Moonpool**=greed · Flicker · The Split · The Stampede;
+  `placeSpec` guarantees by construction; `GRACE` fade-in pins the frame-one guard), one night
+  of stages + secret **First Light** (150), no-plateau liveliness asymptote (hard-capped),
+  `drove.meta` (13 badges), **Prism wisps** coin fun mode. Pure core + 42 tests; collection
+  **704/704** green. Code-rendered icon. Released as a MINOR the git-flow way
+  (`release/0.25.0` → PR → tag `v0.25.0` → back-merge).
 - **✅ v0.24.14 (2026-07-21) — GROW: Loft gets "depth inside the mechanic" (8th game on the
   layer).** The named next target (the other original-seven game); its no-plateau gravity
   asymptote already landed in v0.22.1, so this run added the other three items on the one tap

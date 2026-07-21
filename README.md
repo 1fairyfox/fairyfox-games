@@ -86,6 +86,7 @@ CI runs the full suite on every push and pull request.
 
 | Game | What you do | Folder |
 |------|-------------|--------|
+| **Drove** | Fireflies flee your glow — get behind them and press the drove into the lantern. A slow push always works; a perfect lunge darts one straight home and grows a multiplier. Spook three off the field and the night is over. | [`games/drove/`](games/drove/) |
 | **Loft** | Keep the glowing orbs aloft — tap a falling orb to bat it back up. You can only strike on the way down, and every few points another orb joins the air. | [`games/loft/`](games/loft/) |
 | **Brim** | Hold to pour, let go to stop — except the stream is still falling, and it lands anyway. Stop above the line, under the rim, and stop in the gold to build your multiplier. You can't stop where you want; you have to stop early. | [`games/brim/`](games/brim/) |
 | **Ward** | Shards close in on your core from every side — orbit your shield to block them before they land. Three strikes ends it. Catch one dead-centre and defence turns into a climbing multiplier. Point, hold the line, and see how deep you can hold. | [`games/ward/`](games/ward/) |

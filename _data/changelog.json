@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-21",
+    "game": "Drove",
+    "slug": "drove",
+    "kind": "new",
+    "text": "A new game is planted: Drove. Fireflies drift about a dark pasture, and for the first time in the collection you don't steer, aim, catch or guard — you herd. The fireflies flee your fox-glow, so you move yourself, and they move away; place your light so that away-from-you is toward the lantern, and press the drove home. A slow push always works. But close in fast, to just the right distance, and a firefly startles into a dead-straight dart away from you — stand on its far side and it flies straight into the lantern for a bonus and a climbing multiplier. Press a shade too deep and it panics instead, bolting blind for the hedge; spook three off the field and the night is over. The gap between the perfect lunge and the ruinous one is a razor, and nobody draws it for you."
+  },
+  {
+    "date": "2026-07-21",
     "game": "Loft",
     "slug": "loft",
     "kind": "grow",
