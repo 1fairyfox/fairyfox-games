@@ -13,6 +13,7 @@
  * load failure is never a silently dead screen.
  */
 import * as Symmetry from './symmetry.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__symmetryBooted = true;
@@ -42,6 +43,7 @@ const toastEl = el('toast');
 const formCueEl = el('formCue');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
@@ -93,6 +95,46 @@ let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
 
+// ── Coins — an optional, cheap "Kaleidoscope" fun mode (one run, cosmetic, score still counts) ──
+const KALEIDO_COST = 1;
+let funArmed = false;      // Kaleidoscope bought for the NEXT run
+let kaleidoActive = false;
+let kTrail = [];           // {off, hue, life} — mirrored colour trail of the catchers
+let kHue = 0;
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Kaleidoscope armed ✓';
+    coinHint.textContent = 'A painted run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < KALEIDO_COST;
+    coinBuyText.textContent = 'Kaleidoscope · ' + KALEIDO_COST;
+    coinHint.textContent = bal < KALEIDO_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(KALEIDO_COST, 'symmetry:kaleido')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
+
 let W = 0, H = 0, DPR = 1, game = null;
 // Field geometry (recomputed on resize)
 let cx = 0, topY = 0, catchY = 0, halfW = 0;
@@ -137,6 +179,7 @@ function enterStage(i) {
   updateStageChip();
 }
 function beginRun() {
+  kaleidoActive = funArmed; funArmed = false; kTrail = []; refreshCoinUI();   // consume for one run
   Symmetry.start(game);
   cmd = 0;
   stageIdx = 0; stagePulse = 0;
@@ -213,6 +256,7 @@ function burst(x, y, hue, n) {
 function stepParticles() {
   for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.vy += 0.14; p.life--; }
   particles = particles.filter(p => p.life > 0);
+  if (kTrail.length) { for (const k of kTrail) k.life -= 0.02; kTrail = kTrail.filter(k => k.life > 0); }
   if (shake > 0) shake *= 0.86;
   if (stagePulse > 0.01) stagePulse *= 0.94; else stagePulse = 0;
   tintCur.r += (tintTarget.r - tintCur.r) * 0.08;
@@ -227,6 +271,7 @@ function paddleX(side) { return cx + side * game.spread * halfW; }
 
 function onDeath() {
   shake = 16;
+  kaleidoActive = false;   // painting off on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -274,6 +319,17 @@ function onDeath() {
     overTitle.textContent = 'Broke symmetry';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('symmetry', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 
@@ -296,6 +352,11 @@ function update(now) {
         if (o.y + o.vy >= 1) resolving.push({ x: orbX(o), hit: Math.abs(eased - o.lane) <= game.cfg.CATCH });
       }
       const r = Symmetry.tick(game, { spread: want });
+      if (kaleidoActive) {   // paint the mirrored catcher trail (cosmetic)
+        kTrail.push({ off: game.spread * halfW, hue: kHue, life: 1 });
+        kHue = (kHue + 7) % 360;
+        if (kTrail.length > 64) kTrail.shift();
+      }
       if (r.caught || r.missed) {
         for (const p of resolving) {
           if (p.hit) burst(p.x, catchY, 165, 12);
@@ -390,6 +451,22 @@ function draw() {
       ctx.strokeStyle = rgbStr(tintTarget, stagePulse * 0.5);
       ctx.lineWidth = 3 * stagePulse + 0.5;
       ctx.beginPath(); ctx.moveTo(cx - halfW, catchY); ctx.lineTo(cx + halfW, catchY); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Kaleidoscope fun mode — the mirrored catcher trail painted in cycling colour, four-fold
+    // (left/right about the axis, and reflected top/bottom). Purely cosmetic; the catchers,
+    // catches, and score are untouched.
+    if (kaleidoActive && kTrail.length) {
+      const yr = topY;   // vertical reflection of the catch line about the field's mid-height
+      ctx.globalCompositeOperation = 'lighter';
+      for (const k of kTrail) {
+        ctx.fillStyle = 'hsla(' + k.hue + ',100%,68%,' + (k.life * 0.5).toFixed(3) + ')';
+        const rr = 3 + k.life * 5;
+        for (const px of [cx - k.off, cx + k.off]) {
+          for (const py of [catchY, yr]) { ctx.beginPath(); ctx.arc(px, py, rr, 0, 7); ctx.fill(); }
+        }
+      }
       ctx.globalCompositeOperation = 'source-over';
     }
 

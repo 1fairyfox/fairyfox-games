@@ -13,6 +13,7 @@
  * load failure is never a silently dead screen.
  */
 import * as Poise from './poise.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__poiseBooted = true;
@@ -41,6 +42,7 @@ const startPanel = el('start'), overPanel = el('gameover'), overSubEl = el('over
 const toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -81,6 +83,44 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Circus" fun mode (one run, cosmetic, score still counts) ──
+const CIRCUS_COST = 1;
+let funArmed = false;   // Circus bought for the NEXT run
+let circusActive = false;
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Circus armed ✓';
+    coinHint.textContent = 'A big-top run — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < CIRCUS_COST;
+    coinBuyText.textContent = 'Circus mode · ' + CIRCUS_COST;
+    coinHint.textContent = bal < CIRCUS_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(CIRCUS_COST, 'poise:circus')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 // Beam geometry (recomputed on resize)
@@ -136,6 +176,7 @@ function showFormCue(name) {
 }
 
 function beginRun() {
+  circusActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Poise.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -225,6 +266,7 @@ function onDeath() {
   const bp = beamPoint(game.pos, game.tilt);
   burst(bp.x, bp.y, 8, 26);
   shake = 15;
+  circusActive = false;   // big-top off on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -270,6 +312,17 @@ function onDeath() {
     overTitle.textContent = 'Off the beam';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('poise', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 
@@ -351,6 +404,20 @@ function draw() {
     ctx.strokeStyle = rgbStr(tintCur, 0.95);
     ctx.lineWidth = BEAM_TH;
     ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
+    // Circus fun mode — a candy-stripe barber-pole overlay on the beam (cosmetic; the beam's
+    // geometry + the ball physics are untouched). Animated stripes; steady under reduced-motion.
+    if (circusActive) {
+      ctx.strokeStyle = '#e6425a'; ctx.lineWidth = BEAM_TH;
+      ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
+      ctx.save();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = BEAM_TH;
+      const dash = 13;
+      ctx.setLineDash([dash, dash]);
+      ctx.lineDashOffset = reduceMotion ? 0 : -((t * 0.8) % (dash * 2));
+      ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
     // end caps (the lips the ball can roll off)
     for (const e of [left, right]) {
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -389,6 +456,22 @@ function draw() {
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = near ? '#ffd0b4' : '#fff2cc';
     ctx.beginPath(); ctx.arc(bp.x, bp.y, BALL_R, 0, 7); ctx.fill();
+    // Circus fun mode — paint the ball as a spinning clown/beach ball of colour wedges
+    // (cosmetic overlay clipped to the ball; physics + score unchanged).
+    if (circusActive) {
+      const spin = reduceMotion ? 0.4 : t * 0.06;
+      const cols = ['#ff5a5a', '#ffd23f', '#4ea3ff', '#7af9d0', '#ff8ad0', '#ffffff'];
+      ctx.save();
+      ctx.beginPath(); ctx.arc(bp.x, bp.y, BALL_R, 0, 7); ctx.clip();
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = cols[i];
+        ctx.beginPath();
+        ctx.moveTo(bp.x, bp.y);
+        ctx.arc(bp.x, bp.y, BALL_R, spin + i * Math.PI / 3, spin + (i + 1) * Math.PI / 3);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.beginPath(); ctx.arc(bp.x - BALL_R * 0.3, bp.y - BALL_R * 0.3, BALL_R * 0.32, 0, 7); ctx.fill();
 

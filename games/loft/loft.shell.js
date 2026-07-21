@@ -12,6 +12,7 @@
  * load failure is never a silently dead screen.
  */
 import * as Loft from './loft.core.js';
+import { grantForRun, spend, balance, onBalance, coinsReady } from '../_shared/coins-game.js';
 
 // Tell the in-page fallback we booted (see index.html).
 window.__loftBooted = true;
@@ -39,6 +40,7 @@ const newbestEl = el('newbest'), overTitle = el('overTitle'), overSub = el('over
 const startPanel = el('start'), overPanel = el('gameover'), toastEl = el('toast');
 const stageChip = el('stageChip'), stageNameEl = el('stageName'), stageFill = el('stageFill');
 const badgesEl = el('badges'), metaLineEl = el('metaLine');
+const coinrow = el('coinrow'), coinBuy = el('coinBuy'), coinBuyText = el('coinBuyText'), coinHint = el('coinHint'), coinEarn = el('coinEarn');
 const formCueEl = el('formCue');
 
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -80,6 +82,44 @@ function saveMeta(m) {
 let meta = loadMeta();
 let best = meta.best;
 bestEl.textContent = best;
+
+// ── Coins — an optional, cheap "Googly" fun mode (one run, cosmetic, score still counts) ──
+const GOOGLY_COST = 1;
+let funArmed = false;   // Googly bought for the NEXT run
+let googlyActive = false;
+
+function refreshCoinUI() {
+  if (!coinrow) return;
+  if (!coinsReady()) { coinrow.hidden = true; return; }  // no wallet → no coin UI at all
+  coinrow.hidden = false;
+  const bal = balance();
+  if (funArmed) {
+    coinBuy.classList.add('armed');
+    coinBuy.disabled = true;
+    coinBuyText.textContent = 'Googly armed ✓';
+    coinHint.textContent = 'Silly eyes — just for fun';
+  } else {
+    coinBuy.classList.remove('armed');
+    coinBuy.disabled = bal < GOOGLY_COST;
+    coinBuyText.textContent = 'Googly mode · ' + GOOGLY_COST;
+    coinHint.textContent = bal < GOOGLY_COST
+      ? 'Explore Fairy Fox to earn a coin'
+      : 'Optional · your score still counts';
+  }
+}
+if (coinBuy) {
+  const stop = e => e.stopPropagation();
+  coinBuy.addEventListener('mousedown', stop);
+  coinBuy.addEventListener('touchstart', stop, { passive: true });
+  coinBuy.addEventListener('click', e => {
+    e.stopPropagation();
+    if (funArmed) return;
+    if (spend(GOOGLY_COST, 'loft:googly')) funArmed = true;
+    refreshCoinUI();
+  });
+}
+onBalance(refreshCoinUI);
+refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 let particles = [], rings = [], shake = 0, flash = 0;
@@ -141,6 +181,7 @@ function stepDust() {
 }
 
 function beginRun() {
+  googlyActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Loft.start(game);
   stageIdx = 0; stagePulse = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
@@ -207,6 +248,7 @@ function stepFx() {
 
 function onDeath() {
   shake = 18; flash = 0.7;
+  googlyActive = false;   // eyes off on the game-over screen
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -254,6 +296,17 @@ function onDeath() {
     overTitle.textContent = 'It dropped';
     overTitle.classList.remove('record');
   }
+
+  // Coins — a small, capped reward for real progress (a new stage this run and/or a new
+  // record), on top of the shared page-view coin. Logic + the 3/day cap live in the pure core.
+  const coinRes = grantForRun('loft', { runStage: stageIndex, isRecord: record });
+  if (coinEarn) {
+    coinEarn.textContent = coinRes.grant > 0
+      ? '+' + coinRes.grant + (coinRes.grant === 1 ? ' coin' : ' coins') + ' earned'
+      : '';
+  }
+  refreshCoinUI();
+
   setTimeout(() => overPanel.classList.remove('hide'), 420);
 }
 
@@ -364,6 +417,22 @@ function draw() {
       ctx.beginPath(); ctx.arc(o.x, o.y, glow, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.beginPath(); ctx.arc(o.x, o.y, R * 0.5, 0, 7); ctx.fill();
+      // Googly fun mode — two wobbly cartoon eyes on each orb, pupils rolling toward the orb's
+      // travel (with a little jiggle). Purely a drawn overlay; the orb's physics + score are
+      // untouched.
+      if (googlyActive) {
+        const eyeR = R * 0.4, pupR = eyeR * 0.5, off = R * 0.46, ey = o.y - R * 0.12;
+        const sp = Math.hypot(o.vx || 0, o.vy || 0) || 1;
+        const jit = reduceMotion ? 0 : Math.sin(game.t * 0.5 + o.x) * pupR * 0.3;
+        const dxp = (o.vx / sp) * (eyeR - pupR) * 0.85;
+        const dyp = ((o.vy || 0) / sp) * (eyeR - pupR) * 0.85 + jit;
+        for (const ex of [-off, off]) {
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(o.x + ex, ey, eyeR, 0, 7); ctx.fill();
+          ctx.fillStyle = '#141018';
+          ctx.beginPath(); ctx.arc(o.x + ex + dxp, ey + dyp, pupR, 0, 7); ctx.fill();
+        }
+      }
     }
 
     // particles

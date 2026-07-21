@@ -119,8 +119,10 @@ If verification can't complete, do not auto-apply — fall back to check-report-
   (Fireworks) · **Skyline** (Jelly wobble). Uniform capped earn + a cosmetic-only fun mode each;
   additive/overlay render, records honest, never a gate; 652/652 green; menus previewed headless.
   **Rollout: 9 of 15.**
-- **Phase 4, next batches (queued, ~3 each):** Loft · Poise · Symmetry, then Arc · Sluice.
-  **Reprise (Choir) is deferred** — it wants a real audio layer, which the games don't have yet;
-  don't rush WebAudio into a daily run.
+- **Phase 4, batch 4 — done 2026-07-20 (v0.24.10):** **Loft** (Googly) · **Poise** (Circus) ·
+  **Symmetry** (Kaleidoscope). Uniform capped earn + a cosmetic-only fun mode each; drawn-overlay
+  render, records honest, never a gate; 652/652 green; menus previewed headless. **Rollout: 12 of 15.**
+- **Phase 4, final batch (queued):** Arc · Sluice. **Reprise (Choir) is deferred** — it wants a
+  real audio layer, which the games don't have yet; don't rush WebAudio into a daily run.
 - **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
   reports (the per-batch releases mean `main` is already current).
