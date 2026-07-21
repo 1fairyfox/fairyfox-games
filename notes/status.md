@@ -19,9 +19,10 @@ Paint · Reprise Light show). Every fun mode is **additive/overlay render only**
 collisions, skill windows, and the score are untouched, so **records stay honest**; each is
 **hidden with no wallet and never a gate**; all honour reduced-motion. **652/652** green; every
 menu previewed headless. A **live play-feel eyeball of the fun modes in motion is still worth
-doing** (headless previews confirmed boot + the coin control, not the effects mid-run). Deliberately
-**deferred:** the `check-links.mjs` / `check-tidy.mjs` repo-hygiene scripts (the test gate stays
-`node --test`). **v0.24.3** was a **GROW**
+doing** (headless previews confirmed boot + the coin control, not the effects mid-run). **v0.24.13**
+then adopted the **repo-hygiene scripts** (`scripts/check-links.mjs` + `scripts/check-tidy.mjs`,
+zero-dep Node): the **doc-link gate now runs in CI + `npm test`** (`notes/reference/` skipped as a
+vendored mirror), and `npm run tidy` guards against stranded untracked files. **v0.24.3** was a **GROW**
 run: **Skyline** gets the **"depth inside the mechanic"** layer — the **7th game** to carry it
 (after Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot and Ricochet; Tether + Reprise +
 Ward ship with it from birth). On the one drop verb: a discoverable **Keystone** (the 3.5px flush
