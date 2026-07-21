@@ -129,8 +129,9 @@ If verification can't complete, do not auto-apply — fall back to check-report-
   **Light show** (rainbow sparks off each lit pad, call + echo), so coins landed with no audio
   dependency. Uniform capped earn + cosmetic fun mode; records honest, never a gate; 652/652
   green; menu previewed. **Rollout: 15 of 15 — COMPLETE.**
-- **Phase 5 — close (remaining):** update `status.md`; write the adopting-updates process report;
-  the `check-links.mjs` / `check-tidy.mjs` repo-hygiene scripts were never added (still a `node
-  --test`-only gate) — add them or drop the claim on a future run.
+- **Phase 5 — close — done 2026-07-20/21:** `status.md` updated; adopting-updates process report
+  written; and (v0.24.13) the **repo-hygiene scripts adopted** — `scripts/check-links.mjs` (doc-link
+  gate, wired into CI + `npm test`, `notes/reference/` skipped as a vendored mirror) +
+  `scripts/check-tidy.mjs` (`npm run tidy`). **Initiative COMPLETE.**
 - **Phase 5 — close:** once the 15 are done, a final pass over `status.md` / legal / process
   reports (the per-batch releases mean `main` is already current).

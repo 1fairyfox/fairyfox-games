@@ -2,19 +2,27 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.24.7` (single source of truth: repo-root `VERSION`). **v0.24.7** is a **GROW**
-run and **coins rollout batch 1**: **Ward** + **Brim** join the owner-authorized **coins**
-economy (the initiative's phases 1–3 — hub-standards adoption, coins infra + legal, the shared
-game-coins module + Polarity reference — were built on `dev` on 2026-07-19 but left **unpushed +
-unreleased**; this run advanced the rollout **and** released the whole stack). Each of Ward/Brim
-now earns the uniform capped coins (+1 new stage, +1 new record, ≤3/game/day, all in the pure
-shared `coins-earn.core.js`) and gains one **optional, consumable, cosmetic** fun mode bought for
-**1 coin**: Ward's **Aurora shield** (rainbow shield shimmer + block sparks) and Brim's **Fizz**
-(rising soda bubbles + a golden foam head on a brim). Both are **additive-only** — score, records,
-and the skill windows are untouched, **never a gate**, reduced-motion friendly. **Coins rollout:
-3 of 15** (Polarity, Ward, Brim). Player changelog + `_games` date bumps + README re-gen; legal
-already discloses the local-only balance (phase 2). 652/652 green; menus previewed headless
-(desktop + mobile). **v0.24.3** was a **GROW**
+**Version:** `0.24.12` (single source of truth: repo-root `VERSION`). **The coins initiative is
+COMPLETE — all 15 games now carry coins** (v0.24.4 → v0.24.12, released across batches). The
+owner-authorized **coins** economy landed in five parts: **(1) standards** — the hub batch
+(v0.16.0 → v0.20.2, 10 new + 5 changed) vendored into `notes/reference/`; **(2) infra + legal** —
+`assets/coins.js` vendored verbatim + wired into the site chrome (the coin button by the "Aa"
+reader), and Privacy/Cookies/Terms disclose the device-only balance, the no-monetary-value clause,
+and the shared `/legal/coins/` link; **(3) shared module** — a pure, tested
+`games/_shared/coins-earn.core.js` (earn cap **≤3/game/day**: +1 a new stage, +1 a new record,
+atop the shared page-view coin) + a thin `coins-game.js` wallet bridge, proven on **Polarity**;
+**(4+5) every game** — each of the 15 earns the capped coins and gains **one optional, consumable,
+cosmetic fun mode bought for 1 coin** (Polarity Disco · Ward Aurora shield · Brim Fizz · Tether
+Comet · Ink Bloom Neon rave · Echo Chamber Ripple pool · Orbit Slingshot Retro · Ricochet Fireworks
+· Skyline Jelly · Loft Googly · Poise Circus · Symmetry Kaleidoscope · Arc Rainbow arc · Sluice
+Paint · Reprise Light show). Every fun mode is **additive/overlay render only** — the mechanic,
+collisions, skill windows, and the score are untouched, so **records stay honest**; each is
+**hidden with no wallet and never a gate**; all honour reduced-motion. **652/652** green; every
+menu previewed headless. A **live play-feel eyeball of the fun modes in motion is still worth
+doing** (headless previews confirmed boot + the coin control, not the effects mid-run). **v0.24.13**
+then adopted the **repo-hygiene scripts** (`scripts/check-links.mjs` + `scripts/check-tidy.mjs`,
+zero-dep Node): the **doc-link gate now runs in CI + `npm test`** (`notes/reference/` skipped as a
+vendored mirror), and `npm run tidy` guards against stranded untracked files. **v0.24.3** was a **GROW**
 run: **Skyline** gets the **"depth inside the mechanic"** layer — the **7th game** to carry it
 (after Polarity, Brim, Echo Chamber, Ink Bloom, Orbit Slingshot and Ricochet; Tether + Reprise +
 Ward ship with it from birth). On the one drop verb: a discoverable **Keystone** (the 3.5px flush
