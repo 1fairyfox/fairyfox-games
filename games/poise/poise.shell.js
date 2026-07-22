@@ -52,9 +52,10 @@ function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.
 // Milestone toasts — a brief celebratory flash at score thresholds (pure logic in
 // the core's milestoneAt).
 let toastTimer = 0;
-function showToast(text) {
+function showToast(text, gold) {
   if (!toastEl) return;
   toastEl.textContent = text;
+  toastEl.classList.toggle('gold', !!gold);
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1400);
@@ -156,12 +157,16 @@ function updateStageChip() {
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
 }
-/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. A SECRET
+ *  stage additionally announces itself — the one time the game says its name out loud
+ *  (it appears on no start screen; reaching it *is* the reveal). */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 5); }
+  if (st.secret) { showToast(st.name, true); if (!reduceMotion) shake = Math.max(shake, 10); }
   updateStageChip();
 }
 // Route cue — a quiet name flashed as a *notable* route begins (the varied-structure
@@ -273,7 +278,10 @@ function onDeath() {
 
   // Fold the run into the persistent meta (all logic pure in the core).
   const stageIndex = Poise.stageIndexAt(game.cfg, game.score);
-  const summary = { score: game.score, stageIndex, catches: game.score, ticks: game.t };
+  const summary = {
+    score: game.score, stageIndex, catches: game.catches, ticks: game.t,
+    stills: game.stills, equilibria: game.equilibria,
+  };
   const prev = meta;
   meta = Poise.applyRun(prev, summary, game.cfg);
   saveMeta(meta);
@@ -281,7 +289,9 @@ function onDeath() {
   if (overSubEl) {
     const secs = (game.t / 60);
     const held = secs >= 1 ? ` · balanced ${secs < 10 ? secs.toFixed(1) : Math.round(secs)}s` : '';
-    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + held;
+    const caught = ` · ${game.catches} caught`;
+    const st = game.stills > 0 ? ` · ${game.stills} still${game.stills === 1 ? '' : 's'}` : '';
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + caught + held + st;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -339,7 +349,11 @@ function update(now) {
       const r = Poise.tick(game, { tilt: commandedTilt() });
       if (r.caught) {
         const bp = beamPoint(game.pos, game.tilt);
-        burst(bp.x, bp.y, 150, 14);
+        // A STILL (the ball settled dead on the mark — the hidden tech) blooms gold;
+        // announcing equilibrium outranks it. A flung catch keeps the familiar splash.
+        if (r.eqLit) { burst(bp.x, bp.y, 46, 30); showToast('Equilibrium ×' + game.cfg.EQ_MULT, true); shake = Math.min(shake + 6, 12); }
+        else if (r.still) { burst(bp.x, bp.y, 46, 20); showToast(game.stillStreak >= 2 ? 'Still ×' + game.stillStreak : 'Still', true); }
+        else { burst(bp.x, bp.y, 150, 14); }
         shake = Math.min(shake + 3, 9);
       }
       if (r.formation) showFormCue(r.formation);
@@ -394,10 +408,15 @@ function draw() {
     ctx.lineTo(cx + 20, cy + 52);
     ctx.closePath(); ctx.fill();
 
+    // While EQUILIBRIUM holds (the reversal the still tech unlocks) the beam and the
+    // target burn gold — colour only; geometry, physics and the catch window are
+    // untouched, so the tell is purely informational.
+    const eq = g.eqT > 0;
+
     // beam — a tinted bar with soft glow
     ctx.lineCap = 'round';
     ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = rgbStr(tintCur, 0.30);
+    ctx.strokeStyle = eq ? 'rgba(255,208,106,0.42)' : rgbStr(tintCur, 0.30);
     ctx.lineWidth = BEAM_TH + 10;
     ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
@@ -430,12 +449,12 @@ function draw() {
     const pulse = 1 + Math.sin(t * 0.12) * 0.18;
     ctx.globalCompositeOperation = 'lighter';
     const tg = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, 26 * pulse);
-    tg.addColorStop(0, 'rgba(150,255,210,0.9)');
-    tg.addColorStop(1, 'rgba(150,255,210,0)');
+    tg.addColorStop(0, eq ? 'rgba(255,214,120,0.95)' : 'rgba(150,255,210,0.9)');
+    tg.addColorStop(1, eq ? 'rgba(255,214,120,0)' : 'rgba(150,255,210,0)');
     ctx.fillStyle = tg;
     ctx.beginPath(); ctx.arc(tp.x, tp.y, 26 * pulse, 0, 7); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = 'rgba(180,255,225,0.95)';
+    ctx.strokeStyle = eq ? 'rgba(255,224,150,0.98)' : 'rgba(180,255,225,0.95)';
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(tp.x, tp.y, 10, 0, 7); ctx.stroke();
     // a faint drop-line from the target down to the beam

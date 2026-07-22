@@ -2,7 +2,23 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.25.0` (single source of truth: repo-root `VERSION`). **v0.25.0** is a **PLANT**
+**Version:** `0.25.2` (single source of truth: repo-root `VERSION`). **v0.25.2** is a **GROW**
+run: **Poise** gets the **"depth inside the mechanic"** layer — the **9th game** to carry it, and
+the oldest one that was still missing it. Poise already had one of the four items (the no-plateau
+gravity asymptote, v0.22.2), so this run added the other three on the one **tilt** verb: the
+hidden **Still** (the ball keeps its momentum through a catch, so the instinctive play is to fling
+it at the target — the deep play is the opposite: carry real speed, brake hard, and *arrive dead
+still* on the mark. `STILL_VEL` 0.006 with a `STILL_PEAK` 0.010 **proof-of-travel** clause so a
+crawl can never farm it; +2, gold bloom, a streak, taught nowhere — a bot that merely chases lands
+**0** stills in hundreds of catches, a bot that deliberately brakes lands ~13%), **Equilibrium**
+(3 stills in a row → ~5s where **every point doubles**, beam + target gold, trigger never doubled
+— the calmest hand becomes the greediest), and a **secret stage, The Eye**, at score 120 past the
+Tempest (printed on no start screen; the start tip's stage ladder was removed). `score` now means
+*points* and a new `catches` counts targets, so the three "catch N in a run" badges test `catches`
+and a bonus can never inflate them. 3 new badges (9 → 12); +14 pure-core tests (42 → **56**);
+collection **718/718** green. **Depth rollout: 9 of 13.** Earlier: **v0.25.1** was a **HOTFIX**
+(`games/_shared/` → `games/shared/` — Jekyll drops underscore-prefixed folders, so every game
+showed "Couldn't load" live). **v0.25.0** is a **PLANT**
 run: a new game, **Drove** — a genuinely new verb (**herd / shepherd**), the collection's first
 **indirect-control** game and its **16th**. Fireflies flee your fox-glow; you place yourself so
 that away-from-you is toward-the-lantern and press each flock into the ring. A slow push always
@@ -470,8 +486,20 @@ sole host), plus each game at `…/games/<game>/`.
   ball keeping its momentum through a catch (risk/reward), a **stage arc** (Steady → Wobble → Sway →
   Pitch → Tempest) with HUD chip + tinted beam/frame, **meta-progression** (`poise.meta`: lifetime
   catches/longest-run + 9 badges, run-report) and a **near-miss** line — legacy `poise.best`
-  preserved. Normalised pure core (`pos` −1..1) + 42 tests. **(13th and last game on varied
-  structure — the rollout is complete.)**
+  preserved. Normalised pure core (`pos` −1..1) + 56 tests. **(13th and last game on varied
+  structure — the rollout is complete.)** **Depth inside the one verb (v0.25.2, the 9th game on
+  the layer):** gravity already rode its no-plateau asymptote (v0.22.2); now the ball's momentum
+  *through* a catch — the game's oldest rule — hides the **Still**: carry real speed across the
+  beam, brake hard, and arrive on the target with the ball dead still (`STILL_VEL` 0.006) and it
+  pays +2, blooms gold and builds a streak. Taught nowhere, and **unfarmable by patience**: a
+  still also needs the approach to have peaked at `STILL_PEAK` 0.010 (`stepBall` keeps the
+  watermark, a catch resets it), so creeping the whole beam proves nothing — you have to have
+  been moving to have stopped. A flung catch scores exactly as it always did and silently breaks
+  the chain. `EQ_TRIGGER` 3 stills in a row settle the beam into **Equilibrium** (`EQ_TICKS` 300
+  ≈ 5s where every point doubles, beam + target burning gold — colour only; the triggering catch
+  is never doubled), and a **secret Eye stage** waits at score 120 past the Tempest, revealed only
+  by reaching it. 3 new badges (9 → 12), `totals.stills` (lossless legacy upgrade), and the
+  score/catches split that keeps the catch badges honest.
 - **Symmetry** (`games/symmetry/`) — a **mirror-coordination** game: one control (the
   *spread*) drives two catchers locked in a mirror about a centre line, so you often
   can't save both sides at once — a forced tradeoff. **On Varied Structure + Growth**: each
@@ -516,11 +544,24 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **704/704** green (Drove +42, v0.25.0). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **718/718** green (Poise 42 → 56, v0.25.2). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.25.2 (2026-07-22) — GROW: Poise gets "depth inside the mechanic" (9th game on the
+  layer).** The oldest game still missing it, and already 1 of 4 items in (the gravity asymptote,
+  v0.22.2), so this run finished it on the one tilt verb: the hidden **Still** (`STILL_VEL` 0.006
+  arrival window + a `STILL_PEAK` 0.010 proof-of-travel clause that makes patience useless →
+  `STILL_BONUS` 2 + gold bloom + a streak, taught nowhere; bot-tuned so a naive chaser lands **0**
+  and a deliberate braker ~13%), **Equilibrium** (`EQ_TRIGGER` 3 in a row → `EQ_TICKS` 300 of
+  double score, trigger never doubled, beam + target gold colour-only), and a **secret Eye stage**
+  (score 120, gold reveal toast + badge; the start tip's stage ladder deleted so nothing spoils
+  it). `tryCatch`/`tick` now return `{caught, still, points, eqLit}`; `score` split from a new
+  `catches` so the three catch badges can't be inflated by bonuses; 3 new skill-safe badges
+  (9 → 12) and `totals.stills` (lossless legacy upgrade). +14 pure-core tests (42 → 56);
+  collection **718/718** green. Chrome-previewed from the built `_site/`. Released `dev → main`
+  by default on green (PATCH). **Depth-layer rollout: 9 of 13** (left: Symmetry, Arc, Sluice).
 - **✅ v0.25.0 (2026-07-21) — PLANT: new game Drove (a genuinely new verb: herd / shepherd).**
   The **16th** game and the collection's first **indirect-control** mechanic — every prior verb
   acts on the world directly; Drove moves *the thing the quarry flees from*. Fireflies + a

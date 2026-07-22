@@ -13,6 +13,7 @@
  *   7. Stages (well-formed, boundaries, progress)
  *   8. Meta-progression (normalize, applyRun, achievements, newlyEarned)
  *   9. Milestones
+ *  13. Depth inside the mechanic — the STILL tech, EQUILIBRIUM, the secret stage
  */
 
 import test from 'node:test';
@@ -170,9 +171,11 @@ test('catching a target scores, respawns it, and keeps the ball velocity', () =>
   g.pos = g.target.pos;   // drop the ball on the target
   g.vel = 0.05;
   const before = { ...g.target };
-  const caught = tryCatch(g);
-  assert.equal(caught, true);
+  const r = tryCatch(g);
+  assert.equal(r.caught, true);
+  assert.equal(r.still, false, 'a flung catch is not a still');
   assert.equal(g.score, 1);
+  assert.equal(g.catches, 1);
   assert.equal(g.vel, 0.05, 'momentum carries through the catch (the risk)');
   assert.notEqual(g.target.pos, before.pos, 'a new target appeared');
 });
@@ -182,8 +185,9 @@ test('no catch when the ball is out of reach of the target', () => {
   start(g);
   g.target = { pos: 0.9, born: 0 };
   g.pos = -0.9;
-  assert.equal(tryCatch(g), false);
+  assert.deepEqual(tryCatch(g), { caught: false, still: false, points: 0, eqLit: false });
   assert.equal(g.score, 0);
+  assert.equal(g.catches, 0);
 });
 
 // ── 6. tick integration ───────────────────────────────────────────────────────
@@ -212,7 +216,8 @@ test('holding a full tilt eventually rolls the ball off and ends the run', () =>
   assert.equal(g.phase, 'dead');
   assert.ok(g.pos >= CONFIG.OFF_END - 1e-9, 'ball pinned to the low (right) lip');
   // Dead games ignore further ticks.
-  assert.deepEqual(tick(g, { tilt: 0 }), { died: false, caught: false, formation: null });
+  assert.deepEqual(tick(g, { tilt: 0 }),
+    { died: false, caught: false, formation: null, still: false, eqLit: false, points: 0 });
 });
 
 test('tick with no input defaults to a level beam', () => {
@@ -248,14 +253,15 @@ test('stageProgress: frac 0 at a boundary, isLast at the top', () => {
 });
 
 // ── 8. Meta-progression ───────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, stageIndex: 0, catches: 0, ticks: 0, ...o });
+const summary = (o = {}) =>
+  ({ score: 0, stageIndex: 0, catches: 0, ticks: 0, stills: 0, equilibria: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 42);
   assert.equal(m.v, 1);
   assert.equal(m.best, 42);
   assert.equal(m.longest, 0);
-  assert.deepEqual(m.totals, { catches: 0, points: 0 });
+  assert.deepEqual(m.totals, { catches: 0, points: 0, stills: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -323,8 +329,8 @@ test('nearMissLine celebrates matching the standing best', () => {
 });
 
 test('nearMissLine nudges a run that lands within the margin (singular/plural)', () => {
-  assert.equal(nearMissLine(19, 20), '1 catch short of your best — so close!');
-  assert.equal(nearMissLine(18, 20), '2 catches short of your best — so close!');
+  assert.equal(nearMissLine(19, 20), '1 point short of your best — so close!');
+  assert.equal(nearMissLine(18, 20), '2 points short of your best — so close!');
 });
 
 test('nearMissLine stays quiet for a record or a miss beyond the margin', () => {
@@ -334,8 +340,8 @@ test('nearMissLine stays quiet for a record or a miss beyond the margin', () => 
 });
 
 test('nearMissLine respects a custom margin and coerces to integers', () => {
-  assert.equal(nearMissLine(16, 20, 4), '4 catches short of your best — so close!');
-  assert.equal(nearMissLine(19.7, 20.4), '1 catch short of your best — so close!');
+  assert.equal(nearMissLine(16, 20, 4), '4 points short of your best — so close!');
+  assert.equal(nearMissLine(19.7, 20.4), '1 point short of your best — so close!');
 });
 
 // ── 11. Varied structure — THE ROUTE ──────────────────────────────────────────
@@ -461,11 +467,13 @@ test('the route queue never empties across a long run, and always names a live r
   for (let i = 0; i < 500; i++) {
     g.pos = g.target.pos;
     g.vel = 0;
-    assert.equal(tryCatch(g), true, 'catch ' + i);
+    g.peakVel = 0;          // a crawl, not a braked approach — keeps every catch a plain +1
+    assert.equal(tryCatch(g).caught, true, 'catch ' + i);
     assert.ok(g.target && Number.isFinite(g.target.pos), 'a target always exists');
     assert.ok(typeof g.formId === 'string' && g.formId.length, 'a route is always live');
     assert.ok(CONFIG.FORMATIONS.some(f => f.id === g.formId), 'and it is one from the pool');
   }
+  assert.equal(g.catches, 500);
   assert.equal(g.score, 500);
 });
 
@@ -530,4 +538,177 @@ test('gravity is bounded: the hard cap holds no matter the score (honest difficu
     assert.ok(gravOf(g) <= CONFIG.GRAV_HARD_MAX + 1e-12, 'capped at score ' + s);
     assert.ok(gravOf(g) >= CONFIG.GRAV, 'never below the base');
   }
+});
+
+// ── 13. Depth inside the mechanic — the STILL, EQUILIBRIUM, the secret stage ───
+// The one verb (tilt) grows a ceiling: settle the ball onto the target instead of
+// flinging it through, and the calm line becomes the greedy one. Nothing here is
+// taught in-game, so these tests are the only place the contract is written down.
+
+/** Put the ball on the target with a chosen arrival speed + approach history. */
+function armCatch(g, { vel, peak }) {
+  g.pos = g.target.pos;
+  g.vel = vel;
+  g.peakVel = peak;
+  return tryCatch(g);
+}
+/** A catch that qualifies as a still (braked dead on the mark after a real approach). */
+const stillCatch = (g) => armCatch(g, { vel: CONFIG.STILL_VEL * 0.5, peak: CONFIG.STILL_PEAK * 2 });
+
+test('the still constants are sane: a razor arrival window well under a real approach', () => {
+  assert.ok(CONFIG.STILL_VEL > 0);
+  assert.ok(CONFIG.STILL_PEAK >= CONFIG.STILL_VEL * 1.5,
+    'the proof-of-travel speed sits clearly above the arrival window, so the two are distinct');
+  assert.ok(CONFIG.STILL_VEL < CONFIG.GRAV / CONFIG.FRICTION * 0.25,
+    'the arrival window is a small fraction of the terminal roll speed — razor, not generous');
+  assert.ok(CONFIG.STILL_BONUS >= 1);
+  assert.ok(CONFIG.EQ_TRIGGER >= 2 && CONFIG.EQ_TICKS > 0 && CONFIG.EQ_MULT >= 2);
+});
+
+test('a settled catch after a real approach is a STILL and pays the bonus', () => {
+  const g = newGame(); start(g);
+  const r = stillCatch(g);
+  assert.equal(r.caught, true);
+  assert.equal(r.still, true);
+  assert.equal(r.points, 1 + CONFIG.STILL_BONUS, 'the still pays on top of the catch');
+  assert.equal(g.score, 1 + CONFIG.STILL_BONUS);
+  assert.equal(g.catches, 1, 'a still is still exactly ONE target caught');
+  assert.equal(g.stills, 1);
+  assert.equal(g.stillStreak, 1);
+});
+
+test('a fast catch scores exactly as it always did (the tech is safe to not know)', () => {
+  const g = newGame(); start(g);
+  const r = armCatch(g, { vel: 0.05, peak: 0.05 });
+  assert.equal(r.still, false);
+  assert.equal(r.points, 1);
+  assert.equal(g.score, 1);
+  assert.equal(g.stills, 0);
+});
+
+test('ANTI-FARM: creeping the whole beam never earns a still (no proof of travel)', () => {
+  const g = newGame(); start(g);
+  // Arrives dead slow, but never went fast enough to have braked — a crawl, not a technique.
+  const r = armCatch(g, { vel: CONFIG.STILL_VEL * 0.1, peak: CONFIG.STILL_PEAK * 0.5 });
+  assert.equal(r.still, false, 'the peak clause is what makes it a skill');
+  assert.equal(g.score, 1);
+});
+
+test('stepBall watermarks the approach speed, and a catch resets it', () => {
+  const g = newGame(); start(g);
+  g.pos = 0; g.vel = 0; g.peakVel = 0;
+  for (let i = 0; i < 60; i++) stepBall(g, CONFIG.MAX_TILT);
+  assert.ok(g.peakVel >= CONFIG.STILL_PEAK, 'a real roll clears the proof-of-travel bar');
+  const peaked = g.peakVel;
+  stepBall(g, 0);
+  assert.ok(g.peakVel >= peaked, 'the watermark never drops mid-approach');
+  g.pos = g.target.pos; g.vel = 0.04;
+  tryCatch(g);
+  assert.equal(g.peakVel, 0, 'each approach starts its own watermark');
+});
+
+test('a loose catch breaks the still streak (the chain has to be unbroken)', () => {
+  const g = newGame(); start(g);
+  stillCatch(g);
+  stillCatch(g);
+  assert.equal(g.stillStreak, 2);
+  armCatch(g, { vel: 0.05, peak: 0.05 });
+  assert.equal(g.stillStreak, 0, 'one flung catch resets the chain');
+  assert.equal(g.equilibria, 0, 'and no equilibrium was ever lit');
+});
+
+test('EQ_TRIGGER stills in a row settle the beam into equilibrium; the trigger is never doubled', () => {
+  const g = newGame(); start(g);
+  let r = null;
+  for (let i = 0; i < CONFIG.EQ_TRIGGER; i++) r = stillCatch(g);
+  assert.equal(r.eqLit, true, 'the third still lights it');
+  assert.equal(r.points, 1 + CONFIG.STILL_BONUS, 'the triggering catch itself is NOT doubled');
+  assert.equal(g.eqT, CONFIG.EQ_TICKS);
+  assert.equal(g.equilibria, 1);
+  assert.equal(g.stillStreak, 0, 'the next window needs a fresh chain');
+});
+
+test('while equilibrium holds every point doubles — then it settles back out', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < CONFIG.EQ_TRIGGER; i++) stillCatch(g);
+  const scoreAfterTrigger = g.score;
+  // A plain catch inside the window pays double.
+  const inside = armCatch(g, { vel: 0.05, peak: 0.05 });
+  assert.equal(inside.points, 1 * CONFIG.EQ_MULT);
+  assert.equal(g.score, scoreAfterTrigger + CONFIG.EQ_MULT);
+  // Age the window out (ticks only run through `tick`). Park the ball still and centred
+  // on a level beam with the target out at the lip, so nothing else happens meanwhile.
+  g.pos = 0; g.vel = 0; g.target = { pos: 0.9, born: g.t };
+  for (let i = 0; i < CONFIG.EQ_TICKS + 5 && g.eqT > 0; i++) tick(g, { tilt: 0 });
+  assert.equal(g.eqT, 0, 'equilibrium is a window, not a permanent state');
+  const after = armCatch(g, { vel: 0.05, peak: 0.05 });
+  assert.equal(after.points, 1, 'and the doubling stops with it');
+});
+
+test('a fresh run has no depth state, and a still can never fire on frame one', () => {
+  const g = newGame(); start(g);
+  assert.deepEqual(
+    { stills: g.stills, streak: g.stillStreak, eq: g.equilibria, eqT: g.eqT, peak: g.peakVel },
+    { stills: 0, streak: 0, eq: 0, eqT: 0, peak: 0 });
+  // Frame one: the ball is centred and still, so peakVel is 0 — no proof of travel.
+  const r = tick(g, { tilt: 0 });
+  assert.equal(r.still, false);
+  assert.equal(r.eqLit, false);
+  // …and reset() wipes it all again.
+  g.stills = 9; g.eqT = 99; g.stillStreak = 2; g.catches = 7;
+  reset(g);
+  assert.deepEqual(
+    { stills: g.stills, streak: g.stillStreak, eqT: g.eqT, catches: g.catches },
+    { stills: 0, streak: 0, eqT: 0, catches: 0 });
+});
+
+test('THE SECRET STAGE: it exists past the last named one and is flagged secret', () => {
+  const list = CONFIG.STAGES;
+  const last = list[list.length - 1];
+  assert.equal(last.secret, true, 'the final stage is the hidden one');
+  assert.ok(list.slice(0, -1).every(s => !s.secret), 'and it is the ONLY secret');
+  assert.ok(last.at > list[list.length - 2].at, 'it sits genuinely past the Tempest');
+  assert.equal(stageIndexAt(CONFIG, last.at - 1), list.length - 2, 'not reached a point early');
+  assert.equal(stageIndexAt(CONFIG, last.at), list.length - 1, 'reached exactly on the mark');
+});
+
+test('the secret stage badge only fires for someone who actually got there', () => {
+  const deep = applyRun(normalizeMeta(), summary({ score: 200, stageIndex: 5, catches: 90, ticks: 9000 }));
+  assert.equal(deep.achieved['the-eye'], true);
+  const shallow = applyRun(normalizeMeta(), summary({ score: 60, stageIndex: 4, catches: 50, ticks: 3000 }));
+  assert.equal(shallow.achieved['the-eye'], undefined, 'the Tempest is not the Eye');
+});
+
+test('the depth badges ride the run summary, and stills accumulate all-time', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 40, stageIndex: 3, catches: 20, ticks: 2000, stills: 4, equilibria: 1 }));
+  assert.equal(m.achieved['still'], true);
+  assert.equal(m.achieved['equilibrium'], true);
+  assert.equal(m.totals.stills, 4);
+  m = applyRun(m, summary({ score: 10, stageIndex: 1, catches: 9, ticks: 500, stills: 3 }));
+  assert.equal(m.totals.stills, 7, 'lifetime stills accumulate');
+  assert.equal(m.totals.catches, 29, 'and catches stay the honest catch count');
+});
+
+test('the catch badges count CATCHES, not points (bonuses never inflate them)', () => {
+  // A run of 30 points but only 12 targets caught must not claim "Catch 25 in a run".
+  const m = applyRun(normalizeMeta(), summary({ score: 30, stageIndex: 2, catches: 12, ticks: 1200, stills: 9 }));
+  assert.equal(m.achieved['find-feet'], true, '12 caught clears "catch 10"');
+  assert.equal(m.achieved['quarter'], undefined, '…but 12 caught is not 25 caught');
+});
+
+test('a full seeded run stays consistent: score = catches + bonuses, counters agree', () => {
+  const g = newGame({ rng: seeded(7) });
+  start(g);
+  let stills = 0;
+  for (let i = 0; i < 400; i++) {
+    const r = tick(g, { tilt: -(g.pos * 2 + g.vel * 30) * CONFIG.MAX_TILT });
+    if (r.still) stills++;
+    if (r.died) break;
+  }
+  assert.equal(g.stills, stills, 'the tick result and the state never disagree');
+  assert.ok(g.score >= g.catches, 'points can only ever meet or beat the catch count');
+  assert.ok(g.score <= g.catches * (1 + CONFIG.STILL_BONUS) * CONFIG.EQ_MULT,
+    'and are bounded by the best a catch can possibly pay');
+  assert.ok(g.eqT >= 0 && g.stillStreak >= 0);
 });

@@ -2,6 +2,47 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
+> ## 🌿 Depth-layer rollout — 9 of 13 (as of v0.25.2, 2026-07-22)
+>
+> The lead GROW lever (`../reference/depth-inside-the-mechanic.md`). Carried by: Polarity
+> (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft and
+> now **Poise**; Tether, Reprise, Ward and Drove ship with it from birth.
+>
+> **Still to convert, oldest first:** **Symmetry** (born 07-04) → **Arc** (07-05) →
+> **Sluice** (07-06). None of the three carries *any* of the four items yet, so each is a
+> full pass (no-plateau asymptote + hidden tech + the reversal it unlocks + a secret stage)
+> rather than the partial top-up Poise and Loft needed. Sketches:
+> - **Symmetry** — the one control is the *spread*, and twins already reward a single
+>   symmetric read; the tech probably lives in catching a twin with both catchers dead
+>   under their orbs (a mirrored precision window), not in a new input.
+> - **Arc** — the charge is analogue and the bullseye is drawn; a razor sub-window inside
+>   the bullseye is the obvious tech, but check it isn't just Ricochet's Dead Centre with
+>   new paint (the depth doc's "genuinely distinct" bar applies to techs too).
+> - **Sluice** — a snap combo already exists, so its tech has to be *inside* the snap
+>   (routing before the channel has finished rearranging?) rather than a second combo.
+>
+> ## 🐞 Collection-wide CSS bug found in preview (v0.25.2) — the game-over headline
+>
+> Every game's shell has `.title { … -webkit-background-clip:text; background-clip:text; }`
+> and then `#gameover .title { background:linear-gradient(…) }` / `.title.record { background:… }`.
+> **The `background` shorthand resets `background-clip` to `border-box`**, so on the game-over
+> screen the headline renders as a **solid gradient bar with invisible text** — the words
+> "Off the beam" / "New best balance" are simply not there. Confirmed by screenshot in Poise,
+> and fixed there (both rules now restate the clip). **All 16 games have the same two rules**
+> (`Select-String -Path games\*\index.html -Pattern '\.title\.record\s*\{[^}]*background:linear'`),
+> so the rest of the collection is still showing it.
+>
+> Left for a housekeeping run rather than folded in here, because the standing rule is to
+> **eyeball every visual change before shipping** — that's 15 more game-over screens to
+> preview, which is a run of its own. The fix per game is two lines; the preview is the work.
+>
+> **Open maintenance (deliberately not folded into a game run):** two Dependabot PRs are
+> **major** GitHub Actions bumps — **#46** `actions/setup-node` 6.4.0 → **7.0.0** and **#31**
+> `actions/attest-build-provenance` 2.4.0 → **4.1.1**. The provenance action is part of the
+> release supply chain, so a bad bump breaks releases, not just CI. Take them together on a
+> housekeeping run: read both changelogs for breaking changes, merge into `dev`, and prove a
+> full release cycle before trusting them.
+
 > ## ✅ RESOLVED 2026-07-10 — Arc v0.19.5 released; icon shipped as v0.19.6
 >
 > The deferred 07-09 Arc → varied-structure WIP was **finished and released this run** (PowerShell/`gh`
