@@ -49,13 +49,33 @@ Poise follows the shared **Growth Architecture**
   (`gravScale`, ×1 → ×1.22, always creeping, never arriving) and is **hard-capped**
   (`GRAV_HARD_MAX`) — so there is no score at which the game stops getting harder, and no
   spike either. The catch radius and beam length never change; only your margin for error does.
-- **Stages (the run's arc).** Steady → Wobble → Sway → Pitch → Tempest — a quiet HUD
-  chip + progress bar, a stage-tinted frame and beam, and a shockwave on stage change
-  (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
+- **Depth inside the mechanic — the STILL** (`notes/reference/depth-inside-the-mechanic.md`).
+  The one verb is *tilt*, and it now has a ceiling you can keep climbing. The instinctive
+  play is to fling the ball at the target and let momentum carry it through; that scores
+  exactly as it always did. The deep play is the opposite: **carry real speed, brake hard,
+  and arrive on the target with the ball dead still** (`|vel| ≤ STILL_VEL`, after the
+  approach peaked at `≥ STILL_PEAK`). That's a **still** — `STILL_BONUS` extra points, a
+  gold bloom, and a step toward the reversal. The peak clause is the anti-farm: creeping the
+  whole beam at a crawl proves nothing, so the tech is a *technique*, not patience. Nothing
+  draws either bound — it's taught nowhere and found by playing (a bot that just chases the
+  target lands **zero** stills in hundreds of catches; a bot that deliberately brakes lands
+  ~13%). Chain `EQ_TRIGGER` stills and the beam settles into **Equilibrium**: for `EQ_TICKS`
+  (~5s) every point doubles, beam and target burning gold — so the calmest hand in the game
+  becomes the greediest one. The triggering catch is never doubled. And past the Tempest sits
+  a **secret stage** — printed on no start screen, announced only by reaching it.
+- **Stages (the run's arc).** Steady → Wobble → Sway → Pitch → Tempest, then the secret
+  one — a quiet HUD chip + progress bar, a stage-tinted frame and beam, and a shockwave on
+  stage change (`STAGES`, `stageIndexAt`, `stageProgress`, pure + tested).
 - **Meta-progression (across runs).** A persistent `poise.meta` blob tracks lifetime
-  catches, furthest stage, longest run, and **badges** (first run, catch 10/25/50 in a
-  run, reach Sway/Tempest, balance 60s, 500 all-time catches, 25 runs). Game-over run
-  report + account line. Skill-safe: badges, never power. Legacy `poise.best` preserved.
+  catches, lifetime stills, furthest stage, longest run, and **badges** (first run, catch
+  10/25/50 in a run, reach Sway/Tempest, balance 60s, 500 all-time catches, 25 runs, plus
+  the three depth badges: a first still, a first Equilibrium, and the secret stage).
+  Game-over run report + account line. Skill-safe: badges, never power. Legacy `poise.best`
+  preserved, and `totals.stills` upgrades losslessly from an older save.
+
+**Score vs catches.** Since a still pays a bonus, `score` is *points* and `catches` is the
+honest count of targets collected. The catch badges test `catches`, so a bonus can never
+inflate a "catch 25 in a run" claim.
 
 ## How it's built
 
@@ -96,7 +116,7 @@ every tick and let rounding walk it off centre; the test suite guards the restin
 node --test          # from this folder (Node 18+, zero dependencies)
 ```
 
-The suite (42 tests) covers the helpers (clamp, tilt clamp, gravity escalation), reset
+The suite (56 tests) covers the helpers (clamp, tilt clamp, gravity escalation), reset
 invariants, the ball physics (level = no drift, tilt rolls the right way, a finite
 terminal speed), off-end death at both lips, targets (deterministic spawn, min-distance,
 catch → score/respawn/momentum), a full balanced run that survives under a proportional
@@ -107,12 +127,20 @@ shortest *inward* hop, `pickFormation` is stage-gated + deterministic, climbing 
 collapses the calm share, **distinct seeds build distinct runs** (same seed rebuilds one
 exactly), the queue never empties over 500 catches, frame one opens calm with no cue, and
 the gravity asymptote **keeps climbing past the last stage** while staying under the hard cap.
+The **depth layer** has its own section: the still constants are razor and distinct, a braked
+arrival pays the bonus, a flung catch scores exactly as before, an anti-farm case proves a
+crawl can never earn one, `stepBall`'s speed watermark rises and resets per approach, a loose
+catch breaks the chain, three stills light Equilibrium *without* doubling the triggering
+catch, the window doubles then ages out, a fresh run can't still on frame one, the secret
+stage is the only flagged one and sits genuinely past the Tempest, the catch badges count
+catches rather than points, and a full seeded run keeps every counter consistent.
 
 ## Tuning
 
 All feel constants live in `CONFIG` at the top of `poise.core.js` — max tilt, the
 beam's ease rate, base gravity and its per-stage step, the no-plateau asymptote
-(`GRAV_SCALE_MAX`/`GRAV_SCALE_K`/`GRAV_HARD_MAX`), friction, the catch radius, and
-target spawn spread. They're injectable per game instance, which is also how the tests
+(`GRAV_SCALE_MAX`/`GRAV_SCALE_K`/`GRAV_HARD_MAX`), friction, the catch radius, the
+target spawn spread, and the depth layer (`STILL_VEL`/`STILL_PEAK`/`STILL_BONUS`,
+`EQ_TRIGGER`/`EQ_TICKS`/`EQ_MULT`). They're injectable per game instance, which is also how the tests
 stay deterministic. The routes live beside them in `FORMATIONS` — adding one is a clean,
 low-risk, player-visible change.

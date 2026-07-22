@@ -28,6 +28,18 @@
  * the Tempest — **The Reel**. `minStage` gates each, so climbing the stages *opens the
  * pool* (progression drives the variation).
  *
+ * Depth inside the mechanic — THE STILL (added v0.25.2):
+ * the one verb is *tilt*, and the instinctive way to use it is to fling the ball at the
+ * target and move on (the ball keeps its momentum through a catch, so speed is free).
+ * The deep way is the opposite: carry real speed across the beam, then **kill it just
+ * before the target and let the ball settle onto it**. A catch taken with the ball
+ * essentially at rest — after it has genuinely travelled — is a **still**: it pays extra
+ * and builds a streak, and three stills in a row settle the beam into **Equilibrium**,
+ * where every point doubles for ~5s. So the calm, braked line (the game's namesake) is
+ * quietly the greedy one, while a fling still scores exactly as it always did. None of
+ * this is taught anywhere: it is found by playing. Past the Tempest a **secret stage**
+ * waits for anyone who keeps going.
+ *
  * Coordinates are normalised: the ball position `pos` runs from -1 (left end)
  * to +1 (right end), 0 at the fulcrum. `tilt` is the beam angle in radians,
  * positive = right end down (so the ball rolls toward +pos). This keeps the
@@ -71,14 +83,37 @@ export const CONFIG = Object.freeze({
                         // now GUARANTEES this (it resolves the conflict by construction),
                         // replacing the old best-effort rejection loop (TARGET_TRIES).
   OFF_END: 1,           // |pos| beyond this = the ball has rolled off the beam (death)
+
+  // ── Depth inside the mechanic — THE STILL ────────────────────────────────────
+  // Hidden tech, taught nowhere. A catch is a *still* when the ball arrives essentially
+  // at rest (|vel| ≤ STILL_VEL) AND it genuinely travelled to get there (|vel| peaked at
+  // ≥ STILL_PEAK since the last catch). The peak clause is what makes this a technique
+  // rather than a chore: you cannot farm it by creeping the whole beam at a crawl — you
+  // have to carry speed and then brake it dead on the mark. Nothing draws either bound.
+  // (STILL_VEL is ~14% of the *base* terminal roll speed and far less late on — tuned
+  // against a bot: a naive chaser scores 0 stills in hundreds of catches, a deliberate
+  // braker lands them ~13% of the time. Never accidental, always earnable.)
+  STILL_VEL: 0.006,     // |vel| at the catch at or below which the ball has settled
+  STILL_PEAK: 0.010,    // |vel| the approach must have reached (proof you braked, not crept)
+  STILL_BONUS: 2,       // extra points a still pays, on top of the catch's 1
+  // The reversal the tech unlocks: EQ_TRIGGER stills in a row settle the beam into
+  // EQUILIBRIUM — for EQ_TICKS every point scores double. The triggering catch is never
+  // doubled (you earn the window, you don't also cash it on the same catch).
+  EQ_TRIGGER: 3,        // consecutive stills that settle the beam into equilibrium
+  EQ_TICKS: 300,        // ~5s at 60fps that equilibrium holds
+  EQ_MULT: 2,           // score multiplier applied to every point while it holds
+
   // Stages — the readable arc of the "steady → tempest" curve (Growth Architecture
-  // Layer 1), keyed on score (targets caught). `at` is the score to ENTER the stage.
+  // Layer 1), keyed on score. `at` is the score to ENTER the stage.
+  // The last one is SECRET — never printed on the start screen, revealed only by
+  // reaching it. Curiosity ("is there anything past the Tempest?") gets a real answer.
   STAGES: Object.freeze([
-    Object.freeze({ at: 0,  name: 'Steady',  tint: '#4fd6a0' }),
-    Object.freeze({ at: 8,  name: 'Wobble',  tint: '#5ec8d6' }),
-    Object.freeze({ at: 18, name: 'Sway',    tint: '#7aa8ff' }),
-    Object.freeze({ at: 32, name: 'Pitch',   tint: '#c48cff' }),
-    Object.freeze({ at: 50, name: 'Tempest', tint: '#ff8fb0' }),
+    Object.freeze({ at: 0,   name: 'Steady',  tint: '#4fd6a0' }),
+    Object.freeze({ at: 8,   name: 'Wobble',  tint: '#5ec8d6' }),
+    Object.freeze({ at: 18,  name: 'Sway',    tint: '#7aa8ff' }),
+    Object.freeze({ at: 32,  name: 'Pitch',   tint: '#c48cff' }),
+    Object.freeze({ at: 50,  name: 'Tempest', tint: '#ff8fb0' }),
+    Object.freeze({ at: 120, name: 'The Eye', tint: '#ffd06a', secret: true }),
   ]),
 
   // ── Formations — THE ROUTE (varied structure) ─────────────────────────────────
@@ -310,17 +345,24 @@ export const ACHIEVEMENTS = Object.freeze([
   Object.freeze({ id: 'first-run',   label: 'First balance', desc: 'Finish a run.',
     test: (s, m) => m.plays >= 1 }),
   Object.freeze({ id: 'find-feet',   label: 'Find your feet', desc: 'Catch 10 in a run.',
-    test: (s) => s.score >= 10 }),
+    test: (s) => (s.catches | 0) >= 10 }),
   Object.freeze({ id: 'reach-sway',  label: 'Sway',          desc: 'Reach the Sway stage.',
     test: (s) => s.stageIndex >= 2 }),
   Object.freeze({ id: 'reach-tempest',label: 'Into the Tempest', desc: 'Reach the Tempest stage.',
     test: (s) => s.stageIndex >= 4 }),
   Object.freeze({ id: 'quarter',     label: 'Steady hand',   desc: 'Catch 25 in a run.',
-    test: (s) => s.score >= 25 }),
+    test: (s) => (s.catches | 0) >= 25 }),
   Object.freeze({ id: 'half',        label: 'Unshakeable',   desc: 'Catch 50 in a run.',
-    test: (s) => s.score >= 50 }),
+    test: (s) => (s.catches | 0) >= 50 }),
   Object.freeze({ id: 'marathon',    label: 'Serene',        desc: 'Stay balanced 60s in one run.',
     test: (s) => s.ticks >= 3600 }),
+  // The depth layer — earned by finding the tech, not by grinding.
+  Object.freeze({ id: 'still',       label: 'Still',         desc: 'Settle onto a target dead still.',
+    test: (s) => (s.stills | 0) >= 1 }),
+  Object.freeze({ id: 'equilibrium', label: 'Equilibrium',   desc: 'Chain three stills in a row.',
+    test: (s) => (s.equilibria | 0) >= 1 }),
+  Object.freeze({ id: 'the-eye',     label: 'The Eye',       desc: 'Reach the secret stage past the Tempest.',
+    test: (s) => s.stageIndex >= 5 }),
   Object.freeze({ id: 'lifetime-500',label: 'Poise master',  desc: 'Catch 500 all-time.',
     test: (s, m) => m.totals.catches >= 500 }),
   Object.freeze({ id: 'regular',     label: 'Regular',       desc: 'Finish 25 runs.',
@@ -338,7 +380,13 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} pos               ball position along the beam, -1..1 (0 = fulcrum)
  * @property {number} vel               ball velocity (pos-units / tick)
  * @property {number} tilt              current beam tilt (radians, + = right end down)
- * @property {number} score             targets caught
+ * @property {number} score             points banked (catches + still bonuses, doubled in equilibrium)
+ * @property {number} catches           targets caught this run (the honest catch count)
+ * @property {number} stills            still catches this run (the hidden tech)
+ * @property {number} stillStreak       consecutive stills toward an equilibrium
+ * @property {number} equilibria        equilibrium windows earned this run
+ * @property {number} eqT               ticks the live equilibrium still holds for
+ * @property {number} peakVel           fastest |vel| since the last catch (the still's proof of travel)
  * @property {number} t                 ticks elapsed this run
  * @property {{pos:number, born:number}} target  active target position along the beam
  * @property {Array<Object>} formTargets remaining (unresolved) target specs of the live route
@@ -438,7 +486,9 @@ export function createGame(width, height, opts = {}) {
     rng: opts.rng || Math.random,
     phase: 'menu',
     pos: 0, vel: 0, tilt: 0,
-    score: 0, t: 0,
+    score: 0, catches: 0, t: 0,
+    // The depth layer: the still tech's streak + the equilibrium it settles into.
+    stills: 0, stillStreak: 0, equilibria: 0, eqT: 0, peakVel: 0,
     target: { pos: 0, born: 0 },
     formTargets: [], formId: null, formName: null, formNotable: false, formCue: null,
   };
@@ -457,7 +507,13 @@ export function reset(g) {
   g.vel = 0;
   g.tilt = 0;
   g.score = 0;
+  g.catches = 0;
   g.t = 0;
+  g.stills = 0;        // still catches this run (the hidden tech)
+  g.stillStreak = 0;   // consecutive stills toward an equilibrium
+  g.equilibria = 0;    // equilibrium windows earned this run
+  g.eqT = 0;           // ticks the live equilibrium still holds for
+  g.peakVel = 0;       // fastest |vel| since the last catch
   // Fresh route queue. At score 0 the stage-0 pool holds only the calm routes, so a run
   // always opens on a quiet on-ramp and never greets a first-timer with a name cue.
   g.formTargets = [];
@@ -500,7 +556,9 @@ export function spawnTarget(g) {
 /**
  * Advance the ball one step: ease the beam toward the commanded tilt, apply the
  * gravity component along the beam, damp velocity (proportional friction → a finite
- * terminal roll speed), and move. Pure w.r.t. IO; mutates `g`.
+ * terminal roll speed), and move. Also records the approach's peak speed, which is what
+ * lets {@link tryCatch} tell a *braked* arrival from a timid crawl. Pure w.r.t. IO;
+ * mutates `g`.
  * @param {GameState} g
  * @param {number} desiredTilt commanded tilt (radians); clamped to ±MAX_TILT
  * @returns {number} the new ball position
@@ -513,6 +571,8 @@ export function stepBall(g, desiredTilt) {
   g.vel += acc;
   g.vel *= (1 - cfg.FRICTION);
   g.pos += g.vel;
+  const speed = Math.abs(g.vel);
+  if (speed > g.peakVel) g.peakVel = speed;   // the still's proof-of-travel watermark
   return g.pos;
 }
 
@@ -526,18 +586,57 @@ export function offEnd(g) {
 }
 
 /**
+ * Result of a {@link tryCatch} call.
+ * @typedef {Object} CatchResult
+ * @property {boolean} caught was a target collected this call?
+ * @property {boolean} still  was it a STILL — the ball settled onto the target (|vel| ≤
+ *   STILL_VEL) after a real approach (peak |vel| ≥ STILL_PEAK)? The hidden tech.
+ * @property {number} points  points this catch banked (1, +STILL_BONUS for a still,
+ *   doubled if equilibrium was already holding)
+ * @property {boolean} eqLit  this catch just settled the beam into equilibrium
+ */
+
+/**
  * If the ball is over the target, catch it: score up, respawn the target. The ball
  * KEEPS its velocity (a fast grab near an end can still carry it off — the risk).
+ *
+ * The depth layer rides on the *manner* of the catch, not a new input. Arrive with the
+ * ball essentially at rest — having genuinely travelled to get there — and it is a
+ * **still**: STILL_BONUS extra and a step toward equilibrium. A normal, flung catch
+ * scores exactly as it always did and silently breaks the streak (safe to not know).
+ * EQ_TRIGGER stills in a row settle the beam into **equilibrium**: every point doubles
+ * for EQ_TICKS, and the triggering catch itself is never doubled.
  * @param {GameState} g
- * @returns {boolean} true if a target was caught this call
+ * @returns {CatchResult}
  */
 export function tryCatch(g) {
-  if (Math.abs(g.pos - g.target.pos) <= g.cfg.CATCH) {
-    g.score += 1;
-    spawnTarget(g);
-    return true;
+  const cfg = g.cfg;
+  if (Math.abs(g.pos - g.target.pos) > cfg.CATCH) {
+    return { caught: false, still: false, points: 0, eqLit: false };
   }
-  return false;
+  // Braked dead on the mark, and it got here under real speed (a crawl can't farm it).
+  const still = Math.abs(g.vel) <= cfg.STILL_VEL && g.peakVel >= cfg.STILL_PEAK;
+  const settled = g.eqT > 0;             // was equilibrium ALREADY holding? (before this catch)
+
+  let points = 1;
+  if (still) { points += cfg.STILL_BONUS; g.stills++; }
+  if (settled) points *= cfg.EQ_MULT;
+
+  g.score += points;
+  g.catches += 1;
+
+  let eqLit = false;
+  g.stillStreak = still ? g.stillStreak + 1 : 0;
+  if (still && g.stillStreak >= cfg.EQ_TRIGGER) {
+    g.eqT = cfg.EQ_TICKS;                // the beam settles…
+    g.equilibria++;
+    g.stillStreak = 0;                   // …and the next one needs a fresh chain
+    eqLit = true;
+  }
+
+  g.peakVel = 0;                         // a fresh approach starts its own watermark
+  spawnTarget(g);
+  return { caught: true, still, points, eqLit };
 }
 
 /**
@@ -559,8 +658,9 @@ export function milestoneAt(score) {
 
 /**
  * Result of a single {@link tick}. `formation` carries the name of a *notable* route the
- * instant it begins (once, then null) — the shell flashes it as a quiet cue.
- * @typedef {{died:boolean, caught:boolean, formation:?string}} TickResult
+ * instant it begins (once, then null) — the shell flashes it as a quiet cue. `still` /
+ * `eqLit` / `points` surface the depth layer so the shell can bloom the catch.
+ * @typedef {{died:boolean, caught:boolean, formation:?string, still:boolean, eqLit:boolean, points:number}} TickResult
  */
 
 /**
@@ -573,19 +673,21 @@ export function milestoneAt(score) {
  * @returns {TickResult}
  */
 export function tick(g, input = { tilt: 0 }) {
-  if (g.phase !== 'play') return { died: false, caught: false, formation: null };
+  const idle = { died: false, caught: false, formation: null, still: false, eqLit: false, points: 0 };
+  if (g.phase !== 'play') return idle;
   g.t++;
   const desired = input && typeof input.tilt === 'number' ? input.tilt : 0;
   stepBall(g, desired);
   if (offEnd(g)) {
     g.pos = g.pos < 0 ? -g.cfg.OFF_END : g.cfg.OFF_END; // pin to the lip for a clean render
     g.phase = 'dead';
-    return { died: true, caught: false, formation: null };
+    return { ...idle, died: true };
   }
-  const caught = tryCatch(g);              // a catch may have loaded a new route (arming formCue)
+  const c = tryCatch(g);                   // a catch may have loaded a new route (arming formCue)
+  if (g.eqT > 0) g.eqT--;                  // equilibrium settles back out
   const formation = g.formCue || null;
   g.formCue = null;                        // hand the cue over exactly once
-  return { died: false, caught, formation };
+  return { died: false, caught: c.caught, formation, still: c.still, eqLit: c.eqLit, points: c.points };
 }
 
 // ── Stages (in-run arc — Growth Architecture Layer 1) ────────────────────────────
@@ -615,7 +717,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, catches:number, ticks:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, catches:number, ticks:number, stills:number, equilibria:number}} RunSummary
  */
 
 /**
@@ -626,7 +728,7 @@ export function stageProgress(cfg, score) {
  * @property {number} best        best single-run score (mirrors `poise.best`)
  * @property {number} bestStage
  * @property {number} longest     longest single run in ticks
- * @property {{catches:number, points:number}} totals
+ * @property {{catches:number, points:number, stills:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -645,7 +747,8 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     longest: src.longest | 0,
-    totals: { catches: t.catches | 0, points: t.points | 0 },
+    // `stills` is absent in legacy metas — it upgrades losslessly to 0.
+    totals: { catches: t.catches | 0, points: t.points | 0, stills: t.stills | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -662,6 +765,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.plays += 1;
   next.totals.catches += summary.catches | 0;
   next.totals.points += summary.score | 0;
+  next.totals.stills += summary.stills | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.longest = Math.max(next.longest, summary.ticks | 0);
@@ -694,15 +798,15 @@ export function newlyEarned(prevMeta, nextMeta) {
  * nudge. Returns null when it doesn't apply (no prior best, a new record, or a miss by
  * more than `margin`). Pure; the shell shows it only on non-record runs. Skill-safe:
  * pure feedback, no gameplay effect.
- * @param {number} score this run's score (targets caught)
+ * @param {number} score this run's score (points)
  * @param {number} best the standing best BEFORE this run
- * @param {number} [margin=2] how close (in catches) still counts as a near miss
+ * @param {number} [margin=2] how close (in points) still counts as a near miss
  * @returns {string|null}
  */
 export function nearMissLine(score, best, margin = 2) {
   if (!(best > 0)) return null;            // nothing to be close to yet
   const gap = (best | 0) - (score | 0);
   if (gap === 0) return 'Matched your best!';
-  if (gap > 0 && gap <= margin) return gap + (gap === 1 ? ' catch' : ' catches') + ' short of your best — so close!';
+  if (gap > 0 && gap <= margin) return gap + (gap === 1 ? ' point' : ' points') + ' short of your best — so close!';
   return null;                             // a record (gap<0) or not close enough
 }
