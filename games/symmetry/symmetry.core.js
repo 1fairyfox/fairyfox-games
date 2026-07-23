@@ -23,6 +23,14 @@
  * climbs the orbs fall faster and spawn thicker (escalation by stage) — "calm,
  * then panic".
  *
+ * The depth layer (hidden on the one spread verb, taught nowhere): a catch made
+ * DEAD-ON the lane — inside the razor FACET_BAND sub-window of the forgiving CATCH
+ * window — is a *facet* (+FACET_BONUS, gold, a streak). RAD_TRIGGER facets in a row
+ * light *Radiance*: RAD_TICKS in which every point doubles (the trigger never is).
+ * The fall speed rides a smooth score asymptote (`fallScale`) on top of the stage
+ * steps so the game never plateaus, and a secret stage (Infinity) waits past
+ * Singularity, revealed only by reaching it. All of it safe to not know.
+ *
  * Coordinates are normalised and resolution-independent: a lane runs 0 (centre)
  * to 1 (outer edge) on each side, `spread` shares that axis, and an orb's `y`
  * runs 0 (top) to 1 (the catch line). The shell maps these onto any canvas.
@@ -56,14 +64,39 @@ export const CONFIG = Object.freeze({
   SPAWN_GAP_FLOOR: 12,  // hard floor on any scheduled gap (ticks) — keeps tight bursts sane
   TWIN_BONUS: 1,        // extra points for completing a twin (both halves caught)
   LIVES: 3,             // misses allowed before the run ends
+  // ── Depth inside the mechanic (the hidden layer on the one spread verb) ────────
+  // The FACET: a catch succeeds anywhere within CATCH of the lane, but inside that
+  // window hides a razor sub-window — land the catcher DEAD-ON the lane and the catch
+  // is a *facet*: it pays FACET_BONUS on top of the point, blooms gold, and builds a
+  // streak. Taught nowhere; a loose catch scores exactly as it always did and silently
+  // breaks the chain. RAD_TRIGGER facets in a row light RADIANCE — RAD_TICKS in which
+  // every point doubles (the triggering catch is never doubled). A dead-on twin is two
+  // facets in one tick, so the rewarding twin cadences are the quiet greed window.
+  FACET_BAND: 0.022,    // |spread - lane| within this = a facet (razor, inside CATCH)
+  FACET_BONUS: 2,       // extra points a facet pays on top of the catch
+  RAD_TRIGGER: 3,       // facets in a row that light Radiance
+  RAD_TICKS: 300,       // how long Radiance holds (~5s at 60fps)
+  // The plateau fix: fall speed used to be keyed ONLY on the stage index, and the
+  // stages stop — past the last stage the game never got faster, and the whole ceiling
+  // was visible in minutes. `fallScale` is a smooth score asymptote on top of the stage
+  // steps: ×1 → ×(1+FALL_SPAN), half-travelled at score FALL_K — always creeping, never
+  // arriving. FALL_HARD_MAX bounds the absolute speed above the asymptote's own limit,
+  // so it is a safety cap for rogue overrides, never a felt plateau.
+  FALL_SPAN: 0.5,       // the asymptote's total extra multiplier (×1 → ×1.5)
+  FALL_K: 90,           // score at which half the span is travelled
+  FALL_HARD_MAX: 0.031, // absolute fall-speed bound (y-units / tick)
   // Stages — the readable arc of the "calm → panic" curve (Growth Architecture
   // Layer 1), keyed on score. `at` is the score to ENTER the stage; ascending.
+  // The last entry (Infinity) is a SECRET stage: it appears on no start screen and
+  // almost no one reaches it in a first sitting — the collection's face-down card.
+  // Reaching it *is* the reveal (a gold toast + a badge).
   STAGES: Object.freeze([
-    Object.freeze({ at: 0,  name: 'Mirror',       tint: '#5ad6c0' }),
-    Object.freeze({ at: 12, name: 'Reflection',   tint: '#5ec2e0' }),
-    Object.freeze({ at: 28, name: 'Twin',         tint: '#7aa8ff' }),
-    Object.freeze({ at: 48, name: 'Kaleidoscope', tint: '#c48cff' }),
-    Object.freeze({ at: 72, name: 'Singularity',  tint: '#ff8fc0' }),
+    Object.freeze({ at: 0,   name: 'Mirror',       tint: '#5ad6c0' }),
+    Object.freeze({ at: 12,  name: 'Reflection',   tint: '#5ec2e0' }),
+    Object.freeze({ at: 28,  name: 'Twin',         tint: '#7aa8ff' }),
+    Object.freeze({ at: 48,  name: 'Kaleidoscope', tint: '#c48cff' }),
+    Object.freeze({ at: 72,  name: 'Singularity',  tint: '#ff8fc0' }),
+    Object.freeze({ at: 150, name: 'Infinity',     tint: '#ffd76a', secret: true }),
   ]),
   // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
   // Instead of every spawn coming from one flat rule (a coin-flip twin-or-single), a run is
@@ -116,6 +149,15 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.catches >= 1000 }),
   Object.freeze({ id: 'regular',      label: 'Regular',          desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth-layer badges (appended; ids stable forever). Discovery-gated + skill-safe — a
+  // badge for a feat, never a power. Reward finding the facet, chaining it into
+  // Radiance, and reaching the secret stage.
+  Object.freeze({ id: 'first-facet',  label: 'Facet',            desc: 'Catch an orb dead-on the lane.',
+    test: (s) => (s.facets | 0) >= 1 }),
+  Object.freeze({ id: 'radiance',     label: 'Radiant',          desc: 'Chain facets until the mirror lights.',
+    test: (s) => (s.radiances | 0) >= 1 }),
+  Object.freeze({ id: 'infinity',     label: 'Through the glass', desc: 'Reach the secret stage past Singularity.',
+    test: (s) => (s.stageIndex | 0) >= 5 }),
 ]);
 
 /**
@@ -148,6 +190,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} t                 ticks elapsed this run
  * @property {number} nextSpawn         tick the next orb(s) appear
  * @property {number} pairSeq           counter handing out twin pair ids
+ * @property {number} facets            dead-on catches this run (the hidden tech)
+ * @property {number} facetStreak       current consecutive-facet streak
+ * @property {number} radiances         Radiance windows lit this run
+ * @property {number} radUntil          tick Radiance holds until (0 = unlit)
  */
 
 /**
@@ -186,14 +232,30 @@ export function stageAt(cfg, score) {
 }
 
 /**
- * Fall speed for a freshly spawned orb — the base scaled up by the current stage, so
- * orbs come down faster the deeper you get. Pure.
+ * The no-plateau multiplier on the fall speed — a smooth asymptote on the raw score:
+ * ×1 at score 0, half the span travelled at FALL_K, approaching ×(1+FALL_SPAN) but
+ * never arriving. This is what keeps the game climbing past the last stage (the old
+ * stage-only escalation went flat forever at Singularity). Pure.
+ * @param {SymmetryConfig} cfg
+ * @param {number} score
+ * @returns {number} multiplier ≥ 1
+ */
+export function fallScale(cfg, score) {
+  const s = Math.max(0, score | 0);
+  return 1 + cfg.FALL_SPAN * (s / (s + cfg.FALL_K));
+}
+
+/**
+ * Fall speed for a freshly spawned orb — the base scaled up by the current stage AND
+ * the smooth score asymptote ({@link fallScale}), hard-capped at FALL_HARD_MAX so no
+ * override or stage count can spike past the bound. Pure.
  * @param {GameState} g
  * @returns {number} y-units per tick
  */
 export function fallSpeedOf(g) {
   const idx = stageIndexAt(g.cfg, g.score);
-  return g.cfg.FALL * (1 + idx * g.cfg.FALL_STEP);
+  const v = g.cfg.FALL * (1 + idx * g.cfg.FALL_STEP) * fallScale(g.cfg, g.score);
+  return Math.min(g.cfg.FALL_HARD_MAX, v);
 }
 
 /**
@@ -228,6 +290,7 @@ export function createGame(width, height, opts = {}) {
     lives: cfg.LIVES, t: 0,
     nextSpawn: cfg.SPAWN_FIRST, pairSeq: 0,
     formSpawns: [], formId: null, formName: null, formNotable: false,  // current cadence
+    facets: 0, facetStreak: 0, radiances: 0, radUntil: 0,              // depth layer
   };
   reset(g);
   return g;
@@ -256,6 +319,10 @@ export function reset(g) {
   g.formId = null;
   g.formName = null;
   g.formNotable = false;
+  g.facets = 0;
+  g.facetStreak = 0;
+  g.radiances = 0;
+  g.radUntil = 0;
   return g;
 }
 
@@ -489,26 +556,56 @@ export function wouldCatch(g, orb) {
 }
 
 /**
+ * Would a catch be a FACET — the catcher dead-on the lane, inside the razor
+ * FACET_BAND sub-window? (The hidden tech; a facet is always also a catch.) Pure.
+ * @param {GameState} g
+ * @param {Orb} orb
+ * @returns {boolean}
+ */
+export function wouldFacet(g, orb) {
+  return Math.abs(g.spread - orb.lane) <= g.cfg.FACET_BAND;
+}
+
+/**
+ * Is Radiance (the every-point-doubles window a facet streak lights) currently
+ * holding? Pure — the shell uses this for the gold colour-only treatment.
+ * @param {GameState} g
+ * @returns {boolean}
+ */
+export function radianceActive(g) {
+  return g.radUntil > g.t;
+}
+
+/**
  * Result of a single {@link tick}.
- * @typedef {{died:boolean, caught:number, missed:number, twins:number, formation:?string}} TickResult
+ * @typedef {{died:boolean, caught:number, missed:number, twins:number, facets:number, radiance:boolean, formation:?string}} TickResult
  *   `formation` is the name of a notable cadence whose head beat spawned this tick (for the
- *   HUD cue), else null.
+ *   HUD cue), else null. `facets` counts dead-on catches this tick; `radiance` is true on
+ *   the tick a facet streak lights the Radiance window.
  */
 
 /**
  * Advance the simulation one fixed tick.
  * Order: ease spread → maybe spawn → fall → resolve orbs at the catch line → life check.
  * A resolved orb is either caught (score up, combo up; a completed twin adds a bonus)
- * or missed (a life lost, combo reset). Running out of lives ends the run. No-op
- * (returns zeros) unless phase is 'play'.
+ * or missed (a life lost, combo reset). A dead-on catch (inside FACET_BAND) is a FACET:
+ * +FACET_BONUS and a streak; RAD_TRIGGER in a row light RADIANCE, doubling every point
+ * for RAD_TICKS (the triggering catch itself is never doubled — the window opens for
+ * future ticks only). Running out of lives ends the run. No-op (returns zeros) unless
+ * phase is 'play'.
  * @param {GameState} g
  * @param {{spread:number}} [input] the commanded spread this tick (0..1). Defaults to
  *   holding the current spread. The shell derives this from keys or pointer.
  * @returns {TickResult}
  */
 export function tick(g, input = {}) {
-  if (g.phase !== 'play') return { died: false, caught: 0, missed: 0, twins: 0, formation: null };
+  if (g.phase !== 'play') {
+    return { died: false, caught: 0, missed: 0, twins: 0, facets: 0, radiance: false, formation: null };
+  }
   g.t++;
+  // Whether Radiance doubles THIS tick's points — read before any scoring, so the
+  // catch that lights the window is never itself doubled.
+  const radActive = radianceActive(g);
 
   // Ease the catchers toward the commanded spread (a little weight).
   const want = typeof input.spread === 'number' ? clamp(input.spread, 0, 1) : g.spread;
@@ -531,20 +628,26 @@ export function tick(g, input = {}) {
   for (const o of g.orbs) (o.y >= 1 ? reached : survivors).push(o);
   g.orbs = survivors;
 
-  let caught = 0, missed = 0;
+  let caught = 0, missed = 0, facets = 0;
   /** @type {Object<number,number>} pair id -> halves caught this tick */
   const pairCaught = {};
   for (const o of reached) {
     if (wouldCatch(g, o)) {
+      const facet = wouldFacet(g, o);
+      let pts = 1 + (facet ? g.cfg.FACET_BONUS : 0);
+      if (radActive) pts *= 2;
       g.catches += 1;
-      g.score += 1;
+      g.score += pts;
       g.combo += 1;
       if (g.combo > g.bestCombo) g.bestCombo = g.combo;
       caught += 1;
+      if (facet) { g.facets += 1; g.facetStreak += 1; facets += 1; }
+      else g.facetStreak = 0;              // a loose catch silently breaks the chain
       if (o.pair > 0) pairCaught[o.pair] = (pairCaught[o.pair] || 0) + 1;
     } else {
       g.lives -= 1;
       g.combo = 0;
+      g.facetStreak = 0;                   // a miss breaks it too
       missed += 1;
     }
   }
@@ -553,17 +656,27 @@ export function tick(g, input = {}) {
   let twins = 0;
   for (const id in pairCaught) {
     if (pairCaught[id] >= 2) {
-      g.score += g.cfg.TWIN_BONUS;
+      g.score += radActive ? g.cfg.TWIN_BONUS * 2 : g.cfg.TWIN_BONUS;
       g.twins += 1;
       twins += 1;
     }
   }
 
+  // A facet streak lights RADIANCE for future ticks (never this one). The streak
+  // resets so the window must be re-earned from scratch.
+  let radiance = false;
+  if (g.facetStreak >= g.cfg.RAD_TRIGGER) {
+    g.radUntil = g.t + g.cfg.RAD_TICKS;
+    g.radiances += 1;
+    g.facetStreak = 0;
+    radiance = true;
+  }
+
   if (g.lives <= 0) {
     g.phase = 'dead';
-    return { died: true, caught, missed, twins, formation };
+    return { died: true, caught, missed, twins, facets, radiance, formation };
   }
-  return { died: false, caught, missed, twins, formation };
+  return { died: false, caught, missed, twins, facets, radiance, formation };
 }
 
 /**
@@ -610,7 +723,7 @@ export function stageProgress(cfg, score) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, catches:number, twins:number, bestCombo:number, ticks:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, catches:number, twins:number, bestCombo:number, ticks:number, facets:number, radiances:number}} RunSummary
  */
 
 /**
@@ -621,7 +734,7 @@ export function stageProgress(cfg, score) {
  * @property {number} best        best single-run score (mirrors `symmetry.best`)
  * @property {number} bestStage
  * @property {number} bestCombo   best catch streak across all runs
- * @property {{catches:number, twins:number, points:number}} totals
+ * @property {{catches:number, twins:number, points:number, facets:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -640,7 +753,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestCombo: src.bestCombo | 0,
-    totals: { catches: t.catches | 0, twins: t.twins | 0, points: t.points | 0 },
+    totals: { catches: t.catches | 0, twins: t.twins | 0, points: t.points | 0, facets: t.facets | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -658,6 +771,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.catches += summary.catches | 0;
   next.totals.twins += summary.twins | 0;
   next.totals.points += summary.score | 0;
+  next.totals.facets += summary.facets | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestCombo = Math.max(next.bestCombo, summary.bestCombo | 0);

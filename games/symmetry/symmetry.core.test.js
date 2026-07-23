@@ -19,9 +19,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CONFIG, clamp, clampLane, stageIndexAt, stageAt, stageProgress,
-  fallSpeedOf, spawnInterval,
+  fallSpeedOf, fallScale, spawnInterval,
   createGame, reset, start, randomLane, spawnSpec, spawnNext,
-  pickFormation, loadFormation, wouldCatch, tick, milestoneAt,
+  pickFormation, loadFormation, wouldCatch, wouldFacet, radianceActive,
+  tick, milestoneAt,
   ACHIEVEMENTS, normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './symmetry.core.js';
 
@@ -152,7 +153,8 @@ test('wouldCatch is true only within CATCH of the lane', () => {
 
 test('a matched orb is caught: score, catches and combo rise; lives untouched', () => {
   const g = newGame(); start(g);
-  const r = resolveAt(g, { spread: 0.4, lane: 0.4, side: -1 });
+  // a LOOSE catch — inside CATCH but outside the razor FACET_BAND, so it pays 1
+  const r = resolveAt(g, { spread: 0.4, lane: 0.46, side: -1 });
   assert.equal(r.caught, 1);
   assert.equal(r.missed, 0);
   assert.equal(g.score, 1);
@@ -165,7 +167,7 @@ test('a matched orb is caught: score, catches and combo rise; lives untouched', 
 
 test('a mismatched orb is missed: a life is lost and the combo resets', () => {
   const g = newGame(); start(g);
-  resolveAt(g, { spread: 0.4, lane: 0.4 });        // combo -> 1
+  resolveAt(g, { spread: 0.4, lane: 0.46 });       // loose catch, combo -> 1
   const r = resolveAt(g, { spread: 0.1, lane: 0.9 }); // far off -> miss
   assert.equal(r.missed, 1);
   assert.equal(r.caught, 0);
@@ -177,10 +179,10 @@ test('a mismatched orb is missed: a life is lost and the combo resets', () => {
 // ── 5. Twins ─────────────────────────────────────────────────────────────────
 test('catching both halves of a twin in one tick pays a bonus point', () => {
   const g = newGame(); start(g);
-  g.spread = 0.5;
+  g.spread = 0.56;                 // a loose catch of the lane-0.5 twin — no facet
   g.orbs.push({ side: -1, lane: 0.5, y: 0.999, vy: 0.01, pair: 7, born: g.t });
   g.orbs.push({ side: +1, lane: 0.5, y: 0.999, vy: 0.01, pair: 7, born: g.t });
-  const r = tick(g, { spread: 0.5 });
+  const r = tick(g, { spread: 0.56 });
   assert.equal(r.caught, 2, 'both halves caught');
   assert.equal(r.twins, 1);
   assert.equal(g.twins, 1);
@@ -195,8 +197,8 @@ test('a twin with only one half caught pays no bonus', () => {
   // To catch just one half we give the halves DIFFERENT lanes (a malformed pair) so only
   // the matching side resolves as a catch.
   g.spread = 0.3;
-  g.orbs.push({ side: -1, lane: 0.3, y: 0.999, vy: 0.01, pair: 9, born: g.t }); // caught
-  g.orbs.push({ side: +1, lane: 0.9, y: 0.999, vy: 0.01, pair: 9, born: g.t }); // missed
+  g.orbs.push({ side: -1, lane: 0.36, y: 0.999, vy: 0.01, pair: 9, born: g.t }); // caught (loose)
+  g.orbs.push({ side: +1, lane: 0.9,  y: 0.999, vy: 0.01, pair: 9, born: g.t }); // missed
   const r = tick(g, { spread: 0.3 });
   assert.equal(r.twins, 0, 'a twin needs both halves in the same tick');
   assert.equal(g.twins, 0);
@@ -219,7 +221,7 @@ test('tick is a no-op once the run is over', () => {
   g.phase = 'dead';
   const before = JSON.stringify(g.orbs);
   const r = tick(g, { spread: 0.5 });
-  assert.deepEqual(r, { died: false, caught: 0, missed: 0, twins: 0, formation: null });
+  assert.deepEqual(r, { died: false, caught: 0, missed: 0, twins: 0, facets: 0, radiance: false, formation: null });
   assert.equal(JSON.stringify(g.orbs), before);
 });
 
@@ -251,7 +253,7 @@ test('normalizeMeta fills a complete blob and honours a legacy best', () => {
   const m = normalizeMeta(null, 40);
   assert.equal(m.best, 40);
   assert.equal(m.plays, 0);
-  assert.deepEqual(m.totals, { catches: 0, twins: 0, points: 0 });
+  assert.deepEqual(m.totals, { catches: 0, twins: 0, points: 0, facets: 0 });
   const m2 = normalizeMeta({ best: 10 }, 40);
   assert.equal(m2.best, 40, 'legacy best wins when larger');
 });
@@ -425,4 +427,153 @@ test('only NOTABLE cadences flash a name cue; the calm ones stay silent', () => 
   assert.ok(cues.size >= 1, 'at least one notable cadence announced itself');
   for (const name of cues) assert.ok(notableNames.has(name), name + ' is a notable cadence');
   assert.ok(!cues.has('Mirror') && !cues.has('Reflection'), 'calm cadences never cue');
+});
+
+// ── 11. Depth inside the mechanic ──────────────────────────────────────────────
+// The hidden layer on the one spread verb: the FACET (a razor dead-on catch window
+// inside the forgiving CATCH window), the RADIANCE it lights (an every-point-doubles
+// window; the trigger is never doubled), the no-plateau fall asymptote, and the
+// secret Infinity stage past Singularity. All safe to not know.
+
+test('the facet band sits razor-tight inside the catch window', () => {
+  assert.ok(CONFIG.FACET_BAND < CONFIG.CATCH / 3, 'a facet is much tighter than a catch');
+  const g = newGame();
+  g.spread = 0.5;
+  assert.equal(wouldFacet(g, { lane: 0.5 }), true);
+  assert.equal(wouldFacet(g, { lane: 0.5 + CONFIG.FACET_BAND - 0.001 }), true);
+  assert.equal(wouldFacet(g, { lane: 0.5 + CONFIG.FACET_BAND + 0.004 }), false);
+  assert.equal(wouldCatch(g, { lane: 0.5 + CONFIG.FACET_BAND + 0.004 }), true,
+    'just outside the facet band is still a plain catch');
+});
+
+test('a dead-on catch is a FACET: +FACET_BONUS, counted, and the streak builds', () => {
+  const g = newGame(); start(g);
+  const r = resolveAt(g, { spread: 0.4, lane: 0.4 });
+  assert.equal(r.caught, 1);
+  assert.equal(r.facets, 1);
+  assert.equal(g.facets, 1);
+  assert.equal(g.facetStreak, 1);
+  assert.equal(g.score, 1 + CONFIG.FACET_BONUS);
+});
+
+test('a loose catch scores exactly as it always did and silently breaks the facet chain', () => {
+  const g = newGame(); start(g);
+  resolveAt(g, { spread: 0.4, lane: 0.4 });          // facet, streak 1
+  const r = resolveAt(g, { spread: 0.4, lane: 0.46 }); // loose
+  assert.equal(r.facets, 0);
+  assert.equal(g.facetStreak, 0, 'a loose catch resets the streak');
+  assert.equal(g.facets, 1, 'the run tally keeps the earned facet');
+  assert.equal(g.score, 1 + CONFIG.FACET_BONUS + 1);
+});
+
+test('a miss breaks the facet chain too', () => {
+  const g = newGame(); start(g);
+  resolveAt(g, { spread: 0.4, lane: 0.4 });          // facet, streak 1
+  resolveAt(g, { spread: 0.1, lane: 0.9 });          // miss
+  assert.equal(g.facetStreak, 0);
+});
+
+test('RAD_TRIGGER facets in a row light Radiance; the triggering catch is never doubled', () => {
+  const g = newGame(); start(g);
+  let lit = false;
+  for (let i = 0; i < CONFIG.RAD_TRIGGER; i++) {
+    const r = resolveAt(g, { spread: 0.4, lane: 0.4 });
+    lit = lit || r.radiance;
+  }
+  assert.equal(lit, true, 'the streak lit Radiance');
+  assert.equal(g.radiances, 1);
+  assert.equal(g.facetStreak, 0, 'the streak resets — the window must be re-earned');
+  assert.ok(radianceActive(g), 'the window holds after the trigger tick');
+  // every catch so far was scored at face value (3 each) — the trigger was NOT doubled
+  assert.equal(g.score, CONFIG.RAD_TRIGGER * (1 + CONFIG.FACET_BONUS));
+});
+
+/** Drive a game to a freshly-lit Radiance on a QUIET field (no scheduled spawns, so
+ *  long windows can elapse without background orbs polluting score or lives). */
+function litGame() {
+  const g = createGame(W, H, { rng: seeded(1), config: { SPAWN_FIRST: 1e9, LIVES: 1e9 } });
+  start(g);
+  for (let i = 0; i < CONFIG.RAD_TRIGGER; i++) resolveAt(g, { spread: 0.4, lane: 0.4 });
+  return g;
+}
+
+test('while Radiance holds, every point doubles — catches, facets and twin bonuses', () => {
+  const g = litGame();
+  const base = g.score;
+  let r = resolveAt(g, { spread: 0.4, lane: 0.46 });           // loose catch → 2
+  assert.equal(g.score, base + 2, 'a plain catch pays double');
+  r = resolveAt(g, { spread: 0.4, lane: 0.4 });                // facet → 6
+  assert.equal(g.score, base + 2 + 2 * (1 + CONFIG.FACET_BONUS), 'a facet pays double');
+  // a twin caught loose during the window: 2 catches ×2 + twin bonus ×2
+  const before = g.score;
+  g.spread = 0.56;
+  g.orbs.push({ side: -1, lane: 0.5, y: 0.999, vy: 0.01, pair: 41, born: g.t });
+  g.orbs.push({ side: +1, lane: 0.5, y: 0.999, vy: 0.01, pair: 41, born: g.t });
+  r = tick(g, { spread: 0.56 });
+  assert.equal(r.twins, 1);
+  assert.equal(g.score, before + 2 * 2 + CONFIG.TWIN_BONUS * 2, 'the twin bonus doubles too');
+});
+
+test('Radiance expires after RAD_TICKS and scoring returns to face value', () => {
+  const g = litGame();
+  for (let i = 0; i < CONFIG.RAD_TICKS + 2; i++) tick(g, { spread: 0.4 });
+  assert.equal(radianceActive(g), false, 'the window closed');
+  const base = g.score;
+  resolveAt(g, { spread: 0.4, lane: 0.46 });
+  assert.equal(g.score, base + 1, 'back to face value');
+});
+
+test('the fall speed never plateaus: the asymptote keeps climbing, bounded by the hard cap', () => {
+  assert.equal(fallScale(CONFIG, 0), 1, 'no scale at score 0');
+  assert.ok(fallScale(CONFIG, 600) > fallScale(CONFIG, 300), 'still climbing deep');
+  assert.ok(fallScale(CONFIG, 1e9) <= 1 + CONFIG.FALL_SPAN + 1e-9, 'the span bounds it');
+  const g = newGame(); start(g);
+  const at = (score) => { g.score = score; return fallSpeedOf(g); };
+  assert.ok(at(150) > at(72), 'faster past the old last stage');
+  assert.ok(at(600) > at(300), 'no plateau — still climbing at score 600 (regression)');
+  assert.ok(at(1e9) <= CONFIG.FALL_HARD_MAX + 1e-12, 'the hard cap bounds it');
+});
+
+test('the hard cap is override-proof: a rogue config cannot spike the fall speed', () => {
+  const g = createGame(W, H, { rng: seeded(3), config: { FALL_STEP: 100, FALL_SPAN: 50 } });
+  start(g);
+  g.score = 500;
+  assert.ok(fallSpeedOf(g) <= g.cfg.FALL_HARD_MAX + 1e-12);
+});
+
+test('Infinity is a secret sixth stage past Singularity', () => {
+  const last = CONFIG.STAGES[CONFIG.STAGES.length - 1];
+  assert.equal(last.name, 'Infinity');
+  assert.equal(last.secret, true);
+  assert.equal(stageIndexAt(CONFIG, last.at - 1), 4, 'Singularity holds right up to the gate');
+  assert.equal(stageIndexAt(CONFIG, last.at), 5, 'reaching the gate enters Infinity');
+  assert.equal(stageAt(CONFIG, last.at).name, 'Infinity');
+});
+
+test('the depth badges unlock through applyRun and totals.facets accumulates losslessly', () => {
+  // a legacy meta blob with no facets field upgrades losslessly
+  const legacy = normalizeMeta({ plays: 3, totals: { catches: 50, twins: 5, points: 60 } });
+  assert.equal(legacy.totals.facets, 0);
+  const summary = {
+    score: 160, stageIndex: 5, catches: 80, twins: 6, bestCombo: 12, ticks: 4000,
+    facets: 9, radiances: 2,
+  };
+  const m = applyRun(legacy, summary);
+  assert.equal(m.totals.facets, 9);
+  assert.ok(m.achieved['first-facet'], 'the facet badge unlocked');
+  assert.ok(m.achieved['radiance'], 'the Radiance badge unlocked');
+  assert.ok(m.achieved['infinity'], 'the secret-stage badge unlocked');
+  // and a run that never touched the layer unlocks none of them
+  const m2 = applyRun(undefined, { score: 10, stageIndex: 0, catches: 8, twins: 0, bestCombo: 3, ticks: 500, facets: 0, radiances: 0 });
+  assert.ok(!m2.achieved['first-facet'] && !m2.achieved['radiance'] && !m2.achieved['infinity']);
+});
+
+test('a fresh run starts with the depth layer dark (reset clears it)', () => {
+  const g = litGame();
+  start(g);
+  assert.equal(g.facets, 0);
+  assert.equal(g.facetStreak, 0);
+  assert.equal(g.radiances, 0);
+  assert.equal(g.radUntil, 0);
+  assert.equal(radianceActive(g), false);
 });

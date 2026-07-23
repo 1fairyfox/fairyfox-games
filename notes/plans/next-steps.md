@@ -2,19 +2,19 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
-> ## 🌿 Depth-layer rollout — 9 of 13 (as of v0.25.2, 2026-07-22)
+> ## 🌿 Depth-layer rollout — 10 of 13 (as of v0.25.3, 2026-07-23)
 >
 > The lead GROW lever (`../reference/depth-inside-the-mechanic.md`). Carried by: Polarity
-> (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft and
-> now **Poise**; Tether, Reprise, Ward and Drove ship with it from birth.
+> (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft,
+> Poise and now **Symmetry** (the Facet / Radiance / fall asymptote / Infinity, v0.25.3 —
+> the tech landed as the dead-on-lane catch, which makes a dead-on *twin* two facets in
+> one tick, so the mirrored-precision idea below is folded in); Tether, Reprise, Ward and
+> Drove ship with it from birth.
 >
-> **Still to convert, oldest first:** **Symmetry** (born 07-04) → **Arc** (07-05) →
-> **Sluice** (07-06). None of the three carries *any* of the four items yet, so each is a
-> full pass (no-plateau asymptote + hidden tech + the reversal it unlocks + a secret stage)
-> rather than the partial top-up Poise and Loft needed. Sketches:
-> - **Symmetry** — the one control is the *spread*, and twins already reward a single
->   symmetric read; the tech probably lives in catching a twin with both catchers dead
->   under their orbs (a mirrored precision window), not in a new input.
+> **Still to convert, oldest first:** **Arc** (born 07-05) → **Sluice** (07-06). Neither
+> carries *any* of the four items yet, so each is a full pass (no-plateau asymptote +
+> hidden tech + the reversal it unlocks + a secret stage) rather than the partial top-up
+> Poise and Loft needed. Sketches:
 > - **Arc** — the charge is analogue and the bullseye is drawn; a razor sub-window inside
 >   the bullseye is the obvious tech, but check it isn't just Ricochet's Dead Centre with
 >   new paint (the depth doc's "genuinely distinct" bar applies to techs too).
@@ -30,7 +30,8 @@ Ordered, current. Remove as done; history lives in `../sessions/`.
 > "Off the beam" / "New best balance" are simply not there. Confirmed by screenshot in Poise,
 > and fixed there (both rules now restate the clip). **All 16 games have the same two rules**
 > (`Select-String -Path games\*\index.html -Pattern '\.title\.record\s*\{[^}]*background:linear'`),
-> so the rest of the collection is still showing it.
+> so the rest of the collection is still showing it. _(Symmetry fixed on its depth pass,
+> v0.25.3 — headline clip + the 34vh badge-column cap; 14 games left.)_
 >
 > Left for a housekeeping run rather than folded in here, because the standing rule is to
 > **eyeball every visual change before shipping** — that's 15 more game-over screens to

@@ -52,9 +52,10 @@ function rgbStr(c, a) { return 'rgba(' + (c.r | 0) + ',' + (c.g | 0) + ',' + (c.
 // Milestone toasts — a brief celebratory flash at score thresholds (pure logic in
 // the core's milestoneAt).
 let toastTimer = 0;
-function showToast(text) {
+function showToast(text, gold) {
   if (!toastEl) return;
   toastEl.textContent = text;
+  toastEl.classList.toggle('gold', !!gold);
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1400);
@@ -170,12 +171,16 @@ function updateStageChip() {
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
 }
-/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. A SECRET
+ *  stage (Infinity) additionally announces itself with a gold toast — its only telling
+ *  (it appears on no start screen; reaching it *is* the reveal). */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 5); }
+  if (st.secret) { showToast(st.name, true); if (!reduceMotion) shake = Math.max(shake, 10); }
   updateStageChip();
 }
 function beginRun() {
@@ -281,6 +286,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex, catches: game.catches,
     twins: game.twins, bestCombo: game.bestCombo, ticks: game.t,
+    facets: game.facets, radiances: game.radiances,
   };
   const prev = meta;
   meta = Symmetry.applyRun(prev, summary, game.cfg);
@@ -288,8 +294,9 @@ function onDeath() {
 
   if (overSubEl) {
     const tw = game.twins > 0 ? ` · ${game.twins} twin${game.twins === 1 ? '' : 's'}` : '';
+    const fc = game.facets > 0 ? ` · ${game.facets} facet${game.facets === 1 ? '' : 's'}` : '';
     const cb = game.bestCombo >= 3 ? ` · best streak ${game.bestCombo}` : '';
-    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + tw + cb;
+    overSubEl.textContent = 'Reached ' + game.cfg.STAGES[stageIndex].name + tw + fc + cb;
   }
   if (badgesEl) {
     badgesEl.innerHTML = '';
@@ -349,7 +356,11 @@ function update(now) {
       const eased = game.spread + (want - game.spread) * game.cfg.SPREAD_LERP;
       const resolving = [];
       for (const o of game.orbs) {
-        if (o.y + o.vy >= 1) resolving.push({ x: orbX(o), hit: Math.abs(eased - o.lane) <= game.cfg.CATCH });
+        if (o.y + o.vy >= 1) resolving.push({
+          x: orbX(o),
+          hit: Math.abs(eased - o.lane) <= game.cfg.CATCH,
+          facet: Math.abs(eased - o.lane) <= game.cfg.FACET_BAND,
+        });
       }
       const r = Symmetry.tick(game, { spread: want });
       if (kaleidoActive) {   // paint the mirrored catcher trail (cosmetic)
@@ -359,11 +370,20 @@ function update(now) {
       }
       if (r.caught || r.missed) {
         for (const p of resolving) {
-          if (p.hit) burst(p.x, catchY, 165, 12);
+          // A FACET (dead-on catch, the hidden tech) blooms gold and bigger.
+          if (p.facet && p.hit) burst(p.x, catchY, 46, 22);
+          else if (p.hit) burst(p.x, catchY, 165, 12);
           else { burst(p.x, catchY, 0, 16); shake = Math.max(shake, 9); }
         }
       }
       if (r.twins) { shake = Math.max(shake, 6); }
+      // Radiance announces itself only when EARNED — a gold toast, colour-only glow.
+      if (r.radiance) {
+        showToast('Radiance ×2', true);
+        burst(paddleX(-1), catchY, 46, 18);
+        burst(paddleX(1), catchY, 46, 18);
+        if (!reduceMotion) shake = Math.max(shake, 7);
+      }
       if (r.formation) showForm(r.formation);
       if (r.died) onDeath();
       scoreEl.textContent = game.score;
@@ -403,8 +423,12 @@ function drawOrb(o) {
 function drawPaddle(side) {
   const x = paddleX(side), w = game.cfg.CATCH * halfW; // spans the true catch tolerance
   const glow = 0.5 + 0.5 * Math.min(game.combo, 10) / 10; // brighter with the streak
-  ctx.fillStyle = rgbStr(tintCur, glow);
-  ctx.shadowColor = rgbStr(tintCur, 0.8);
+  // While RADIANCE holds (the reversal the facet tech unlocks) the catchers burn gold —
+  // colour only; geometry, the catch window and the score maths are untouched.
+  const rad = Symmetry.radianceActive(game);
+  const GOLD = { r: 255, g: 214, b: 120 };
+  ctx.fillStyle = rgbStr(rad ? GOLD : tintCur, glow);
+  ctx.shadowColor = rgbStr(rad ? GOLD : tintCur, 0.8);
   ctx.shadowBlur = 12;
   const r = PADDLE_H / 2;
   const x0 = x - w, x1 = x + w;
@@ -442,8 +466,9 @@ function draw() {
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(cx, topY - 20); ctx.lineTo(cx, catchY + 44); ctx.stroke();
 
-    // catch line + a shockwave on stage change
-    ctx.strokeStyle = rgbStr(tintCur, 0.28);
+    // catch line + a shockwave on stage change (gold while Radiance holds — colour only)
+    ctx.strokeStyle = Symmetry.radianceActive(game)
+      ? 'rgba(255,214,120,0.5)' : rgbStr(tintCur, 0.28);
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - halfW, catchY); ctx.lineTo(cx + halfW, catchY); ctx.stroke();
     if (stagePulse > 0.01) {

@@ -2,7 +2,22 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.25.2` (single source of truth: repo-root `VERSION`). **v0.25.2** is a **GROW**
+**Version:** `0.25.3` (single source of truth: repo-root `VERSION`). **v0.25.3** is a **GROW**
+run: **Symmetry** gets the **"depth inside the mechanic"** layer — the **10th game** to carry it,
+and the oldest one that was still missing it. All four items on the one **spread** verb: the
+hidden **Facet** (a razor `FACET_BAND` 0.022 dead-on sub-window inside the forgiving `CATCH`
+0.13 — land the catcher dead-on the lane and the catch pays +2, blooms gold and builds a streak,
+taught nowhere; a loose catch scores as it always did and silently breaks the chain; a dead-on
+twin is two facets in one tick, so the twin cadences are the quiet greed window), **Radiance**
+(3 facets in a row → ~5s where **every point doubles** — catches, facet bonuses and twin
+bonuses; the trigger never doubled; catchers + catch line gold colour-only), a **no-plateau
+fall asymptote** (`fallScale` ×1 → ×1.5, half at score 90, hard-capped 0.031 above the
+asymptote's own limit — the old stage-only escalation went flat forever at Singularity /
+score 72), and a **secret Infinity stage** at score 150 (printed on no start screen; the tips'
+stage ladder + cadence list removed). 3 new badges (9 → 12), `totals.facets` (lossless legacy
+upgrade), +12 pure-core tests (31 → **43**); collection **730/730** green. Poise's two v0.25.2
+game-over fixes (headline `background-clip`, capped badge column) applied to Symmetry while
+there. **Depth rollout: 10 of 13** (left: Arc, Sluice). Earlier: **v0.25.2** is a **GROW**
 run: **Poise** gets the **"depth inside the mechanic"** layer — the **9th game** to carry it, and
 the oldest one that was still missing it. Poise already had one of the four items (the no-plateau
 gravity asymptote, v0.22.2), so this run added the other three on the one **tilt** verb: the
@@ -510,9 +525,20 @@ sole host), plus each game at `…/games/<game>/`.
   **twins** (a mirrored pair; one spread catches both for a bonus) as the skill counter-play, a
   catch **combo**, escalation (orbs fall faster + spawn thicker by stage), a **stage arc** (Mirror
   → Reflection → Twin → Kaleidoscope → Singularity) with HUD chip + field tint, and
-  **meta-progression** (`symmetry.meta`: lifetime catches/twins/best-combo + 9 badges, run-report +
-  near-miss) — legacy best preserved. Pure core (normalised lanes/spread, seedable RNG) + 31 tests.
-  **(5th game on varied structure.)**
+  **meta-progression** (`symmetry.meta`: lifetime catches/twins/facets/best-combo + 12 badges,
+  run-report + near-miss) — legacy best preserved. Pure core (normalised lanes/spread, seedable
+  RNG) + 43 tests. **(5th game on varied structure.)** **Depth inside the one verb (v0.25.3, the
+  10th game on the layer):** the fall speed **no longer plateaus** (`fallScale` is a smooth score
+  asymptote on top of the stage steps, hard-capped above its own limit — the old stage-only
+  escalation went flat forever at Singularity / score 72); a hidden **Facet** (the forgiving
+  `CATCH` 0.13 window hides a razor `FACET_BAND` 0.022 dead-on sub-window — catch an orb with
+  the catcher dead-on its lane and it pays +2 over the point, blooms gold and builds a streak,
+  taught nowhere; a loose catch scores exactly as it always did and silently breaks the chain,
+  and a dead-on twin is two facets in one tick, making the twin cadences the quiet greed
+  window); **Radiance** (3 facets in a row → ~5s where **every point doubles** — the trigger
+  never doubled, announced only when earned, catchers + catch line gold colour-only); and a
+  **secret Infinity stage** past Singularity (score 150, revealed only by reaching it — the
+  start tip no longer prints the stage ladder or the cadence names).
 - **Arc** (`games/arc/`) — a **charge-and-release power lob**: a launcher fires at a fixed
   45°; **hold to build power, release to lob**, and land the shot on the target pad. The
   single control is *how long you charge* (judge the distance, dial the power) — no aim, no
@@ -544,11 +570,28 @@ sole host), plus each game at `…/games/<game>/`.
   `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
   the pattern from day one.)**
 
-**Tests:** **718/718** green (Poise 42 → 56, v0.25.2). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **730/730** green (Symmetry 31 → 43, v0.25.3). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.
 
+- **✅ v0.25.3 (2026-07-23) — GROW: Symmetry gets "depth inside the mechanic" (10th game on the
+  layer).** The oldest game still missing it, with the exact plateau the sweep flags (fall speed
+  keyed only on the stage index; stages stop at Singularity / score 72). All four items on the one
+  spread verb: the hidden **Facet** (`FACET_BAND` 0.022 razor dead-on sub-window inside `CATCH`
+  0.13 → +2 + gold bloom + streak, taught nowhere; loose catch silently breaks the chain; a
+  dead-on twin = two facets in one tick, so the twin cadences are the quiet greed window),
+  **Radiance** (`RAD_TRIGGER` 3 in a row → `RAD_TICKS` 300 of every-point-doubles — catches,
+  facet + twin bonuses; the trigger never doubled; gold colour-only), a **no-plateau fall
+  asymptote** (`fallScale` ×1 → ×1.5 half at 90, `FALL_HARD_MAX` 0.031 above the asymptote's own
+  limit — regression-pinned still climbing at score 600, override-proof), and a **secret Infinity
+  stage** (score 150, gold reveal toast + badge; the start tip's stage ladder + cadence list
+  deleted). 3 new skill-safe badges (9 → 12), `totals.facets` (lossless legacy upgrade), run
+  report `· N facets`, `TickResult` gains `{facets, radiance}`. Poise's two v0.25.2 game-over
+  fixes (headline `background-clip`, badge column capped 34vh) applied to Symmetry. +12 pure-core
+  tests (31 → 43); collection **730/730** green. Chrome-previewed from the built `_site/`.
+  Released `dev → main` by default on green (PATCH). **Depth-layer rollout: 10 of 13** (left:
+  Arc, Sluice).
 - **✅ v0.25.2 (2026-07-22) — GROW: Poise gets "depth inside the mechanic" (9th game on the
   layer).** The oldest game still missing it, and already 1 of 4 items in (the gravity asymptote,
   v0.22.2), so this run finished it on the one tilt verb: the hidden **Still** (`STILL_VEL` 0.006
