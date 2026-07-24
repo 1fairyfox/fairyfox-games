@@ -2,7 +2,22 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.25.4` (single source of truth: repo-root `VERSION`). **v0.25.4** is a **GROW**
+**Version:** `0.26.0` (single source of truth: repo-root `VERSION`). **v0.26.0** is a **PLANT**
+run: a new game, **Loom** — a genuinely new verb (**weave / interlace**), the collection's first
+**weaving** mechanic and its **17th**. A shuttle lays a thread toward the loom while warp pegs
+stream in; you send the thread **over** or **under** each peg, and alternating side-to-side
+interlaces a proper weave (repeating a side is a *float* — the multiplier snaps to ×1). Gold
+**beads** pay a bonus; red **barbs** are a **snag** (3 end the run). Distinct from everything we
+have: the pegs have no "right side" of their own, so the weave is defined *relative to the
+player's own previous pass* (Sluice already owns sort/route — this is not that). Ships on the
+**depth layer from birth**: a no-plateau speed asymptote, the hidden **Cinch** (a last-instant
+interlace grows the ×2…×9 multiplier, taught nowhere), the **Sheen** it raises (3 cinches → ~5s
+double points, trigger never doubled), and a **secret Gossamer stage** past Brocade. Varied
+structure (six named drafts — Plain · Basket=greed · Chevron · Herringbone · Sateen · Snarl —
+`minStage`-gated so climbing opens the pool; no stage-0 draft places a barb), a stage arc (Warp →
+Weft → Twill → Damask → Brocade), meta (`loom.meta`, 15 badges, legacy `loom.best` preserved) and
+a **Silk** coin fun mode — all from day one. Pure core + 36 tests; collection **773/773** green.
+Earlier: **v0.25.4** is a **GROW**
 run: **Arc** gets the **"depth inside the mechanic"** layer — the **11th game** to carry it, and
 the older of the two that were still missing it. All four items on the one **charge-and-release**
 verb: the hidden **Pin** (a razor `pinBandFor` = max(`PIN_ABS` 3px, `PIN_FRAC` 0.16 of the pad)
@@ -220,8 +235,39 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (16):**
+**Games so far (17):**
 
+- **Loom** (`games/loom/`) — a **weave / interlace** game (a genuinely new verb: the
+  collection's first **weaving** mechanic — you're not steering, timing, aiming, metering,
+  swinging, remembering, guarding, herding or sorting, you're **choosing over/under at each
+  thread and alternating to interlace**). A shuttle lays the weft toward the loom line
+  (`LOOM_X`) while warp pegs stream in; your one control toggles the weft **over** (top) or
+  **under** (bottom), and whichever side it's on when a peg reaches the line is locked for that
+  peg. Alternating peg-to-peg is a proper **interlace**; repeating a side is a **float** — a
+  flaw that snaps the multiplier back to ×1. Gold **beads** sit on one side of some pegs (catch
+  them for `BEAD_BONUS`); red **barbs** on one side of others are a **snag** (a life lost; three
+  end the run). Distinct by construction: the pegs carry no inherent "right side" — the weave is
+  defined **relative to the player's own previous pass**, so it is neither Polarity's match-a-gate
+  nor Sluice's route-to-a-bin. **The depth is the cinch, discovered not told:** flip to the
+  interlacing side within the razor `CINCH_TICKS` (5) window and the weave *cinches* — the
+  multiplier climbs (×2…×9) plus a flat bonus; alternate *early* and it's safe but neutral (no
+  growth), so the deep line is to commit every toggle at the last instant, which is scary because
+  a mis-time floats or snags (the Polarity precise/safe tension, re-expressed as over/under). A
+  streak of `SHEEN_STREAK` (3) cinches raises a **Sheen** (~5s where every point doubles; the
+  trigger never doubled). **On Varied Structure + the Growth Architecture from birth:** a run is a
+  seeded **sequence of named drafts** (`FORMATIONS`/`pickFormation`/`loadFormation`, `minStage`-
+  gated so climbing the stages **opens the pool**; a pure `spawnPeg` clamps gaps + keeps bead/barb
+  on opposite sides): **Plain** (clean, barbless on-ramp) · **Basket** (beads clustered one side —
+  the deliberate **greed window**, float to grab a run) · **Chevron** (diagonal beads, barb on the
+  empty side) · **Herringbone** (barbs on the interlacing side — the hard reads) · **Sateen**
+  (sparse, tense) · **Snarl** (the crescendo). No stage-0 draft ever places a barb (pinned by a
+  test), so the opening is safe to learn on. Plus a **stage arc** (Warp → Weft → Twill → Damask →
+  Brocade) with HUD chip + tint, a **secret Gossamer stage** (220 woven, revealed only by reaching
+  it), a **no-plateau speed asymptote** (`speedOf`), and **meta-progression** (`loom.meta`:
+  lifetime pegs/points/cinches/beads + best stage/mult + 15 badges, run-report) — legacy
+  `loom.best` preserved — and the **Silk** coin fun mode (1 coin, additive shimmer over the cloth,
+  score untouched). Pure `tick`/`toggle`-split core + 36 tests. **(Ships on varied structure + the
+  depth layer from day one.)**
 - **Drove** (`games/drove/`) — a **herd / shepherd** game (a genuinely new verb: the
   collection's first **indirect-control** mechanic — you're not steering, timing, aiming,
   metering, swinging, remembering or guarding, you're **moving the one thing the quarry flees
