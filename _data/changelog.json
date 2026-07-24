@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-07-24",
+    "game": "Loom",
+    "slug": "loom",
+    "kind": "new",
+    "text": "A brand-new game joins the collection: Loom, and a brand-new thing to do — weave. A shuttle lays a thread toward the loom and warp pegs stream in; you send the thread over or under each one, and alternating side-to-side interlaces a proper weave. Gold beads are yours for the taking; red barbs are a snag, and three snags end the run. Anyone can play it in three seconds by just alternating and staying safe — but flip to the interlacing side at the very last instant and the weave cinches, growing a multiplier the game never tells you about. String three cinches together and the whole cloth takes on a Sheen where every point doubles, and the pegs keep quickening however deep you go — past Brocade there's a stage the start screen has never named. Ships with six named drafts that reshuffle every run, a full stage ladder, lifetime badges, and a Silk fun mode."
+  },
+  {
+    "date": "2026-07-24",
     "game": "Arc",
     "slug": "arc",
     "kind": "grow",

@@ -87,6 +87,7 @@ CI runs the full suite on every push and pull request.
 | Game | What you do | Folder |
 |------|-------------|--------|
 | **Arc** | Hold to build power, release to lob a shot at 45° — judge the distance and land it on the pad. Nail the bright centre for a bullseye and keep the combo alive. | [`games/arc/`](games/arc/) |
+| **Loom** | Send the thread over or under each peg and alternate to weave. Grab the gold beads, dodge the barbs, and cinch the interlace at the last instant to grow your multiplier. Three snags end the run. | [`games/loom/`](games/loom/) |
 | **Symmetry** | One control, two catchers locked in a mirror — spread them around the centre to catch falling orbs on both sides. You can't always save both, so read ahead and chase the twins. | [`games/symmetry/`](games/symmetry/) |
 | **Poise** | Tilt the beam to balance a rolling ball — roll it over the glowing target to score, without letting it slip off either end. The targets arrive in named routes, and it grows twitchier the longer you last. | [`games/poise/`](games/poise/) |
 | **Drove** | Fireflies flee your glow — get behind them and press the drove into the lantern. A slow push always works; a perfect lunge darts one straight home and grows a multiplier. Spook three off the field and the night is over. | [`games/drove/`](games/drove/) |
