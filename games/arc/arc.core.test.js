@@ -20,6 +20,7 @@ import {
   CONFIG, ACHIEVEMENTS, clamp, speedFor, landingX, powerForDistance,
   createGame, reset, start, spawnTarget, stageIndexAt, stageAt, stageProgress,
   multiplierFor, lob, milestoneAt, pickFormation, loadFormation,
+  padHalfWidth, pinBandFor,
   normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './arc.core.js';
 
@@ -157,7 +158,8 @@ test('a centred lob lands, scores a bullseye, grows the combo, and spawns a new 
   assert.ok(Math.abs(r.landingX - cx0) < 1e-6, 'landed exactly on centre');
   assert.equal(g.landed, 1);
   assert.equal(g.combo, 1);
-  assert.equal(r.gained, CONFIG.BULLSEYE_PTS * 1, 'bullseye base × ×1');
+  assert.equal(r.pin, true, 'a dead-centre land is a pin (the hidden tech)');
+  assert.equal(r.gained, CONFIG.BULLSEYE_PTS * 1 + CONFIG.PIN_BONUS, 'bullseye base × ×1, plus the pin bonus');
   assert.equal(g.score, r.gained);
   assert.notEqual(g.target.cx, cx0, 'a fresh pad appeared');
 });
@@ -169,6 +171,7 @@ test('an edge land is a hit but not a bullseye, worth the plain base', () => {
   const r = lob(g, powerForDistance(CONFIG, edgeDist));
   assert.equal(r.hit, true);
   assert.equal(r.bullseye, false);
+  assert.equal(r.pin, false, 'an edge land is not a pin');
   assert.equal(r.gained, CONFIG.HIT_PTS * 1);
 });
 
@@ -247,13 +250,13 @@ test('milestoneAt returns labels at thresholds and null otherwise', () => {
 });
 
 // ── 7. Meta-progression ──────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, stageIndex: 0, lands: 0, bestCombo: 0, bullseyes: 0, ...o });
+const summary = (o = {}) => ({ score: 0, stageIndex: 0, lands: 0, bestCombo: 0, bullseyes: 0, pins: 0, onslaughts: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 47);
   assert.equal(m.v, 1);
   assert.equal(m.best, 47);
-  assert.deepEqual(m.totals, { lands: 0, points: 0, bullseyes: 0 });
+  assert.deepEqual(m.totals, { lands: 0, points: 0, bullseyes: 0, pins: 0 });
 });
 
 test('applyRun accumulates totals and raises bests monotonically; pure', () => {
@@ -385,4 +388,110 @@ test('a notable formation names itself as it begins; cues are always real notabl
   assert.ok(cues.size >= 1, 'over a long climbing run, notable formations surface a name cue');
   const notableNames = new Set(CONFIG.FORMATIONS.filter(f => f.notable).map(f => f.name));
   for (const c of cues) assert.ok(notableNames.has(c), `${c} is a real notable formation`);
+});
+
+// ── 9. Depth inside the mechanic ──────────────────────────────────────────────
+// The layer under the five minutes (notes/reference/depth-inside-the-mechanic.md):
+// a no-plateau pad shrink, a hidden PIN sub-window, the ONSLAUGHT reversal it unlocks,
+// and a secret stage. All on the one charge-and-release verb; all safe to not know.
+
+test('pinBandFor is far tighter than the bullseye and floored at PIN_ABS', () => {
+  for (const hw of [78, 50, 32, 26, 20]) {
+    const band = pinBandFor(CONFIG, hw);
+    assert.ok(band >= CONFIG.PIN_ABS, 'never below the absolute floor');
+    assert.ok(band <= hw * CONFIG.BULLSEYE_FRAC, `pin (${band}) sits inside the bullseye on a ${hw} pad`);
+  }
+  assert.equal(pinBandFor(CONFIG, 1), CONFIG.PIN_ABS, 'a tiny pad still floors the band at PIN_ABS');
+  assert.equal(pinBandFor(CONFIG, 100), 100 * CONFIG.PIN_FRAC, 'a big pad uses the fraction');
+});
+
+test('padHalfWidth never plateaus: it keeps shrinking, is ×1 at land 0, and hard-floors', () => {
+  // ×1 at the very start — so a fresh pad is exactly the stage width (a returning player
+  // sees no change to the opening feel).
+  assert.equal(padHalfWidth(CONFIG, 0), CONFIG.STAGES[0].hw, 'land 0 → the raw stage width');
+  // The old plateau bug: past Dead-eye the stage hw is constant, so difficulty went flat
+  // forever. The asymptote keeps the pad tightening WITHIN a stage.
+  assert.ok(padHalfWidth(CONFIG, 42) > padHalfWidth(CONFIG, 60), 'still shrinking inside Dead-eye');
+  assert.ok(padHalfWidth(CONFIG, 70) > padHalfWidth(CONFIG, 150), 'still shrinking inside Pinhole');
+  assert.ok(padHalfWidth(CONFIG, 150) >= padHalfWidth(CONFIG, 400), 'monotone non-increasing');
+  // Hard floor — no land count and no override drives it below HW_HARD_MIN.
+  assert.ok(padHalfWidth(CONFIG, 400) >= CONFIG.HW_HARD_MIN, 'stays at/above the floor');
+  assert.equal(padHalfWidth(CONFIG, 1e9), CONFIG.HW_HARD_MIN, 'the floor holds at the limit');
+  // Never wider than the stage's own width.
+  for (const n of [0, 10, 42, 66, 200]) {
+    assert.ok(padHalfWidth(CONFIG, n) <= stageAt(CONFIG, n).hw + 1e-9, 'never exceeds the stage width');
+  }
+});
+
+test('a dead-centre land is a PIN (+PIN_BONUS); an off-centre bullseye is not', () => {
+  const g = newGame(); start(g);
+  const hw = g.target.hw, cx = g.target.cx;
+  // Off-centre-but-in-the-bullseye: aim between the pin band and the bullseye edge.
+  const offBull = cx + hw * 0.25;
+  const r1 = lob(g, powerForDistance(CONFIG, offBull));
+  assert.equal(r1.bullseye, true, 'still a bullseye');
+  assert.equal(r1.pin, false, 'but not a pin — outside the razor band');
+  assert.equal(g.pins, 0, 'no pin counted');
+  // Dead centre on the fresh pad → a pin.
+  const r2 = lob(g, centrePower(g));
+  assert.equal(r2.pin, true, 'dead centre threads the pin band');
+  assert.equal(g.pins, 1, 'a pin counted');
+  assert.equal(r2.gained, CONFIG.BULLSEYE_PTS * r2.mult + CONFIG.PIN_BONUS, 'bullseye×mult plus the flat pin bonus');
+});
+
+test('three pins in a row light the ONSLAUGHT; the trigger is not doubled, the next lands are', () => {
+  const g = newGame(); start(g);
+  const g1 = lob(g, centrePower(g));   // pin 1
+  const g2 = lob(g, centrePower(g));   // pin 2
+  const g3 = lob(g, centrePower(g));   // pin 3 → lights the onslaught
+  assert.equal(g3.onslaughtStarted, true, 'the third pin lights it');
+  assert.equal(g3.onslaught, false, 'the triggering land itself is NOT doubled');
+  assert.equal(g.onslaughts, 1, 'one onslaught this run');
+  assert.equal(g.onslaught, CONFIG.ONSLAUGHT_LANDS, 'the window holds for ONSLAUGHT_LANDS lands');
+  // The trigger scored the honest (undoubled) amount.
+  assert.equal(g3.gained, CONFIG.BULLSEYE_PTS * g3.mult + CONFIG.PIN_BONUS, 'trigger undoubled');
+  // The NEXT land is doubled.
+  const g4 = lob(g, centrePower(g));
+  assert.equal(g4.onslaught, true, 'the next land is doubled');
+  assert.equal(g4.gained, (CONFIG.BULLSEYE_PTS * g4.mult + CONFIG.PIN_BONUS) * CONFIG.ONSLAUGHT_MULT, 'points doubled');
+  assert.equal(g.onslaught, CONFIG.ONSLAUGHT_LANDS - 1, 'the window ticked down by one');
+  // frame-one guard: onslaught counters exist from the first tick and never go negative.
+  assert.ok(g.onslaught >= 0);
+});
+
+test('a miss breaks the pin streak but does NOT consume a lit onslaught', () => {
+  const g = newGame({ config: { LIVES: 3 } }); start(g);
+  lob(g, centrePower(g)); lob(g, centrePower(g)); lob(g, centrePower(g)); // light it
+  assert.equal(g.onslaught, CONFIG.ONSLAUGHT_LANDS);
+  const held = g.onslaught;
+  const miss = lob(g, 1 /* over-charge, sails long */);
+  assert.equal(miss.hit, false, 'a real miss');
+  assert.equal(g.pinStreak, 0, 'the pin streak is broken');
+  assert.equal(g.onslaught, held, 'but the lit onslaught is untouched (the life already paid)');
+  assert.equal(g.lives, 2, 'one life spent');
+});
+
+test('depth achievements fire from a run summary (pin, onslaught, secret stage)', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ score: 400, stageIndex: 5, lands: 80, bestCombo: 40, bullseyes: 60, pins: 20, onslaughts: 4 }), CONFIG);
+  assert.equal(m.achieved['pin'], true, 'pinpoint earned');
+  assert.equal(m.achieved['onslaught'], true, 'onslaught earned');
+  assert.equal(m.achieved['reach-pinhole'], true, 'secret Pinhole stage earned');
+  assert.equal(m.totals.pins, 20, 'lifetime pins accumulate');
+  // safe to not know: a run that never pins earns none of the three.
+  let m2 = normalizeMeta();
+  m2 = applyRun(m2, summary({ score: 30, stageIndex: 2, lands: 20, bestCombo: 5, bullseyes: 3, pins: 0, onslaughts: 0 }), CONFIG);
+  assert.equal(m2.achieved['pin'], undefined);
+  assert.equal(m2.achieved['onslaught'], undefined);
+  assert.equal(m2.achieved['reach-pinhole'], undefined);
+});
+
+test('the secret Pinhole stage exists past Dead-eye, is flagged, and its pad is narrower', () => {
+  const stages = CONFIG.STAGES;
+  const last = stages[stages.length - 1];
+  assert.equal(last.name, 'Pinhole');
+  assert.equal(last.secret, true, 'flagged secret for the reveal toast');
+  assert.ok(last.at > stages[stages.length - 2].at, 'it sits past Dead-eye');
+  assert.ok(last.hw < stages[stages.length - 2].hw, 'the secret pad is narrower still');
+  assert.equal(stageIndexAt(CONFIG, last.at), stages.length - 1, 'reaching its score enters it');
 });

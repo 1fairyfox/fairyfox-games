@@ -2,24 +2,33 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
-> ## 🌿 Depth-layer rollout — 10 of 13 (as of v0.25.3, 2026-07-23)
+> ## 🌿 Depth-layer rollout — 11 of 13 (as of v0.25.4, 2026-07-24)
 >
 > The lead GROW lever (`../reference/depth-inside-the-mechanic.md`). Carried by: Polarity
 > (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft,
-> Poise and now **Symmetry** (the Facet / Radiance / fall asymptote / Infinity, v0.25.3 —
-> the tech landed as the dead-on-lane catch, which makes a dead-on *twin* two facets in
-> one tick, so the mirrored-precision idea below is folded in); Tether, Reprise, Ward and
-> Drove ship with it from birth.
+> Poise, Symmetry and now **Arc** (the Pin / Onslaught / pad asymptote / Pinhole, v0.25.4 —
+> the tech landed as a razor sub-window inside the drawn bullseye, but scaled as a *fraction*
+> of the shrinking pad and paired with the Onslaught reversal, so it's the lob's own shape,
+> not Ricochet's Dead Centre with new paint); Tether, Reprise, Ward and Drove ship with it
+> from birth.
 >
-> **Still to convert, oldest first:** **Arc** (born 07-05) → **Sluice** (07-06). Neither
-> carries *any* of the four items yet, so each is a full pass (no-plateau asymptote +
-> hidden tech + the reversal it unlocks + a secret stage) rather than the partial top-up
-> Poise and Loft needed. Sketches:
-> - **Arc** — the charge is analogue and the bullseye is drawn; a razor sub-window inside
->   the bullseye is the obvious tech, but check it isn't just Ricochet's Dead Centre with
->   new paint (the depth doc's "genuinely distinct" bar applies to techs too).
-> - **Sluice** — a snap combo already exists, so its tech has to be *inside* the snap
->   (routing before the channel has finished rearranging?) rather than a second combo.
+> **Still to convert:** **Sluice** (born 07-06) — the last one. It carries none of the four
+> items yet, so it's a full pass (no-plateau asymptote + hidden tech + the reversal it unlocks
+> + a secret stage). Sketch: `fallTicksOf` plateaus at ~136 cleared (a natural no-plateau
+> target); a snap combo already exists, so its tech has to be *inside* the snap — a razor
+> "flash" window at the very top of the fall (routing the instant the spark appears, into a
+> just-rearranged layout — the hardest, greediest read) rather than a second combo. Finishing
+> Sluice **completes the depth rollout** across all 13 non-birth games.
+>
+> ## 🔧 Dependabot — 4 CI-action PRs open (as of 2026-07-24)
+>
+> All target `dev`. Two are safe patch/minor bumps; two are **major** and want a careful look
+> (bump the action, watch `gh pr checks` go green on the PR, only then merge):
+> - **#67** `actions/checkout` 7.0.0 → 7.0.1 (patch — safe)
+> - **#66** `ruby/setup-ruby` 1.319.0 → 1.321.0 (minor — safe; a #47 sibling merged cleanly before)
+> - **#46** `actions/setup-node` 6.4.0 → **7.0.0** (major — verify Node/runner still builds)
+> - **#31** `actions/attest-build-provenance` 2.4.0 → **4.1.1** (major — SLSA attestation in
+>   `release.yml`; verify a tagged release still attests + publishes before trusting it)
 >
 > ## 🐞 Collection-wide CSS bug found in preview (v0.25.2) — the game-over headline
 >

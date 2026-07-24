@@ -137,6 +137,7 @@ refreshCoinUI();
 
 let W = 0, H = 0, DPR = 1, game = null;
 let particles = [], shake = 0;
+let onslaughtActive = false;   // depth layer: gold glow while the onslaught holds (colour-only)
 
 // Input / throw state (all view-side; the core stays timerless).
 const CHARGE_RATE = 0.016;   // power gained per tick while holding (~1.0s to full)
@@ -166,12 +167,16 @@ function updateStageChip() {
   if (stageFill) stageFill.style.width = Math.round(pr.frac * 100) + '%';
   stageChip.style.color = pr.tint;
 }
-/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. */
+/** Enter a new stage: ease the field tint, pop the chip, kick a soft beat. A SECRET stage
+ *  (Pinhole, past Dead-eye) reveals itself with a named toast — the face-down card turned
+ *  over only for the shooter who threads that deep. */
 function enterStage(i) {
   stageIdx = i;
-  tintTarget = hexToRgb(game.cfg.STAGES[i].tint);
+  const st = game.cfg.STAGES[i];
+  tintTarget = hexToRgb(st.tint);
   if (stageChip) { stageChip.classList.remove('pop'); void stageChip.offsetWidth; stageChip.classList.add('pop'); }
   if (i > 0 && !reduceMotion) { stagePulse = 1; shake = Math.max(shake, 6); }
+  if (st.secret) showToast(st.name + ' — secret stage');
   updateStageChip();
 }
 /** Repaint the three life pips from the core's live count. */
@@ -183,7 +188,7 @@ function updateLives() {
 function beginRun() {
   rainbowActive = funArmed; funArmed = false; refreshCoinUI();   // consume the fun mode for this one run
   Arc.start(game);
-  stageIdx = 0; stagePulse = 0;
+  stageIdx = 0; stagePulse = 0; onslaughtActive = false;
   charging = false; power = 0; flying = false; flight = null;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint); tintTarget = { ...tintCur };
   if (stageChip) stageChip.classList.remove('hide');
@@ -249,10 +254,14 @@ function onFlightEnd() {
   flying = false;
   const res = flight.res;
   const lx = fx(res.landingX);
+  onslaughtActive = game.onslaught > 0;     // gold glow render flag (colour-only)
   if (res.hit) {
-    burst(lx, groundY, res.bullseye ? 155 : 190, res.bullseye ? 30 : 20);
+    // a PIN (dead-centre thread, the hidden tech) blooms gold; a plain bullseye keeps its hue
+    burst(lx, groundY, res.pin ? 48 : (res.bullseye ? 155 : 190), res.pin ? 40 : (res.bullseye ? 30 : 20));
     shake = Math.min(shake + (res.bullseye ? 8 : 4), 14);
-    if (res.bullseye) showToast('Bullseye ×' + res.mult);
+    if (res.onslaughtStarted) showToast('Onslaught ×2!');
+    else if (res.pin) showToast('Pin! +' + game.cfg.PIN_BONUS);
+    else if (res.bullseye) showToast('Bullseye ×' + res.mult);
   } else {
     burst(lx, groundY, 12, 16);             // dull amber dust on a miss
     shake = Math.min(shake + 6, 14);
@@ -270,6 +279,7 @@ function onFlightEnd() {
 
 function onDeath() {
   rainbowActive = false;   // colours off on the game-over screen
+  onslaughtActive = false;
   if (stageChip) stageChip.classList.add('hide');
   if (formCueEl) formCueEl.classList.remove('show');
   finalEl.textContent = game.score;
@@ -278,6 +288,7 @@ function onDeath() {
   const summary = {
     score: game.score, stageIndex, lands: game.landed,
     bestCombo: game.bestCombo, bullseyes: game.bullseyes,
+    pins: game.pins, onslaughts: game.onslaughts,
   };
   const prev = meta;
   meta = Arc.applyRun(prev, summary, game.cfg);
@@ -378,9 +389,12 @@ function drawPad(cx, hw, glow) {
   ctx.fillRect(x0, groundY - 5, x1 - x0, 5);
   ctx.fillStyle = rgbStr(tintCur, 0.5);
   ctx.fillRect(x0, groundY - 5, x1 - x0, 2);
-  // bright centre band (the bullseye zone)
+  // bright centre band (the bullseye zone) — burns gold while an onslaught holds (colour
+  // only; the pad, the pin band and the score are unchanged)
   ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = rgbStr(tintCur, glow ? 0.95 : 0.75);
+  ctx.fillStyle = onslaughtActive
+    ? 'rgba(255,216,106,' + (glow ? 0.98 : 0.8) + ')'
+    : rgbStr(tintCur, glow ? 0.95 : 0.75);
   ctx.fillRect(bx0, groundY - 7, bx1 - bx0, 7);
   // a soft marker post at centre
   ctx.fillStyle = rgbStr(tintCur, 0.5);
@@ -446,7 +460,8 @@ function draw() {
     }
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(px, py, 6, 0, 7); ctx.fill();
-    ctx.fillStyle = rgbStr(tintCur, 0.6);
+    // halo — gold while an onslaught holds (colour-only), else the stage tint
+    ctx.fillStyle = (onslaughtActive && !rainbowActive) ? 'rgba(255,216,106,0.6)' : rgbStr(tintCur, 0.6);
     ctx.beginPath(); ctx.arc(px, py, 11, 0, 7); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
   }

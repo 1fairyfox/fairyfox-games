@@ -55,6 +55,33 @@ export const CONFIG = Object.freeze({
   MAX_MULT: 6,          // combo multiplier cap
   HIT_PTS: 1,           // base points for landing on the pad
   BULLSEYE_PTS: 2,      // base points for a centre (bullseye) land — precision reward
+  // ── Depth inside the mechanic (the layer under the five minutes) ────────────────
+  // (see notes/reference/depth-inside-the-mechanic.md)
+  // NO PLATEAU: the per-stage pad shrink below flat-lines at Dead-eye (land 42) — past
+  // that nothing ever gets finer, so the whole ceiling is visible in ~2 min. The pad
+  // half-width now also rides a smooth land-count asymptote ON TOP of the stage steps:
+  // always creeping toward (never reaching) 1-HW_SHRINK_SPAN of the stage width,
+  // half-travelled at HW_SHRINK_K, the product hard-floored at HW_HARD_MIN so no config
+  // override can spike past it. See {@link padHalfWidth}.
+  HW_SHRINK_SPAN: 0.28, // asymptotic extra pad shrink the land count approaches
+  HW_SHRINK_K: 70,      // lands at which the extra shrink is half-travelled (the knee)
+  HW_HARD_MIN: 20,      // absolute pad half-width floor in px (guards rogue overrides)
+  // The TECH: the pad's bright centre band (the bullseye zone) hides a razor line through
+  // its very heart. A land whose distance from centre sits within the PIN band is a PIN —
+  // extra points on top of the bullseye, and a streak. The band is a fraction of the pad
+  // (floored at PIN_ABS so the smallest pad stays pinnable) and always far tighter than
+  // the bullseye, so it is discovered, never taught, and safe to not know. A bullseye that
+  // isn't dead-centre scores exactly as before and silently breaks the streak.
+  PIN_FRAC: 0.16,       // fraction of the pad half-width a land must sit within of centre
+  PIN_ABS: 3,           // absolute floor for the pin band in px (smallest pad still pinnable)
+  PIN_BONUS: 2,         // extra points a pin scores on top of the bullseye/hit score
+  // The REVERSAL the tech unlocks: PIN_TRIGGER pins in a row light the ONSLAUGHT — the
+  // battery finds the exact range and the next ONSLAUGHT_LANDS scoring lands pay double.
+  // The precise thread quietly becomes the greedy line. The triggering land is not itself
+  // doubled; a miss does not consume the window (the lost life already punishes it).
+  PIN_TRIGGER: 3,       // consecutive pins needed to light the onslaught
+  ONSLAUGHT_LANDS: 3,   // scoring lands the onslaught holds for once lit
+  ONSLAUGHT_MULT: 2,    // score multiplier applied to every point while it holds
   // Stages — the readable arc of a run (Growth Architecture Layer 1), keyed on lands.
   // Each stage carries its own pad half-width `hw` and distance window [dmin,dmax], so
   // difficulty escalates cleanly: the pad shrinks and the spread widens as you climb.
@@ -64,6 +91,10 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 14, name: 'Barrage',  tint: '#8ab4ff', hw: 50, dmin: 130, dmax: 900 }),
     Object.freeze({ at: 26, name: 'Siege',    tint: '#c48cff', hw: 40, dmin: 120, dmax: 940 }),
     Object.freeze({ at: 42, name: 'Dead-eye', tint: '#ff8fb0', hw: 32, dmin: 120, dmax: 960 }),
+    // A SECRET stage past Dead-eye — unlisted on the start screen, revealed only by
+    // reaching it (a card kept face-down for the shooter who threads deep). Its narrower
+    // pad continues the shrink, and `secret` flags it for the shell's reveal toast.
+    Object.freeze({ at: 66, name: 'Pinhole',  tint: '#ffd86a', hw: 26, dmin: 120, dmax: 980, secret: true }),
   ]),
   // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
   // Instead of every fresh pad landing at a flat random distance in the stage window, a run
@@ -119,6 +150,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.lands >= 500 }),
   Object.freeze({ id: 'regular',      label: 'Regular',       desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth layer (skill-safe — they mark discoveries, never grant power)
+  Object.freeze({ id: 'pin',          label: 'Pinpoint',      desc: 'Thread a shot through a pad’s heart.',
+    test: (s) => (s.pins | 0) >= 1 }),
+  Object.freeze({ id: 'onslaught',    label: 'Onslaught',     desc: 'Light the onslaught — three pins in a row.',
+    test: (s) => (s.onslaughts | 0) >= 1 }),
+  Object.freeze({ id: 'reach-pinhole',label: 'Pinhole',       desc: 'Reach the secret Pinhole stage.',
+    test: (s) => s.stageIndex >= 5 }),
 ]);
 
 /**
@@ -135,6 +173,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} combo               consecutive lands (resets on a miss)
  * @property {number} bestCombo           longest land streak this run
  * @property {number} bullseyes           centre lands this run
+ * @property {number} pins                dead-centre (pin) lands this run (the hidden tech)
+ * @property {number} pinStreak           consecutive pins toward an onslaught
+ * @property {number} onslaught           onslaught scoring-lands remaining (0 = unlit; points double)
+ * @property {number} onslaughts          onslaughts lit this run
  * @property {number} t                   ticks elapsed this run
  * @property {{cx:number, hw:number}} target  active pad: centre x + half-width
  * @property {Array<{f:number,head?:boolean}>} formSpecs  remaining pad specs of the current formation
@@ -213,6 +255,37 @@ export function stageAt(cfg, landed) {
 }
 
 /**
+ * The effective pad half-width — the current stage's `hw` times a smooth land-count
+ * asymptote so it NEVER plateaus (the depth layer's no-plateau rule): the per-stage
+ * shrink flat-lines at Dead-eye (land 42), after which the pad stopped getting finer
+ * forever. The asymptote keeps it tightening — approaching, never reaching,
+ * `1 - HW_SHRINK_SPAN` of the stage width, half-travelled at HW_SHRINK_K — and the
+ * product is hard-floored at HW_HARD_MIN so no config override can spike past it. Pure.
+ * @param {ArcConfig} cfg
+ * @param {number} landed shots landed so far this run
+ * @returns {number} pad half-width in ground units
+ */
+export function padHalfWidth(cfg, landed) {
+  const hw = stageAt(cfg, landed).hw;
+  const s = Math.max(0, landed | 0);
+  const asym = 1 - cfg.HW_SHRINK_SPAN * (s / (s + cfg.HW_SHRINK_K)); // always creeping, never arriving
+  return Math.max(cfg.HW_HARD_MIN, hw * asym);
+}
+
+/**
+ * The pin band for a pad of half-width `hw` — a razor sub-window at dead centre, a
+ * fraction PIN_FRAC of the pad but never below PIN_ABS (so the smallest pad stays
+ * pinnable) and always far tighter than the bullseye. A land within this distance of
+ * centre is a PIN (the hidden tech). Pure.
+ * @param {ArcConfig} cfg
+ * @param {number} hw pad half-width
+ * @returns {number} the pin band half-width (ground units)
+ */
+export function pinBandFor(cfg, hw) {
+  return Math.max(cfg.PIN_ABS, hw * cfg.PIN_FRAC);
+}
+
+/**
  * The combo multiplier for a given consecutive-land count: min(combo, MAX_MULT), and
  * never below 1. Pure.
  * @param {ArcConfig} cfg
@@ -241,6 +314,7 @@ export function createGame(width, height, opts = {}) {
     phase: 'menu',
     score: 0, landed: 0, lives: cfg.LIVES,
     combo: 0, bestCombo: 0, bullseyes: 0, t: 0,
+    pins: 0, pinStreak: 0, onslaught: 0, onslaughts: 0,   // depth layer: tech streak + reversal
     target: { cx: 0, hw: 0 },
     formSpecs: [], formId: null, formName: null, formNotable: false,  // current formation
   };
@@ -261,6 +335,10 @@ export function reset(g) {
   g.combo = 0;
   g.bestCombo = 0;
   g.bullseyes = 0;
+  g.pins = 0;             // depth layer: dead-centre (pin) lands this run
+  g.pinStreak = 0;        // consecutive pins toward an onslaught
+  g.onslaught = 0;        // onslaught scoring-lands remaining (0 = unlit)
+  g.onslaughts = 0;       // onslaughts lit this run
   g.t = 0;
   g.formSpecs = [];       // no formation loaded yet; the opening spawnTarget pulls the first
   g.formId = null;
@@ -431,10 +509,11 @@ export function spawnTarget(g) {
   const spec = g.formSpecs.shift();
   const { cfg } = g;
   const st = stageAt(cfg, g.landed);
-  const lo = Math.max(st.dmin, st.hw);
-  const hi = Math.min(st.dmax, cfg.FIELD - st.hw);
+  const hw = padHalfWidth(cfg, g.landed);   // stage width × the no-plateau asymptote
+  const lo = Math.max(st.dmin, hw);
+  const hi = Math.min(st.dmax, cfg.FIELD - hw);
   const cx = lo + clamp(spec.f, 0, 1) * (hi - lo);
-  g.target = { cx, hw: st.hw };
+  g.target = { cx, hw };
   return (spec.head && g.formNotable) ? g.formName : null;
 }
 
@@ -443,10 +522,13 @@ export function spawnTarget(g) {
  * @typedef {Object} LobResult
  * @property {boolean} hit        landed on the pad
  * @property {boolean} bullseye   landed in the centre third
+ * @property {boolean} pin        landed dead-centre within the pin band (the hidden tech)
  * @property {number} landingX    where the shot landed (ground units)
  * @property {number} dx          distance from pad centre at landing
- * @property {number} gained      points added (0 on a miss)
+ * @property {number} gained      points added (0 on a miss), onslaught-doubled while lit
  * @property {number} mult        combo multiplier applied (0 on a miss)
+ * @property {boolean} onslaught  this land's points were doubled by a lit onslaught
+ * @property {boolean} onslaughtStarted this land just lit the onslaught (for the announcement)
  * @property {boolean} lostLife   a life was spent (a miss)
  * @property {boolean} dead       the run ended on this throw
  * @property {?string} formation  name of a notable formation whose head pad was just placed
@@ -467,7 +549,7 @@ export function spawnTarget(g) {
  */
 export function lob(g, power) {
   if (g.phase !== 'play') {
-    return { hit: false, bullseye: false, landingX: 0, dx: 0, gained: 0, mult: 0, lostLife: false, dead: false, formation: null };
+    return { hit: false, bullseye: false, pin: false, landingX: 0, dx: 0, gained: 0, mult: 0, onslaught: false, onslaughtStarted: false, lostLife: false, dead: false, formation: null };
   }
   g.t++;
   const { cfg } = g;
@@ -476,25 +558,43 @@ export function lob(g, power) {
   const hw = g.target.hw;
   if (dx <= hw) {
     const bullseye = dx <= hw * cfg.BULLSEYE_FRAC;
+    const pin = dx <= pinBandFor(cfg, hw);        // the hidden tech: a dead-centre thread
     g.combo += 1;
     if (g.combo > g.bestCombo) g.bestCombo = g.combo;
     g.landed += 1;
     if (bullseye) g.bullseyes += 1;
+    if (pin) g.pins += 1;
     const mult = multiplierFor(cfg, g.combo);
     const base = bullseye ? cfg.BULLSEYE_PTS : cfg.HIT_PTS;
-    const gained = base * mult;
+    let gained = base * mult + (pin ? cfg.PIN_BONUS : 0);   // flat pin bonus on top
+    const onslaught = g.onslaught > 0;                      // reversal: every point doubles
+    if (onslaught) { gained *= cfg.ONSLAUGHT_MULT; g.onslaught -= 1; }
     g.score += gained;
+    // the pin streak: a pin builds it, an off-centre land breaks it; PIN_TRIGGER in a row
+    // light the onslaught (the triggering land is itself never doubled — the reward is the
+    // NEXT lands, the Ricochet blaze shape).
+    let onslaughtStarted = false;
+    if (pin) {
+      g.pinStreak += 1;
+      if (g.pinStreak >= cfg.PIN_TRIGGER) {
+        g.onslaught = cfg.ONSLAUGHT_LANDS;
+        g.onslaughts += 1;
+        g.pinStreak = 0;
+        onslaughtStarted = true;
+      }
+    } else g.pinStreak = 0;
     const formation = spawnTarget(g);
-    return { hit: true, bullseye, landingX: lx, dx, gained, mult, lostLife: false, dead: false, formation };
+    return { hit: true, bullseye, pin, landingX: lx, dx, gained, mult, onslaught, onslaughtStarted, lostLife: false, dead: false, formation };
   }
   // Miss.
   g.combo = 0;
+  g.pinStreak = 0;              // a miss breaks the pin streak (the lit onslaught is NOT consumed)
   g.lives -= 1;
   const dead = g.lives <= 0;
   let formation = null;
   if (dead) { g.phase = 'dead'; }
   else { formation = spawnTarget(g); }
-  return { hit: false, bullseye: false, landingX: lx, dx, gained: 0, mult: 0, lostLife: true, dead, formation };
+  return { hit: false, bullseye: false, pin: false, landingX: lx, dx, gained: 0, mult: 0, onslaught: false, onslaughtStarted: false, lostLife: true, dead, formation };
 }
 
 /**
@@ -542,7 +642,7 @@ export function stageProgress(cfg, landed) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, stageIndex:number, lands:number, bestCombo:number, bullseyes:number}} RunSummary
+ * @typedef {{score:number, stageIndex:number, lands:number, bestCombo:number, bullseyes:number, pins:number, onslaughts:number}} RunSummary
  */
 
 /**
@@ -553,7 +653,7 @@ export function stageProgress(cfg, landed) {
  * @property {number} best        best single-run score (mirrors `arc.best`)
  * @property {number} bestStage
  * @property {number} bestCombo   longest land streak, ever
- * @property {{lands:number, points:number, bullseyes:number}} totals
+ * @property {{lands:number, points:number, bullseyes:number, pins:number}} totals
  * @property {Object<string,boolean>} achieved
  */
 
@@ -572,7 +672,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestCombo: src.bestCombo | 0,
-    totals: { lands: t.lands | 0, points: t.points | 0, bullseyes: t.bullseyes | 0 },
+    totals: { lands: t.lands | 0, points: t.points | 0, bullseyes: t.bullseyes | 0, pins: t.pins | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -590,6 +690,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.lands += summary.lands | 0;
   next.totals.points += summary.score | 0;
   next.totals.bullseyes += summary.bullseyes | 0;
+  next.totals.pins += summary.pins | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestCombo = Math.max(next.bestCombo, summary.bestCombo | 0);

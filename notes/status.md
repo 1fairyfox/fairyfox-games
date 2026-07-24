@@ -2,7 +2,22 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.25.3` (single source of truth: repo-root `VERSION`). **v0.25.3** is a **GROW**
+**Version:** `0.25.4` (single source of truth: repo-root `VERSION`). **v0.25.4** is a **GROW**
+run: **Arc** gets the **"depth inside the mechanic"** layer — the **11th game** to carry it, and
+the older of the two that were still missing it. All four items on the one **charge-and-release**
+verb: the hidden **Pin** (a razor `pinBandFor` = max(`PIN_ABS` 3px, `PIN_FRAC` 0.16 of the pad)
+sub-window inside the drawn `BULLSEYE_FRAC` 0.34 band — thread a shot through the pad's dead centre
+and it pays +2 over the bullseye, blooms gold and builds a streak, taught nowhere; an off-centre
+bullseye scores as before and silently breaks the chain), **Onslaught** (`PIN_TRIGGER` 3 pins in a
+row → the next `ONSLAUGHT_LANDS` 3 scoring lands pay **double**; the trigger never doubled, a miss
+doesn't consume the lit window; pad band + projectile halo gold colour-only), a **no-plateau pad
+asymptote** (`padHalfWidth` = stage hw × a smooth land-count asymptote, `HW_SHRINK_SPAN` 0.28 /
+`HW_SHRINK_K` 70, hard-floored `HW_HARD_MIN` 20px — the old per-stage hw went flat forever at
+Dead-eye / land 42; ×1 at land 0 so the opening feel is unchanged), and a **secret Pinhole stage**
+at land 66 (past Dead-eye, printed on no start screen; the tip's stage ladder + formation-name list
+removed). 3 new badges (9 → 12), `totals.pins` (lossless legacy upgrade), +9 pure-core tests
+(30 → **39**); collection **737** green. **Depth rollout: 11 of 13** (left: Sluice). Earlier:
+**v0.25.3** is a **GROW**
 run: **Symmetry** gets the **"depth inside the mechanic"** layer — the **10th game** to carry it,
 and the oldest one that was still missing it. All four items on the one **spread** verb: the
 hidden **Facet** (a razor `FACET_BAND` 0.022 dead-on sub-window inside the forgiving `CATCH`
@@ -551,10 +566,21 @@ sole host), plus each game at `…/games/<game>/`.
   **bullseye** pays double and consecutive lands grow a ×1…×6 multiplier, while a miss breaks the
   streak *and* costs one of three lives; a **stage arc** (Ranging → Volley → Barrage → Siege →
   Dead-eye, each shrinking the pad + widening the spread) with HUD chip + field tint, and
-  **meta-progression** (`arc.meta`: lifetime lands/points/bullseyes + best combo + 9 badges,
+  **meta-progression** (`arc.meta`: lifetime lands/points/bullseyes + best combo + 12 badges,
   run-report + near-miss) — legacy `arc.best` preserved. Pure core (the 45° range formula
-  `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 31 tests. **(7th game on
-  varied structure.)**
+  `landingX = v²/G` decides the outcome; the shell arc is cosmetic) + 39 tests. **(7th game on
+  varied structure.)** **Depth inside the one verb (v0.25.4, the 11th game on the layer):** the pad
+  **no longer plateaus** (`padHalfWidth` = the stage hw times a smooth land-count asymptote,
+  `HW_SHRINK_SPAN` 0.28 / `HW_SHRINK_K` 70, hard-floored `HW_HARD_MIN` 20px — the old per-stage hw
+  went flat forever at Dead-eye / land 42; ×1 at land 0 so the opening feel is unchanged); a hidden
+  **Pin** (the drawn `BULLSEYE_FRAC` 0.34 centre band hides a razor `pinBandFor` = max(`PIN_ABS` 3px,
+  `PIN_FRAC` 0.16 of the pad) — thread a shot through the pad's dead centre and it pays +2 over the
+  bullseye, bursts gold and builds a streak, taught nowhere; an off-centre bullseye scores as before
+  and silently breaks it); the **Onslaught** it unlocks (`PIN_TRIGGER` 3 pins in a row → the next
+  `ONSLAUGHT_LANDS` 3 scoring lands pay **double**, the trigger never doubled, a miss doesn't consume
+  the lit window — pad band + projectile halo gold colour-only); and a **secret Pinhole stage** past
+  Dead-eye (land 66, revealed only by reaching it — the start tip no longer prints the stage ladder
+  or the formation names). 3 new badges (9 → 12), `totals.pins` (lossless legacy upgrade).
 - **Sluice** (`games/sluice/`) — a **colour-sorting** game (a genuinely new verb:
   *sort/route*): coloured sparks fall one at a time and you route each into the **channel**
   that matches its colour (press **1–4** or tap) before it lands. The twist that makes it a
