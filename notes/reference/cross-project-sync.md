@@ -67,7 +67,7 @@ Adopting a standard is a **copy committed locally**, not a live link — re-pull
 later and merge changes by hand.
 
 Alongside the standards, the project also reads the hub's
-**express-authorization ledger** ([`hub/authorizations.yml`](authorizations.yml))
+**express-authorization ledger** ([`hub/authorizations.yml`](../authorizations.yml))
 out of the same read-only clone. It records the go-aheads the system owner makes
 at the hub; a node adopting a change the ledger `covers` treats it as
 pre-authorized and skips its redundant confirmation pause — **but only that pause;

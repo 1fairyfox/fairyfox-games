@@ -45,6 +45,26 @@ tests, pse2's console/emulator oracle, Random AI Prompt's two-gate isomorphic ve
 7. **Tests are living, wired into the workflow.** The suite runs in CI on `dev`/`main` and locally
    before release (see [`git-workflow.md`](git-workflow.md) — feature branches aren't CI-tested, so
    the `dev` merge is the gate). Keep it green; a red or skipped suite is a stop-ship.
+8. **A measurable coverage floor, wired into the build.** "Real multi-layer tests" needs a number,
+   or a green gate quietly stands over half-covered code. Wire a **coverage gate into the build**
+   with a floor — **line ≥ 90% by default** (the tool is per-stack: Kover, c8/istanbul, gcov,
+   llvm-cov). The Verify check asks for the **gate's config line**, not a vibe. The floor is
+   overridable per project only with a **recorded reason** (generated code, thin UI shells). And the
+   flat rule behind the number: **a feature without a test at its own layer is not done** — coverage
+   is the flashlight, the per-layer test is the point. (A `✅ tests gate the build` once hid 44% line
+   coverage and three shipped, dead-feature bugs, each in a 0%-covered layer.)
+9. **Probe a "can't test this" before parking it.** When a mock framework or harness seems to block a
+   layer, spend a **bounded probe** — subclass the seam, read the framework's source, run the command —
+   before recording the layer as untestable. "The mock can't do it" fell to an 80-line harness more
+   than once; a plausible blocker is not a verified one (this is the [`checklists-are-contracts`](checklists-are-contracts.md)
+   deferral-requires-falsification rule, in the testing organ). Ship the harness bridge as a documented
+   pattern when you build one.
+10. **Gate the gates before a release.** The release runbook runs, in order: the **full local gate**
+    (lint + static analysis + suite + **coverage verify**), the **doc-link gate**
+    ([`repo-hygiene.md`](repo-hygiene.md)), then **CI + SAST green on the release PR** — merges never
+    happen on red or pending. A green *local* build is necessary but not sufficient; the platform
+    gate ([`git-workflow.md`](git-workflow.md#full-ci-before-main--platform-enforced-every-job)) is the
+    other half.
 
 ## Verify (is it being followed?)
 
@@ -58,3 +78,6 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — `don
 | The **full suite runs green before release**, each runtime covered | CI config + a recent green run; multi-runtime projects verify each |
 | A **truth oracle** is used where one exists (console/reference/golden) | look for the parity/probe tests |
 | **Visual changes are previewed** before shipping | the workflow/CLAUDE.md names it; evidence in session logs/PRs |
+| A **coverage gate with a floor** (line ≥ 90% default) is wired into the build; overrides carry a reason | the build config's coverage-verify line (Kover/c8/gcov); any lowered floor has a note |
+| A "can't test this" layer was **probed** (harness/source-read) before being parked | scan `⏳`/"untestable" layers for an attempt log or a shipped harness bridge |
+| The release **gated the gates** — full local gate + doc-link + CI/SAST green on the PR | the release runbook/CLAUDE.md order; a recent release PR's checks |

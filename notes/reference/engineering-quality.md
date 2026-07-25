@@ -37,6 +37,33 @@ shared and checkable.
 8. **UX is not negotiable where there's a user.** No clunky, janky, or interrupting behaviour; the
    polished result is the bar, not a nice-to-have.
 
+## The ship contract — what a "release" means by default
+
+A **ship** (a release) is, by default and every time, **not just the code diff.** The same
+act also:
+
+- **Drives OpenSSF Scorecard toward its max, and never below a ≥ 7.0 floor.** A release that
+  would drop the repo under 7.0, or that leaves easy points on the table, isn't finished —
+  close the gap or record why it's capped (solo-capped checks like Code-Review/Contributors
+  are a legitimate reason; an un-configured check is not).
+- **Removes tech debt as part of shipping.** No stale dependency PRs left hanging, no
+  deprecation warnings, no skipped/quarantined tests, no `TODO`/`FIXME`/SAST-baseline
+  additions riding along silently. If the release can't clear a debt, it names it (a
+  [manifest](notes-system.md#the-adoption-manifest)/notes `gap` with a due), never leaves it
+  unremarked.
+- **Triages every open PR** — each is merged or **closed with a reason** (a Dependabot bump
+  that contradicts a deliberate target is closed, with the reason; the rest go through the
+  full-CI-before-`main` gate). Handle Dependabot with judgment, never blind-merge — see
+  [`dependencies.md`](dependencies.md).
+
+This is the "by default" bar, not a heroic extra: the point is that shipping is a whole act,
+so that a green build never stands in for a finished release. It pairs with the release gates
+in [`git-workflow.md`](git-workflow.md) (full CI before `main` + the manifest gate) and the
+security floor in [`supply-chain-hardening.md`](supply-chain-hardening.md). Break any real
+request — owner, fairyfox-system, **or a task the agent sets itself** — into as many phases
+as it needs and name them up front ([`planning.md`](planning.md)); under-phasing is how ship
+work gets lost.
+
 ## Verify (is it being followed?)
 
 The per-standard slice the [compliance audit](compliance.md) aggregates — `done`/`partial`/`missing`:
@@ -49,3 +76,4 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — `don
 | Public surfaces carry **doc-comments**; docs are current | grep for doc-comments; open the docs |
 | Refactors came **with test updates**, not test rot | look at refactor commits for accompanying test changes |
 | The project's **source-of-truth fidelity** is respected (only-what-was-asked changed) | for data/format stewards, confirm no incidental rewrites |
+| **Ship contract:** the latest release held Scorecard ≥ 7.0, left no stale dep PRs / deprecation warnings / skipped tests, and every open PR is merged-or-closed-with-reason | OpenSSF Scorecard badge/score; `gh pr list`; CI warnings; the release notes |

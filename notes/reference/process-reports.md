@@ -180,14 +180,14 @@ A report that hides the rough parts defeats its only purpose.
 This is the **inbound** side — the hub reading the nodes — and it runs **on explicit
 request only**, never on a schedule that chains across repos.
 
-1. **Refresh the clones.** For each project in [`../registry.yml`](registry.yml),
+1. **Refresh the clones.** For each project in [`../registry.yml`](../registry.yml),
    fast-forward its `dev` in `assets/references/<project>/` (an ordinary single-branch
    clone — `fetch` + `merge --ff-only`; if a refresh ever fails, just delete and
    re-clone the disposable mirror). Reading reports reuses the round-up clones — no new
    sync.
 2. **Read new reports.** In each node's `notes/fairyfox-reports/`, read every report
    **not already in** that node's `reports_through` list in
-   [`.last-seen.yml`](.last-seen.yml). The marker is a **list of digested report
+   [`.last-seen.yml`](../.last-seen.yml). The marker is a **list of digested report
    filenames**, not a bare date or a commit SHA: two reports can share a date (a
    same-day follow-on like `…-adopting-updates-express-auth.md` even sorts
    *lexically before* `…-adopting-updates.md`), and a bare date or commit SHA is a
@@ -197,6 +197,15 @@ request only**, never on a schedule that chains across repos.
 3. **Synthesize.** Look across reports for **patterns**: the same friction reported by
    more than one node, or repeatedly by one, is a strong signal the standard (not the
    run) is at fault. A one-off may still be worth a fix, but patterns come first.
+3a. **Spot-check the claims against the tree.** A report saying "adopted the chrome" or
+   "standards adopted" is a *narrative*; the review pass does not take it on faith. Diff
+   each report's adoption/completion claims against the node's own
+   [adoption manifest](notes-system.md#the-adoption-manifest) and working tree in the
+   read-only clone: a claim with **no backing manifest row** (or a `copied-only` row
+   behind an "adopted" claim) is a **review finding**, fed back like any other friction —
+   the mesh's audits must check artifacts, not just prose. (This is the F3.3 fix from the
+   despawned-items failure analysis: reports had been sailing through review unchallenged
+   because nothing diffed the claim against reality.)
 4. **Report findings, then stop.** Summarize what the reports surfaced and the
    specific standard/template/runbook changes they suggest — and **wait.** Reading
    reports changes nothing on disk.
@@ -239,3 +248,6 @@ qualify (see the gate in [`adopting-updates.md`](adopting-updates.md)).
 - On the hub side, a review pass appended to `reports_through` (the digested-report
   **filename list**, not a date) only the reports it actually digested, and any
   standard changes it made are hub-side commits.
+- The review pass **spot-checked each report's adoption/completion claims against the
+  node's manifest + tree** (step 3a) and recorded any unbacked claim as a finding — a
+  report is not digested by reading it alone.

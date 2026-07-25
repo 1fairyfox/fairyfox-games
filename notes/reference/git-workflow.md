@@ -193,6 +193,31 @@ block on CI, but the **`main` release gate does** — you wait for the PR's chec
 merging to `main`. A project that wants a stricter always-ask posture may state it in its
 own `CLAUDE.md`, but the mesh default is green-and-CI-gated auto-proceed.
 
+### The pre-release manifest gate
+
+Before cutting any release, **read [`notes/reference/adoption-manifest.md`](../templates/notes-skeleton/reference/adoption-manifest.md).**
+An overdue `gap` row on a **mandatory** standard (supply-chain-hardening, git-workflow,
+testing, ship-contract) **holds the release the same way a red build does** — you do not
+ship past a known, dated compliance gap on a load-bearing standard. This is the release
+half of the enforcement pulse: adopt/onboard runs *record* Verify results in the manifest
+([adopting-updates](adopting-updates.md) step 3a), and the release *reads* them, so
+"whole standards silently unadopted while releases keep shipping" (v1.3.1/1.3.2 released
+with mandatory supply-chain items open) can't recur. A green build is **necessary but not
+sufficient**; the manifest is the other half of "ready to ship". Full rule:
+[`checklists-are-contracts`](checklists-are-contracts.md).
+
+### Full CI before `main` — platform-enforced, every job
+
+A green *local* build is necessary but not sufficient: no merge to `main` until **every**
+CI job on the release PR is green — build, SAST (CodeQL), **and every integration/smoke
+job** (real-server boot, forward-compat, in-game, e2e — whatever the project has). Make it
+**platform-enforced**, not just documented: `main` branch protection's **required status
+checks must list the full suite by job name**, so GitHub itself blocks a merge past a
+pending or failing job. The rule is *"require the full suite, whatever its jobs are"* —
+each repo populates its own contexts (a non-Minecraft node won't have "Server smoke"); the
+[setup runbook](new-project-setup.md) and [supply-chain-hardening](supply-chain-hardening.md)
+carry the mechanics.
+
 ## Hotfixes
 
 A production problem that can't wait for the next `dev` cycle is fixed on a branch

@@ -167,7 +167,12 @@ if the mirror is re-cloned, with no extra marker file to keep. (`dev` isn't
 force-pushed, so a last-adopted SHA would survive too — the version is simply the
 sturdier, self-documenting anchor, and it reads straight off the changelog.)
 
-So the primary signal is the **hub's append-only changelog**, read across that span:
+For a **standards/templates** diff specifically, the fastest read is the dedicated
+[`hub/standards/CHANGELOG.md`](../standards/CHANGELOG.md): it lists, per hub `VERSION`,
+which standards are *new* vs *materially changed* vs untouched — so you can tell new from
+changed without a full object diff the discarded mirror can't cheaply give you. Read every
+entry newer than your last-adopted `hub_version`. The broader signal is still the **hub's
+append-only changelog**, read across that span:
 
 ```sh
 # what landed in the hub between your last-adopted version and now:
@@ -210,6 +215,33 @@ edits — the project's copy may legitimately diverge.
 
 Rule of thumb: **copy the change, not the file.** A blind file overwrite usually
 clobbers project-specific work — diff, then hand-merge.
+
+> **"Already-practiced, now-filed" is a real category.** For a standards-bearing node,
+> adopting a standard distilled *from its own notes* is a filing/cross-reference act, not
+> a behaviour change — the node already lives the rule. Say so in the report rather than
+> implying a change that didn't happen; the adopt is making existing compliance *legible*
+> (a manifest row + a `notes/reference/` note), which still counts and still runs Verify.
+
+> **Phasing a mixed adoption.** When one span carries both headless-verifiable standards
+> and a browser-gated visual change (e.g. a chrome/coins bump), adopt+ship the verifiable
+> part now and defer the visual part to a preview session — in **one combined report**
+> that names the deferred piece as a tracked `gap`. Don't split it into two runs, and
+> don't hold the whole batch because one slice needs a browser.
+
+> **A feature that ships *inside* the chrome bundle (coins) is a chrome-adoption task, not
+> a standard-text copy.** It inherits the "careful separate pass over the node's diverged
+> chrome `_includes/`/`assets/`" handling, not the blind-copy default — see
+> [`coins.md`](coins.md) and [`docs-site/12-shared-chrome.md`](docs-site/12-shared-chrome.md).
+
+### 3a. Run Verify and update the manifest (adoption isn't done until this passes)
+
+Adopting a standard is **not** "the file landed in `notes/reference/`" — that is
+`copied-only`. For every standard this pass touched, **run its `## Verify` table now** and
+record the result in [`notes/reference/adoption-manifest.md`](../templates/notes-skeleton/reference/adoption-manifest.md):
+flip the row to `implemented` only on a recorded pass, or leave it `copied-only`/`gap(due)`
+with the remainder named. No summary claim (`status.md` Health, a report's "adopted X")
+without a backing manifest row — a bare `Standards adopted ✅` is banned wording. Full rule:
+[`checklists-are-contracts`](checklists-are-contracts.md).
 
 ### 4. Record it in the project
 
@@ -284,6 +316,10 @@ improves the project, on purpose." The hub is the source of truth for the shared
   never a tracked branch — and no `reset --hard` was used.
 - The adopted change is present in the project's own tree (not just the
   reference clone).
+- Each touched standard's `## Verify` ran and its result is recorded in
+  `notes/reference/adoption-manifest.md`; no row reads `implemented` without a recorded
+  pass, and no `Standards adopted ✅` summary lacks a backing row
+  ([checklists-are-contracts](checklists-are-contracts.md)).
 - "What changed" was scoped from the hub **changelog** across the version span (last
   adopted `hub_version` → current hub `VERSION`).
 - Changelog + session log + (if bumped) `VERSION` ride in the same commit.

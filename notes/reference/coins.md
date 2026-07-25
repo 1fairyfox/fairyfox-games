@@ -12,6 +12,26 @@ same browser. Coins exist to make reading and exploring the mesh **quietly rewar
 > `reader.js`). This standard governs **what coins are, how they're earned, and — most
 > importantly — how a project may use them.**
 
+## The base counter is MANDATORY — not a project's call to drop
+
+Two different things wear the word "coins", and the distinction is where projects keep going
+wrong:
+
+- **The base coin counter/button is mandatory.** It ships as part of the
+  [shared chrome bundle](docs-site/12-shared-chrome.md) (`coins.js`, injecting the coin button
+  beside the reader "Aa" button) and it appears on **every chrome-wearing page, by default.**
+  A project does **not** get to decide coins are "not needed" and omit them — that is one of
+  the most common web-interface failures, and it is a **compliance violation**, the same as
+  dropping the reader menu or the footer. If you adopted the chrome bundle correctly (whole,
+  verbatim — see [`12`](docs-site/12-shared-chrome.md)), the coin button is simply there. If
+  it's missing, the chrome wasn't fully adopted.
+- **Project-*added* coin moments are optional.** Everything below — a project granting or
+  spending coins for its own moments — is where restraint and "subtle, never central" apply.
+  That optionality is about the *extra* moments, **never** about the base counter.
+
+So: "coins are a garnish" governs how much a project **adds**, and never licenses **removing**
+the mandatory base counter the chrome provides.
+
 ## The prime directive: subtle, never central
 
 Coins are a garnish, not the meal. **They must never be overused.** A project may add its own
@@ -107,6 +127,26 @@ Anti-patterns (do not do these): daily "log in for coins" grinds; coins required
 paywall-shaped "spend to unlock"; nagging the user to earn; inflating grants so coins feel
 worthless; any coin UI that competes with the project's own content for attention.
 
+## Coins off the shared chrome (game pages, custom layouts)
+
+`coins.js` is written for the shared docs chrome (the header coin button). On a page that
+loads it **without** that chrome — a canvas game, a bespoke reading layout — the behaviour
+differs, and a node must handle it:
+
+- **The API + first-view earn still run; the button UI does not build.** On a chrome-less
+  page `coins.js` self-guards on `.site-header .wrap` (no header → no button) but the
+  `window.FairyFoxCoins` API and the first-view-today earn still fire. So a **game draws its
+  own coin affordance** (and guards its start-on-interaction against the coin control — e.g.
+  a `closest('#coinrow')` check, or `stopPropagation`, depending on whether the game starts
+  on pointer *move* vs *down*).
+- **Read-time chip placement is layout-fragile.** The read-time chip anchors via
+  `main .content` → `.prose` → `article` → `main`. If the readable column is a **nested**
+  element under a full-width `<article>`, the chip lands at the page edge with no error —
+  add the preferred `.content`/`.prose` hook to the centered column so it anchors correctly.
+- **Keep a drop-cap clear of the injected `.ff-readtime`.** Injecting a leading `.ff-readtime`
+  node makes it the `:first-child`/`:first-of-type`, killing any drop-cap `::first-letter`
+  flourish — target the first *real* paragraph (exclude `.ff-readtime`).
+
 ## Verify (is it being followed?)
 
 The per-standard slice the [compliance audit](compliance.md) aggregates — report
@@ -114,6 +154,7 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — repo
 
 | Passes only when… | How to check |
 |-------------------|--------------|
+| **The coin button is present on every chrome-wearing page (MANDATORY)** — never omitted as "not needed" | load any page; the coin button sits beside the "Aa" button. Missing → `missing`, not a judgment call |
 | The coin counter comes from the **shared chrome** (`coins.js` pulled from master), not a re-implementation | diff against master `assets/js/coins.js`; confirm it's loaded after `reader.js` |
 | **Persistence — enforced.** Neither the hub nor any sub-project loses a user's coins or reader prefs through carelessness: the store is read-and-merged (not replaced) on load, a key-version change migrates the old data forward (doesn't orphan a key), and nothing clears the wallet except the user (their `spend`, the **Clear my data** button, or a browser reset) | read every place the project touches `fairyfox:coins:a` / `fairyfox:reader:b`; confirm no reset/overwrite-on-load and any migration carries data |
 | The project **gates nothing** on coins — the full experience works at zero balance | use/read the project with an empty wallet |
