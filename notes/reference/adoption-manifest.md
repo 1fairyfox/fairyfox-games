@@ -41,7 +41,7 @@ written without a backing row here. Governed by hub `checklists-are-contracts` +
 | testing | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | `node --test` full green; pure-core/shell split; CI runs suite |
 | engineering-quality | copied-only | 1.6.1 / 2d614f0 | — | ship-contract (Scorecard ≥7 floor, tech-debt) — partial; re-vendored |
 | ship-contract | copied-only | 1.6.1 / 2d614f0 | — | lives inside engineering-quality; not separately verified this pass |
-| supply-chain-hardening | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | `main` branch-protected; SHA-pinned actions; `SECURITY.md`; `release.yml` provenance-on-tag |
+| supply-chain-hardening | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | `main` branch-protected; SHA-pinned actions; `SECURITY.md`; `release.yml` provenance-on-tag; **`scorecard.yml`** (OpenSSF Scorecard, `publish_results`, `SCORECARD_TOKEN` PAT) added |
 | dependencies | copied-only | 1.6.1 / 2d614f0 | — | Dependabot → `dev` wired; four-guardrail re-check deferred |
 | repo-hygiene | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | `scripts/check-links.mjs` + `check-tidy.mjs` in CI + `npm test`; `check-standards.mjs` added |
 | docs-lifecycle | copied-only | 1.6.1 / 2d614f0 | — | current-vs-history discipline practiced; standard re-vendored |
@@ -55,7 +55,7 @@ written without a backing row here. Governed by hub `checklists-are-contracts` +
 | readme-structure | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | README docs-link (top), "Get it" section, mesh footer; vendored as `readme-structure.md` (Windows case-collision with `README.md`) |
 | agent-tooling | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | PowerShell + file tools; bash sandbox avoided; `.gitattributes` LF |
 | maintenance-sweep | copied-only | 1.6.1 / 2d614f0 | — | re-vendored |
-| ci-secrets | copied-only (+ tool) / gap(owner runs it) | 1.6.1 / 2d614f0 | 2026-07-25 partial | standard vendored + the provisioning tool `scripts/repo-tokens.ps1` (from `hub/tools/`) is now in-repo; the two referenced secrets (`SONAR_TOKEN`, `CODECOV_TOKEN`) still need the owner to run the tool (concealed prompt — tokens never transit the chat). `SCORECARD_TOKEN` N-A here (no scorecard workflow references it) |
+| ci-secrets | copied-only (+ tool) / gap(owner runs it) | 1.6.1 / 2d614f0 | 2026-07-25 partial | standard vendored + provisioning tool `scripts/repo-tokens.ps1` (from `hub/tools/`) in-repo. **All three** referenced secrets — `SONAR_TOKEN`, `CODECOV_TOKEN`, `SCORECARD_TOKEN` (now referenced by `.github/workflows/scorecard.yml`) — need the owner to run the tool (concealed prompt, tokens never transit the chat). Token-backed only: no tokenless/public-API path used |
 | docker | N-A(static Jekyll + zero-dep cross-platform Node tests) | 1.6.1 / 2d614f0 | 2026-07-25 | no Linux-only build/test/setup; `node --test` + Jekyll run on the Windows host; per docker.md "When it doesn't apply" |
 | farm-operating-model | copied-only | 1.6.1 / 2d614f0 | — | grow-daily / plant-periodically model lived; re-vendored |
 | new-project-setup | N-A(runbook) | 1.6.1 / 2d614f0 | — | join-time runbook, not a standing rule |
