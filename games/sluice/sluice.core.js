@@ -23,6 +23,17 @@
  * pulled from a stage-weighted pool, so no two runs share a skeleton and climbing the
  * stages introduces the meaner patterns (progression drives the variety).
  *
+ * Depth inside the one verb (see notes/reference/depth-inside-the-mechanic.md): the commit
+ * itself carries a hidden ceiling. A normal *snap* (route within SNAP_FRAC of the fall)
+ * grows the multiplier; but routing inside the razor **FLASH_FRAC** sub-window — reading a
+ * freshly-scrambled row and committing almost the instant the spark appears — is a **flash**:
+ * it pays a flat FLASH_BONUS on top, blooms gold, and builds a streak, taught nowhere. Three
+ * flashes in a row raise a **Spate** (~SPATE_TICKS where every point doubles; the trigger
+ * itself is never doubled). The fall time is a smooth **asymptote** toward FALL_HARD_MIN that
+ * never quite arrives, so late sparks keep getting faster forever (no plateau). And a **secret
+ * Charybdis stage** sits past Maelstrom, revealed only by reaching it (printed on no start
+ * screen). All four ride the single route verb — discovered, not manualled.
+ *
  * Design note / the bug this structure guards against:
  * the first spark is seeded with a full fall timer (>= FALL_MIN ticks) ahead of the
  * landing line, so the very first tick can never instantly time it out (the "frame-one
@@ -40,11 +51,21 @@
 export const CONFIG = Object.freeze({
   LIVES: 3,          // misses allowed before the run ends
   FALL_BASE: 108,    // ticks a spark takes to fall at 0 cleared (~1.8s @60fps)
-  FALL_DEC: 0.5,     // ticks shaved off the fall per spark cleared (the speed ramp)
-  FALL_MIN: 40,      // hard floor on fall time so late sparks stay routable (~0.67s)
-  FAST_MUL: 0.6,     // a "fast" spark (Rush / Churn) falls in this fraction of the time
+  FALL_HARD_MIN: 30, // asymptote floor: fall time approaches but NEVER reaches this, so late
+                     // sparks keep getting faster forever (no plateau) — ~0.5s in the limit
+  FALL_TAU: 130,     // asymptote time-constant, in sparks cleared (sets how fast it tightens)
+  FAST_MUL: 0.6,     // a "fast" spark (Rush / Churn) falls in this fraction of the base time
+  FAST_MIN: 22,      // hard floor on a fast spark's fall — keeps the hardest sparks routable
   SNAP_FRAC: 0.45,   // routing within the first SNAP_FRAC of the fall is a "snap" — the
                      // last-moment-style commit that grows the multiplier
+  // The hidden depth on the one verb: a razor sub-window *inside* the snap. Routing this early
+  // — reading a scrambled row and committing almost the instant the spark appears — is a
+  // "flash": it pays FLASH_BONUS on top of the snap, and a streak of FLASH_STREAK flashes
+  // raises a "Spate" (SPATE_TICKS of double points). Taught nowhere; discovered in play.
+  FLASH_FRAC: 0.12,  // the flash sub-window (fraction of the fall) — much tighter than a snap
+  FLASH_BONUS: 2,    // flat points a flash pays over the multiplier
+  FLASH_STREAK: 3,   // consecutive flashes that raise a Spate
+  SPATE_TICKS: 300,  // ~5s @60fps: while a Spate holds, every point scored doubles
   MULT_MAX: 9,       // combo multiplier ceiling
   // Progress milestones: a label flashes the instant `cleared` reaches each threshold.
   // Ordered ascending. Pure feedback — the shell reads these, the sim never branches.
@@ -66,6 +87,10 @@ export const CONFIG = Object.freeze({
     Object.freeze({ at: 30,  name: 'Rapids',    tint: '#7af9d0', bins: 4 }),
     Object.freeze({ at: 60,  name: 'Cataract',  tint: '#ffd15c', bins: 4 }),
     Object.freeze({ at: 100, name: 'Maelstrom', tint: '#ff5cc8', bins: 4 }),
+    // A secret final stage past Maelstrom — printed on no start screen, its name withheld
+    // from the HUD's "next" readout (see stageProgress) until you actually reach it. Same
+    // channel count; the reward is the reveal + the tint, atop the never-ending speed ramp.
+    Object.freeze({ at: 180, name: 'Charybdis', tint: '#b06bff', bins: 4, secret: true }),
   ]),
   // Formations — the run's STRUCTURE, not just its noise (the "varied-structure" layer).
   // Instead of every spark being drawn from one flat rule, a run is a different *sequence*
@@ -124,6 +149,13 @@ export const ACHIEVEMENTS = Object.freeze([
     test: (s, m) => m.totals.sorts >= 2000 }),
   Object.freeze({ id: 'regular',        label: 'Regular',          desc: 'Finish 25 runs.',
     test: (s, m) => m.plays >= 25 }),
+  // Depth-layer badges — the hidden flash tech, the Spate it raises, and the secret stage.
+  Object.freeze({ id: 'flash-hand',     label: 'Split-second',     desc: 'Land 10 flash routes in a run.',
+    test: (s) => (s.flashes | 0) >= 10 }),
+  Object.freeze({ id: 'spate',          label: 'In spate',         desc: 'Raise a Spate in a run.',
+    test: (s) => (s.spates | 0) >= 1 }),
+  Object.freeze({ id: 'charybdis',      label: 'Charybdis',        desc: 'Reach the hidden stage.',
+    test: (s) => s.stageIndex >= 5 }),
 ]);
 
 /**
@@ -149,6 +181,10 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} mult                current score multiplier (>=1)
  * @property {number} bestMult            highest multiplier reached this run
  * @property {number} snaps               snap (fast) routes this run
+ * @property {number} flashes             flash routes (the hidden razor tech) this run
+ * @property {number} flashStreak         consecutive flashes right now (raises a Spate at FLASH_STREAK)
+ * @property {number} spates              Spates raised this run
+ * @property {number} spate               ticks of Spate (double points) remaining, 0 = inactive
  * @property {number} misses              misses this run
  * @property {number} t                   ticks elapsed this run
  */
@@ -189,6 +225,7 @@ export function createGame(width, height, opts = {}) {
     binCount: bc, bins: identity(bc), drop: null,
     lives: cfg.LIVES,
     cleared: 0, score: 0, mult: 1, bestMult: 1, snaps: 0, misses: 0, t: 0,
+    flashes: 0, flashStreak: 0, spates: 0, spate: 0,
     formGates: [], formId: null, formName: null, formNotable: false,
   };
   reset(g);
@@ -213,6 +250,10 @@ export function reset(g) {
   g.mult = 1;
   g.bestMult = 1;
   g.snaps = 0;
+  g.flashes = 0;
+  g.flashStreak = 0;
+  g.spates = 0;
+  g.spate = 0;
   g.misses = 0;
   g.t = 0;
   g.formGates = [];   // no formation loaded yet; the first spawnDrop pulls one
@@ -235,12 +276,17 @@ export function start(g) {
 }
 
 /**
- * Current fall time for a new spark — shrinks with sparks cleared, floored at FALL_MIN.
+ * Current base fall time for a new spark — a smooth asymptote from FALL_BASE toward
+ * FALL_HARD_MIN that it approaches but NEVER reaches, so late sparks keep getting faster
+ * forever (no plateau). At `cleared` 0 this is exactly FALL_BASE (the opening feel is
+ * unchanged); it decreases monotonically and stays strictly above FALL_HARD_MIN. Pure.
  * @param {GameState} g
- * @returns {number} ticks
+ * @returns {number} ticks (a real number; the spawner rounds)
  */
 export function fallTicksOf(g) {
-  return Math.max(g.cfg.FALL_MIN, g.cfg.FALL_BASE - g.cleared * g.cfg.FALL_DEC);
+  const cfg = g.cfg;
+  const span = cfg.FALL_BASE - cfg.FALL_HARD_MIN;
+  return cfg.FALL_HARD_MIN + span * Math.exp(-g.cleared / cfg.FALL_TAU);
 }
 
 /**
@@ -295,12 +341,15 @@ export function stageProgress(cfg, cleared) {
   const index = stageIndexAt(cfg, cleared);
   const cur = list[index];
   const next = list[index + 1] || null;
+  // A secret next stage stays nameless on the HUD — the progress bar still fills toward it
+  // (a quiet "something's ahead"), but its name is withheld until you actually cross into it.
+  const shownNext = next && !next.secret ? next : null;
   const into = cleared - cur.at;
   const span = next ? next.at - cur.at : 0;
   const frac = next ? Math.max(0, Math.min(1, into / span)) : 1;
   return {
-    index, name: cur.name, tint: cur.tint,
-    next: next ? next.name : null, nextAt: next ? next.at : null,
+    index, name: cur.name, tint: cur.tint, secret: cur.secret === true,
+    next: shownNext ? shownNext.name : null, nextAt: shownNext ? shownNext.at : null,
     into, span, frac, isLast: !next,
   };
 }
@@ -471,8 +520,10 @@ export function spawnDrop(g) {
   if (!g.formGates || g.formGates.length === 0) loadFormation(g);
   const spec = g.formGates.shift();
   if (spec.shuffle) permuteBins(g);
-  const base = fallTicksOf(g);
-  const total = Math.max(g.cfg.FALL_MIN, Math.round(base * (spec.fast ? g.cfg.FAST_MUL : 1)));
+  const base = fallTicksOf(g);   // the no-plateau asymptote (never below FALL_HARD_MIN)
+  const total = spec.fast
+    ? Math.max(g.cfg.FAST_MIN, Math.round(base * g.cfg.FAST_MUL))   // fast sparks: floored so they stay routable
+    : Math.round(base);
   const color = ((spec.color | 0) % g.binCount + g.binCount) % g.binCount;  // clamp into range
   g.drop = {
     color,
@@ -502,6 +553,8 @@ export function slotOfColor(g, color) {
  * @property {boolean} resolved a spark was resolved this call
  * @property {boolean} correct  routed into the matching channel
  * @property {boolean} precise  a snap (fast, combo-growing) correct route
+ * @property {boolean} flash    a flash — a correct route inside the razor FLASH_FRAC window
+ * @property {boolean} spate    a Spate (double-points window) was raised by this resolution
  * @property {boolean} broke    the multiplier was reset from >1 by a miss
  * @property {boolean} missed   a miss happened (wrong channel or a timeout)
  * @property {boolean} dead      the run ended this call (lives hit 0)
@@ -513,7 +566,7 @@ export function slotOfColor(g, color) {
  */
 
 function noStep(g) {
-  return { resolved: false, correct: false, precise: false, broke: false, missed: false, dead: false, mult: g.mult, slot: -1, color: -1, formation: null };
+  return { resolved: false, correct: false, precise: false, flash: false, spate: false, broke: false, missed: false, dead: false, mult: g.mult, slot: -1, color: -1, formation: null };
 }
 
 /**
@@ -531,17 +584,34 @@ function resolveDrop(g, slot) {
   const drop = g.drop;
   const routed = slot >= 0 && slot < g.binCount;
   const correct = routed && g.bins[slot] === drop.color;
-  const res = { resolved: true, correct: false, precise: false, broke: false, missed: false, dead: false, mult: g.mult, slot, color: drop.color, formation: null };
+  const res = { resolved: true, correct: false, precise: false, flash: false, spate: false, broke: false, missed: false, dead: false, mult: g.mult, slot, color: drop.color, formation: null };
   if (correct) {
     const snap = drop.elapsed <= drop.total * cfg.SNAP_FRAC;
+    const flash = drop.elapsed <= drop.total * cfg.FLASH_FRAC;   // a flash is always also a snap
     g.cleared++;
     if (snap) { res.precise = true; g.snaps++; g.mult = Math.min(cfg.MULT_MAX, g.mult + 1); }
     if (g.mult > g.bestMult) g.bestMult = g.mult;
-    g.score += g.mult;
+    // Score: the (possibly grown) multiplier, plus the flash bonus, all doubled if a Spate is
+    // already holding. Read the window state BEFORE this resolution so the flash that *raises*
+    // a Spate is itself never doubled ("the trigger is never doubled").
+    const doubling = g.spate > 0;
+    let gain = g.mult;
+    if (flash) gain += cfg.FLASH_BONUS;
+    if (doubling) gain *= 2;
+    g.score += gain;
     res.correct = true;
+    if (flash) {
+      res.flash = true; g.flashes++; g.flashStreak++;
+      if (g.flashStreak >= cfg.FLASH_STREAK) {   // a streak of flashes raises a Spate
+        g.spate = cfg.SPATE_TICKS; g.spates++; g.flashStreak = 0; res.spate = true;
+      }
+    } else {
+      g.flashStreak = 0;   // any non-flash correct route breaks the flash chain
+    }
   } else {
     res.missed = true;
     g.misses++;
+    g.flashStreak = 0;   // a miss breaks the flash chain too
     if (g.mult > 1) res.broke = true;
     g.mult = 1;
     g.lives--;
@@ -577,6 +647,7 @@ export function route(g, slot) {
 export function tick(g) {
   if (g.phase !== 'play' || !g.drop) return noStep(g);
   g.t++;
+  if (g.spate > 0) g.spate--;   // the Spate double-points window runs down in real time
   g.drop.elapsed++;
   if (g.drop.elapsed >= g.drop.total) return resolveDrop(g, -1);  // timed out → miss
   return noStep(g);
@@ -588,7 +659,7 @@ export function tick(g) {
 
 /**
  * A finished run distilled to plain data for the meta layer.
- * @typedef {{score:number, cleared:number, stageIndex:number, snaps:number, bestMult:number}} RunSummary
+ * @typedef {{score:number, cleared:number, stageIndex:number, snaps:number, bestMult:number, flashes?:number, spates?:number}} RunSummary
  */
 
 /**
@@ -599,7 +670,7 @@ export function tick(g) {
  * @property {number} best       best single-run score (mirrors legacy `sluice.best`)
  * @property {number} bestStage  furthest stage index ever reached
  * @property {number} bestMult   highest multiplier ever reached
- * @property {{sorts:number, points:number, snaps:number}} totals lifetime counters
+ * @property {{sorts:number, points:number, snaps:number, flashes:number}} totals lifetime counters
  * @property {Object<string,boolean>} achieved achievement ids earned
  */
 
@@ -619,7 +690,7 @@ export function normalizeMeta(m, legacyBest = 0) {
     best: Math.max(src.best | 0, legacyBest | 0),
     bestStage: src.bestStage | 0,
     bestMult: src.bestMult | 0,
-    totals: { sorts: totals.sorts | 0, points: totals.points | 0, snaps: totals.snaps | 0 },
+    totals: { sorts: totals.sorts | 0, points: totals.points | 0, snaps: totals.snaps | 0, flashes: totals.flashes | 0 },
     achieved: src.achieved && typeof src.achieved === 'object' ? { ...src.achieved } : {},
   };
 }
@@ -639,6 +710,7 @@ export function applyRun(meta, summary, cfg = CONFIG) {
   next.totals.sorts += summary.cleared | 0;
   next.totals.points += summary.score | 0;
   next.totals.snaps += summary.snaps | 0;
+  next.totals.flashes += summary.flashes | 0;
   next.best = Math.max(next.best, summary.score | 0);
   next.bestStage = Math.max(next.bestStage, summary.stageIndex | 0);
   next.bestMult = Math.max(next.bestMult, summary.bestMult | 0);

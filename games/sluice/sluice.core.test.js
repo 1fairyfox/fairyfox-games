@@ -68,7 +68,7 @@ test('start() flips to play, re-seeds a fresh run, and drops the first spark', (
   assert.ok(g.drop, 'a spark is falling');
   assert.ok(g.drop.color >= 0 && g.drop.color < g.binCount);
   assert.equal(g.drop.elapsed, 0);
-  assert.ok(g.drop.total >= CONFIG.FALL_MIN);
+  assert.ok(g.drop.total >= CONFIG.FALL_HARD_MIN);
 });
 
 test('the current spark colour is always present in the channels (routable)', () => {
@@ -98,14 +98,36 @@ test('a run at a late stage runs more channels than the opening', () => {
   assert.ok(late > early, `late stage widens the sort (${early} -> ${late})`);
 });
 
-// ── 3. Fall time ────────────────────────────────────────────────────────────────
-test('fall time starts at FALL_BASE, shrinks with cleared, and floors at FALL_MIN', () => {
+// ── 3. Fall time (a no-plateau asymptote) ─────────────────────────────────────────
+test('fall time starts at FALL_BASE and falls monotonically', () => {
   const g = newGame();
-  assert.equal(fallTicksOf(g), CONFIG.FALL_BASE);
-  g.cleared = 20;
-  assert.ok(Math.abs(fallTicksOf(g) - (CONFIG.FALL_BASE - 20 * CONFIG.FALL_DEC)) < 1e-9);
-  g.cleared = 1e6;
-  assert.equal(fallTicksOf(g), CONFIG.FALL_MIN);
+  assert.equal(fallTicksOf(g), CONFIG.FALL_BASE);   // opening feel unchanged
+  let prev = fallTicksOf(g);
+  for (let c = 1; c <= 400; c++) {
+    g.cleared = c;
+    const v = fallTicksOf(g);
+    assert.ok(v < prev, `fall keeps shrinking at ${c} (${v} < ${prev})`);
+    prev = v;
+  }
+});
+
+test('fall time approaches FALL_HARD_MIN but NEVER reaches or crosses it (no plateau)', () => {
+  const g = newGame();
+  // It never crosses below the floor, at any depth (only reaching it in the numerical limit).
+  for (const c of [200, 500, 1000, 1e5, 1e7]) {
+    g.cleared = c;
+    assert.ok(fallTicksOf(g) >= CONFIG.FALL_HARD_MIN, `never below the floor at ${c}`);
+  }
+  // …and across the whole reachable range it stays strictly above it (still shrinking, no plateau).
+  for (const c of [200, 500, 1000]) {
+    g.cleared = c;
+    assert.ok(fallTicksOf(g) > CONFIG.FALL_HARD_MIN, `strictly above the floor at ${c}`);
+  }
+  // The old behaviour flat-lined at a fixed floor once cleared was large; the new curve does
+  // not — two far-apart deep points must still differ (it never goes flat).
+  g.cleared = 500; const a = fallTicksOf(g);
+  g.cleared = 900; const b = fallTicksOf(g);
+  assert.ok(a - b > 0, 'still descending deep into a run (never plateaus)');
 });
 
 // ── 4. Routing + resolution ─────────────────────────────────────────────────────
@@ -157,13 +179,19 @@ test('a spark that falls past its timer is a timeout miss', () => {
 // ── 5. Snap-combo scoring ───────────────────────────────────────────────────────
 test('a snap route (early) grows the multiplier and counts a snap', () => {
   const g = newGame(); start(g);
-  assert.equal(g.drop.elapsed, 0);            // freshly dropped → well inside the snap window
+  // Age past the razor flash window but still inside the (wider) snap window: a plain snap.
+  const past = Math.floor(g.drop.total * CONFIG.FLASH_FRAC) + 2;
+  for (let i = 0; i < past; i++) tick(g);
+  assert.ok(g.drop.elapsed > g.drop.total * CONFIG.FLASH_FRAC);
+  assert.ok(g.drop.elapsed <= g.drop.total * CONFIG.SNAP_FRAC);
   const r = route(g, rightSlot(g));
   assert.equal(r.correct, true);
   assert.equal(r.precise, true);
+  assert.equal(r.flash, false, 'a snap outside the razor window is not a flash');
   assert.equal(g.mult, 2);
   assert.equal(g.snaps, 1);
-  assert.equal(g.score, 2, 'scored the grown multiplier');
+  assert.equal(g.flashes, 0);
+  assert.equal(g.score, 2, 'scored the grown multiplier, no flash bonus');
 });
 
 test('a slow-but-correct route scores without growing the multiplier', () => {
@@ -177,7 +205,77 @@ test('a slow-but-correct route scores without growing the multiplier', () => {
   assert.equal(r.precise, false, 'a slow route is not a snap');
   assert.equal(g.mult, 1, 'multiplier unchanged by a slow-safe route');
   assert.equal(g.snaps, 0);
+  assert.equal(g.flashes, 0, 'a slow route is not a flash');
   assert.equal(g.score, 1);
+});
+
+// ── 5b. Depth: the hidden flash tech + the Spate it raises ────────────────────────
+test('a flash (route inside the razor window) pays the bonus and builds a streak', () => {
+  const g = newGame(); start(g);
+  assert.equal(g.drop.elapsed, 0);   // freshly dropped → inside the flash window
+  const r = route(g, rightSlot(g));
+  assert.equal(r.correct, true);
+  assert.equal(r.precise, true, 'a flash is also a snap');
+  assert.equal(r.flash, true);
+  assert.equal(g.flashes, 1);
+  assert.equal(g.flashStreak, 1);
+  assert.equal(g.mult, 2);
+  assert.equal(g.score, CONFIG.FLASH_BONUS + 2, 'multiplier (2) plus the flash bonus');
+});
+
+test('a flash requires a correct route — a wrong route in the window is just a miss', () => {
+  const g = newGame(); start(g);
+  const r = route(g, (rightSlot(g) + 1) % g.binCount);
+  assert.equal(r.flash, false);
+  assert.equal(r.missed, true);
+  assert.equal(g.flashes, 0);
+  assert.equal(g.flashStreak, 0);
+});
+
+test('a non-flash correct route breaks the flash streak', () => {
+  const g = newGame(); start(g);
+  route(g, rightSlot(g));                       // flash 1 → streak 1
+  assert.equal(g.flashStreak, 1);
+  const late = Math.floor(g.drop.total * CONFIG.FLASH_FRAC) + 2;  // past the razor window
+  for (let i = 0; i < late; i++) tick(g);
+  route(g, rightSlot(g));                       // a snap, not a flash → streak resets
+  assert.equal(g.flashStreak, 0);
+  assert.equal(g.flashes, 1, 'flash count is unchanged by the plain snap');
+});
+
+test('FLASH_STREAK flashes in a row raise a Spate; the triggering flash is not doubled', () => {
+  const g = newGame(); start(g);
+  let r = null;
+  for (let i = 0; i < CONFIG.FLASH_STREAK; i++) r = route(g, rightSlot(g));  // 3 flashes, elapsed 0 each
+  assert.equal(r.spate, true, 'the streak raised a Spate');
+  assert.ok(g.spate > 0, 'the double-points window is now active');
+  assert.equal(g.spates, 1);
+  assert.equal(g.flashStreak, 0, 'the streak resets on trigger');
+  // mult climbed 1→2→3→4; gains 4 + 5 + 6 (the trigger scored at the plain rate, not doubled).
+  assert.equal(g.score, 15);
+});
+
+test('while a Spate holds, points double (and the window counts down and expires)', () => {
+  const g = newGame(); start(g);
+  // Isolate the doubling: age past the snap window so the mult stays ×1, then force a Spate.
+  const late = Math.ceil(g.drop.total * CONFIG.SNAP_FRAC) + 2;
+  for (let i = 0; i < late; i++) tick(g);
+  g.spate = 100;
+  const r = route(g, rightSlot(g));
+  assert.equal(r.correct, true);
+  assert.equal(r.precise, false);
+  assert.equal(g.score, 2, 'a plain ×1 sort scores 2 while the Spate doubles it');
+  // The window ticks down and clamps at 0.
+  g.spate = 3;
+  tick(g); tick(g); tick(g); tick(g);
+  assert.equal(g.spate, 0, 'the Spate expired and does not go negative');
+});
+
+test('a run can accumulate flashes with an immediate-route strategy (queue stays flash-able)', () => {
+  const g = newGame(); start(g);
+  for (let i = 0; i < 30; i++) route(g, rightSlot(g));  // always route on frame one
+  assert.ok(g.flashes >= 10, 'immediate routing lands many flashes');
+  assert.ok(g.spates >= 1, 'and raises at least one Spate');
 });
 
 // ── 6. Multiplier mechanics + lives/death ───────────────────────────────────────
@@ -301,6 +399,26 @@ test('stageIndexAt steps up exactly at each boundary and clamps; stageProgress t
   assert.equal(top.isLast, true); assert.equal(top.frac, 1); assert.equal(top.next, null);
 });
 
+test('the final stage is secret: its name is withheld from the HUD until you reach it', () => {
+  const stages = CONFIG.STAGES;
+  const last = stages[stages.length - 1];
+  assert.equal(last.secret, true, 'the last stage is flagged secret');
+  // Standing in the last *visible* stage (Maelstrom), the secret next stage is NOT named,
+  // but the progress bar still creeps toward it (a quiet "something's ahead").
+  const maelstrom = stages[stages.length - 2];
+  const p = stageProgress(CONFIG, maelstrom.at + 1);
+  assert.equal(p.next, null, 'the secret stage name is hidden as an upcoming stage');
+  assert.equal(p.isLast, false, 'but it is not treated as the last stage');
+  assert.ok(p.frac > 0 && p.frac < 1, 'the bar still tracks progress toward the reveal');
+  assert.equal(p.secret, false, 'Maelstrom itself is not secret');
+  // Cross the boundary and the stage — and its name — reveals.
+  assert.equal(stageIndexAt(CONFIG, last.at), stages.length - 1);
+  const revealed = stageProgress(CONFIG, last.at);
+  assert.equal(revealed.name, last.name);
+  assert.equal(revealed.secret, true);
+  assert.equal(revealed.isLast, true);
+});
+
 // ── 10. Formations + permuteBins ────────────────────────────────────────────────
 test('FORMATIONS is a well-formed pool: id/name/build/weight, non-decreasing minStage', () => {
   assert.ok(CONFIG.FORMATIONS.length >= 4);
@@ -401,14 +519,14 @@ test('tick surfaces a notable formation name as its leading spark appears', () =
 });
 
 // ── 11. Meta-progression ─────────────────────────────────────────────────────────
-const summary = (o = {}) => ({ score: 0, cleared: 0, stageIndex: 0, snaps: 0, bestMult: 1, ...o });
+const summary = (o = {}) => ({ score: 0, cleared: 0, stageIndex: 0, snaps: 0, bestMult: 1, flashes: 0, spates: 0, ...o });
 
 test('normalizeMeta fills a complete v1 blob from nothing and recovers a legacy best', () => {
   const m = normalizeMeta(undefined, 42);
   assert.equal(m.v, 1);
   assert.equal(m.plays, 0);
   assert.equal(m.best, 42);
-  assert.deepEqual(m.totals, { sorts: 0, points: 0, snaps: 0 });
+  assert.deepEqual(m.totals, { sorts: 0, points: 0, snaps: 0, flashes: 0 });
   assert.deepEqual(m.achieved, {});
 });
 
@@ -465,4 +583,27 @@ test('newlyEarned reports only ids gained between two metas, in table order', ()
   const order = ACHIEVEMENTS.map(a => a.id).filter(id => gained.includes(id));
   assert.deepEqual(gained, order);
   assert.deepEqual(newlyEarned(next, next), []);
+});
+
+test('the depth badges (flash-hand / spate / charybdis) fire on their feats', () => {
+  let m = normalizeMeta();
+  m = applyRun(m, summary({ flashes: 10, spates: 1, stageIndex: 5, cleared: 200 }));
+  assert.equal(m.achieved['flash-hand'], true, '10 flashes in a run');
+  assert.equal(m.achieved['spate'], true, 'raised a Spate');
+  assert.equal(m.achieved['charybdis'], true, 'reached the hidden stage (index 5)');
+  // None of them fire on a shallow run without the feats.
+  let m2 = normalizeMeta();
+  m2 = applyRun(m2, summary({ flashes: 9, spates: 0, stageIndex: 4 }));
+  assert.equal(m2.achieved['flash-hand'], undefined, '9 flashes is short of 10');
+  assert.equal(m2.achieved['spate'], undefined, 'no Spate');
+  assert.equal(m2.achieved['charybdis'], undefined, 'Maelstrom (index 4) is not the secret stage');
+});
+
+test('applyRun accumulates lifetime flashes (a lossless legacy upgrade)', () => {
+  const legacy = normalizeMeta({ plays: 2, totals: { sorts: 100, points: 200, snaps: 20 } });
+  assert.equal(legacy.totals.flashes, 0, 'a pre-flash blob upgrades to 0 flashes, nothing lost');
+  assert.equal(legacy.totals.sorts, 100);
+  const m = applyRun(legacy, summary({ flashes: 7, cleared: 10, score: 15 }));
+  assert.equal(m.totals.flashes, 7);
+  assert.equal(m.totals.sorts, 110, 'other totals still accrue');
 });

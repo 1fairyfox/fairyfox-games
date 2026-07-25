@@ -2,23 +2,17 @@
 
 Ordered, current. Remove as done; history lives in `../sessions/`.
 
-> ## 🌿 Depth-layer rollout — 11 of 13 (as of v0.25.4, 2026-07-24)
+> ## 🌿 Depth-layer rollout — COMPLETE (as of v0.26.1, 2026-07-25)
 >
-> The lead GROW lever (`../reference/depth-inside-the-mechanic.md`). Carried by: Polarity
-> (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline, Loft,
-> Poise, Symmetry and now **Arc** (the Pin / Onslaught / pad asymptote / Pinhole, v0.25.4 —
-> the tech landed as a razor sub-window inside the drawn bullseye, but scaled as a *fraction*
-> of the shrinking pad and paired with the Onslaught reversal, so it's the lob's own shape,
-> not Ricochet's Dead Centre with new paint); Tether, Reprise, Ward and Drove ship with it
-> from birth.
->
-> **Still to convert:** **Sluice** (born 07-06) — the last one. It carries none of the four
-> items yet, so it's a full pass (no-plateau asymptote + hidden tech + the reversal it unlocks
-> + a secret stage). Sketch: `fallTicksOf` plateaus at ~136 cleared (a natural no-plateau
-> target); a snap combo already exists, so its tech has to be *inside* the snap — a razor
-> "flash" window at the very top of the fall (routing the instant the spark appears, into a
-> just-rearranged layout — the hardest, greediest read) rather than a second combo. Finishing
-> Sluice **completes the depth rollout** across all 13 non-birth games.
+> The lead GROW lever (`../reference/depth-inside-the-mechanic.md`). Every game now carries it:
+> Polarity (reference), Brim, Echo Chamber, Ink Bloom, Orbit Slingshot, Ricochet, Skyline,
+> Loft, Poise, Symmetry, Arc, and now **Sluice** (v0.26.1 — the tech landed *inside* the
+> existing snap: a razor `FLASH_FRAC` 0.12 "flash" window at the very top of the fall, routing
+> a just-rearranged layout almost the instant the spark appears; the Spate reversal; a smooth
+> `fallTicksOf` asymptote replacing the ~136-cleared plateau; the secret Charybdis stage).
+> Tether, Reprise, Ward, Drove and Loom shipped with it from birth. **Nothing named as
+> remaining** — the daily GROW lever now shifts to *adding* to the layer: a new formation, a
+> new sub-pattern, or a cross-run unlock on whichever game is thinnest.
 >
 > ## 🔧 Dependabot — 4 CI-action PRs open (as of 2026-07-24)
 >

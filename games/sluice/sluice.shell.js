@@ -259,12 +259,14 @@ function beginRun() {
 function handleResult(r) {
   if (!r || !r.resolved) return;
   if (r.correct) {
-    flash = r.precise ? 1.5 : 1;
+    flash = r.flash ? 2 : (r.precise ? 1.5 : 1);
     scoreEl.textContent = game.score;
-    flashSlot = r.slot; flashKind = 'good'; flashLife = 1;
+    flashSlot = r.slot; flashKind = r.flash ? 'flash' : 'good'; flashLife = 1;
     if (paintActive) paintSplat(r.slot);   // paint mode: splatter the channel's colour
 
     if (r.precise) { multPulse = 1; if (!reduceMotion) shake = Math.max(shake, 3); }
+    if (r.flash && !reduceMotion) shake = Math.max(shake, 4);   // the hidden tech landed
+    if (r.spate) { showMilestone('Spate! ×2'); if (!reduceMotion) shake = Math.max(shake, 8); }
     const label = milestoneAt(game.cfg, game.cleared);
     if (label) showMilestone(label);
     else if (!beatBest && best > 0 && game.score > best) showMilestone('New best!');
@@ -327,6 +329,8 @@ function onDeath() {
     stageIndex: stageIndexAt(game.cfg, game.cleared),
     snaps: game.snaps,
     bestMult: game.bestMult,
+    flashes: game.flashes,
+    spates: game.spates,
   };
   const prev = meta;
   meta = applyRun(prev, summary, game.cfg);
@@ -338,9 +342,11 @@ function onDeath() {
     stageReachedEl.textContent = line;
   }
   if (snaplineEl) {
-    snaplineEl.textContent = game.snaps > 0
-      ? (game.snaps + (game.snaps === 1 ? ' snap route' : ' snap routes'))
-      : '';
+    const parts = [];
+    if (game.snaps > 0) parts.push(game.snaps + (game.snaps === 1 ? ' snap route' : ' snap routes'));
+    if (game.flashes > 0) parts.push(game.flashes + (game.flashes === 1 ? ' flash' : ' flashes'));
+    if (game.spates > 0) parts.push(game.spates + (game.spates === 1 ? ' spate' : ' spates'));
+    snaplineEl.textContent = parts.join(' · ');
   }
   if (badgesEl) {
     const gained = newlyEarned(prev, meta);
@@ -423,9 +429,11 @@ function drawChannel(x, y, w, h, color, i) {
   const hex = COL[color];
   ctx.fillStyle = colSoft(color, 0.13); roundRect(x + 2, y, w - 4, h, 12); ctx.fill();
   if (flashSlot === i && flashLife > 0.01) {
-    ctx.fillStyle = flashKind === 'good'
-      ? colSoft(color, 0.28 * flashLife + 0.06)
-      : 'rgba(255,80,100,' + (0.42 * flashLife) + ')';
+    ctx.fillStyle = flashKind === 'flash'
+      ? 'rgba(255,214,106,' + (0.5 * flashLife + 0.08) + ')'   // gold — the hidden flash tech
+      : flashKind === 'good'
+        ? colSoft(color, 0.28 * flashLife + 0.06)
+        : 'rgba(255,80,100,' + (0.42 * flashLife) + ')';
     roundRect(x + 2, y, w - 4, h, 12); ctx.fill();
   }
   ctx.strokeStyle = colSoft(color, 0.5); ctx.lineWidth = 1.5; roundRect(x + 2, y, w - 4, h, 12); ctx.stroke();
@@ -513,9 +521,21 @@ function draw() {
 
   ctx.restore();
 
+  // Spate — while the double-points window holds, a warm gold vignette rims the field (static
+  // under reduced motion; a slow breathe otherwise). Purely ambient; the score doubling is core.
+  if (game.phase === 'play' && game.spate > 0) {
+    const frac = game.spate / game.cfg.SPATE_TICKS;                       // 1 → 0 across the window
+    const pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(game.t * 0.18);
+    const a = (0.10 + 0.06 * pulse) * Math.min(1, frac * 3);             // fade out in the last third
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(255,209,92,0)');
+    vg.addColorStop(1, 'rgba(255,209,92,' + a.toFixed(3) + ')');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+
   if (flash > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = rgbStr(tintCur, flash * 0.06);
+    ctx.fillStyle = flashKind === 'flash' ? 'rgba(255,214,106,' + (flash * 0.05) + ')' : rgbStr(tintCur, flash * 0.06);
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
   }

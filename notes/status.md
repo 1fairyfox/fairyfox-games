@@ -2,7 +2,25 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.26.0` (single source of truth: repo-root `VERSION`). **v0.26.0** is a **PLANT**
+**Version:** `0.26.1` (single source of truth: repo-root `VERSION`). **v0.26.1** is a **GROW**
+run: **Sluice** gets the **"depth inside the mechanic"** layer — the **12th game** to carry it,
+and the last game still *named* as missing it (prior status: depth rollout 11 of 13, left:
+Sluice), so the retrofit list is now clear (the newer games ship depth from birth). All four
+items ride Sluice's one **route** verb: the hidden **Flash** (a correct route inside a razor
+`FLASH_FRAC` 0.12 sub-window — reading a freshly-scrambled row and committing almost the instant
+the spark appears, well tighter than the `SNAP_FRAC` 0.45 snap — pays `FLASH_BONUS` +2 over the
+snap, blooms gold, builds a streak; taught nowhere, a plain snap or a miss silently breaks the
+chain), **Spate** (3 flashes in a row → `SPATE_TICKS` ~5s where **every point doubles**; the
+trigger never doubled — `doubling` reads the window state before the resolution scores), a
+**no-plateau fall asymptote** (`fallTicksOf` = `FALL_HARD_MIN` 30 + span·exp(−cleared/`FALL_TAU`
+130), approached but never reached — replacing the old linear ramp that flat-lined at the
+`FALL_MIN` 40 floor around cleared ≈ 136; opening unchanged at 108, fast sparks floored at
+`FAST_MIN` 22), and a **secret Charybdis stage** past Maelstrom (`at` 180, `secret:true` — its
+name withheld from the HUD's "next" readout and printed on no start screen; the start tip's stage
+ladder + formation-name list trimmed). 3 new badges (10 → 13: `flash-hand`, `spate`, `charybdis`),
+`totals.flashes` (lossless legacy upgrade), run report names flashes/spates. Sluice 39 → **45**
+test functions; collection **783/783** green. **Depth rollout: 12 of 13** (nothing named as
+remaining). Earlier: **v0.26.0** is a **PLANT**
 run: a new game, **Loom** — a genuinely new verb (**weave / interlace**), the collection's first
 **weaving** mechanic and its **17th**. A shuttle lays a thread toward the loom while warp pegs
 stream in; you send the thread **over** or **under** each peg, and alternating side-to-side
@@ -638,11 +656,22 @@ sole host), plus each game at `…/games/<game>/`.
   ×2…×9 multiplier grows; slow-safe scores but doesn't), a **stage arc** (Trickle → Stream →
   Rapids → Cataract → Maelstrom) that both speeds the fall **and widens the channels**
   (3 → 4 by stage, `binsAt`) with HUD chip + tint, three lives, and **meta-progression**
-  (`sluice.meta`: lifetime sorts/snaps + best stage/mult + 10 badges, run-report) — legacy
-  `sluice.best` preserved. Pure core + 35 tests. **(4th game on varied structure — ships on
-  the pattern from day one.)**
+  (`sluice.meta`: lifetime sorts/snaps/flashes + best stage/mult + 13 badges, run-report) —
+  legacy `sluice.best` preserved. **Depth inside the one verb (v0.26.1, the 12th game on the
+  layer):** the fall **no longer plateaus** (`fallTicksOf` is a smooth exp asymptote toward
+  `FALL_HARD_MIN` 30 it never reaches — the old linear ramp flat-lined at the `FALL_MIN` 40 floor
+  around cleared ≈ 136; opening unchanged at 108, fast sparks floored at `FAST_MIN` 22); a hidden
+  **Flash** (a correct route inside the razor `FLASH_FRAC` 0.12 sub-window — reading a
+  freshly-scrambled row and committing almost the instant the spark appears, tighter than the
+  `SNAP_FRAC` 0.45 snap — pays `FLASH_BONUS` +2 over the snap, blooms gold, builds a streak,
+  taught nowhere; a plain snap or a miss silently breaks the chain); the **Spate** it raises
+  (3 flashes in a row → `SPATE_TICKS` ~5s where **every point doubles** — the trigger never
+  doubled, gold vignette colour-only); and a **secret Charybdis stage** past Maelstrom (`at` 180,
+  `secret:true`, its name withheld from the HUD's "next" readout and revealed only by reaching it;
+  the start tip's stage ladder + formation-name list trimmed). Pure core + 45 tests. **(4th game
+  on varied structure — ships on the pattern from day one.)**
 
-**Tests:** **730/730** green (Symmetry 31 → 43, v0.25.3). ⚠ **Local gotcha:** the bare `node --test` from repo root now
+**Tests:** **783/783** green (Sluice 39 → 45, v0.26.1). ⚠ **Local gotcha:** the bare `node --test` from repo root now
 also walks the git-ignored `assets/references/` hub clone, whose unrelated tests fail (missing deps) —
 scope the run to `node --test "games/**/*.test.js"`. CI never checks out `assets/references/` (it's
 git-ignored), so CI's `node --test` sees only the game tests and is green.

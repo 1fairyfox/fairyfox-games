@@ -53,6 +53,15 @@ layered underneath for players who return.
   snap routes, best stage, and best multiplier, and awards **skill-safe badges** for feats
   (never power). The game-over card is a run report plus an account snapshot. A legacy
   `sluice.best` score is preserved.
+- **Depth inside the one verb (discovered, not manualled).** The *commit* carries a hidden
+  ceiling. A normal snap grows the multiplier; but routing inside a razor sub-window — reading
+  a freshly-scrambled row and committing almost the instant the spark appears — is a **flash**:
+  it pays a flat bonus on top, blooms gold, and builds a streak, and the game never points it
+  out. Three flashes in a row raise a **Spate** — ~5 seconds where **every point doubles** (the
+  triggering flash isn't doubled), so the boldest reading is quietly the greediest. The fall
+  time is a smooth **asymptote** that never plateaus — the sparks keep quickening however deep
+  you go, no settling into a rhythm — and a **secret Charybdis stage** waits past Maelstrom,
+  printed on no start screen and revealed only by reaching it.
 
 ## Structure
 
@@ -80,6 +89,8 @@ cd games/sluice && node --test
 ```
 
 Zero dependencies — just Node 18+. The suite covers the sorting maths, routing and
-resolution, the snap-combo scoring, lives and death, the stage ladder, the formation pool
-(well-formed, stage-gated, deterministic, distinct-seeds → distinct-structure, channels
-always re-shuffle), and the meta-progression reducer.
+resolution, the snap-combo scoring, lives and death, the stage ladder (including the secret
+Charybdis stage staying hidden until reached), the formation pool (well-formed, stage-gated,
+deterministic, distinct-seeds → distinct-structure, channels always re-shuffle), the depth
+layer (the flash tech, the Spate double-window and its no-double trigger, and the
+no-plateau fall asymptote), and the meta-progression reducer.

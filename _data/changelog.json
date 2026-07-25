@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-07-25",
+    "game": "Sluice",
+    "slug": "sluice",
+    "kind": "grow",
+    "text": "Sluice now hides a reward for the quickest hands. Routing a spark early already grows your multiplier — but commit almost the instant a spark appears, reading a freshly-shuffled row in a blink, and it's a flash: a gold splash and bonus points the game never tells you about. String three flashes together and the channels break into a Spate where every point doubles, so the boldest reading is suddenly the greediest. And the sparks never stop quickening now, however deep you go — no more settling into a comfortable rhythm — while past the Maelstrom there's a stage the start screen has never named. Keep snapping the read and it opens up."
+  },
+  {
     "date": "2026-07-24",
     "game": "Loom",
     "slug": "loom",
