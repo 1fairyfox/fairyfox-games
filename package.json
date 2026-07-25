@@ -6,6 +6,7 @@
   "description": "Fairy Fox daily games — a one-mechanic, beat-your-own-score canvas game collection.",
   "scripts": {
     "test": "node scripts/check-links.mjs && node --test",
+    "test:coverage": "node -e \"require('fs').mkdirSync('coverage',{recursive:true})\" && node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"games/**/*.test.js\"",
     "links": "node scripts/check-links.mjs",
     "tidy": "node scripts/check-tidy.mjs",
     "gen:readme": "node scripts/gen-readme.js"

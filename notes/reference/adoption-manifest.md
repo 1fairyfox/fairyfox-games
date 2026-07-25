@@ -50,8 +50,8 @@ written without a backing row here. Governed by hub `checklists-are-contracts` +
 | self-hosted-assets | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | fonts in `assets/fonts/`, no third-party hot-links (privacy posture) |
 | legal-docs | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | `legal/{privacy,terms,cookies}.html` cover the brand minimum + coins; footer legal column intact |
 | coins | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | base coin counter ships in chrome (`assets/coins.js` after reader.js); per-game fun modes |
-| badges | implemented | 1.6.1 / 2d614f0 | 2026-07-25 partial | README carries the full ordered 20-slot block; coverage/CodeFactor/Sonar slots present but backing services unwired → see gap below |
-| badges-service-wiring | gap(owner call) | 1.6.1 / 2d614f0 | — | Codecov / CodeFactor / SonarCloud not wired; badge slots present (grey until wired) — wire or record a user exception; never a silent drop |
+| badges | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | README carries the full ordered 20-slot block; the CI-side wiring for the coverage/CodeFactor/Sonar slots now ships (see below) — services go live on the owner's one enablement step |
+| badges-service-wiring | implemented (repo) / gap(owner enablement) | 1.6.1 / 2d614f0 | 2026-07-25 pass | **In-repo wiring shipped:** `codecov.yml` + a non-blocking Codecov upload job in `ci.yml` (SHA-pinned `codecov-action@v7`, `token: CODECOV_TOKEN`, `fail_ci_if_error:false`); `sonar-project.properties` + dormant `sonar.yml` (gated on `vars.SONAR_ENABLED`, SHA-pinned scan action); `npm run test:coverage` (Node lcov, 99.84% lines). **Remaining = owner dashboard/secret step** (below), not code |
 | readme-structure | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | README docs-link (top), "Get it" section, mesh footer; vendored as `readme-structure.md` (Windows case-collision with `README.md`) |
 | agent-tooling | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | PowerShell + file tools; bash sandbox avoided; `.gitattributes` LF |
 | maintenance-sweep | copied-only | 1.6.1 / 2d614f0 | — | re-vendored |
@@ -64,11 +64,19 @@ written without a backing row here. Governed by hub `checklists-are-contracts` +
 
 ## Recorded remainder (gaps owned + dated)
 
-- **badges-service-wiring** — the coverage (Codecov), code-quality (CodeFactor), quality-gate
-  and tech-debt (SonarCloud) badge slots are present in the README but their backing services
-  aren't wired, so they render grey. Per `badges.md` a grey required badge is a **gap to wire
-  the service**, not a licence to drop it. Due: owner's call — wire the services, or record a
-  user exception here. Not dropped silently.
+- **badges-service-wiring** — the **in-repo CI wiring is done** (v0.27.1, 2026-07-25): Codecov
+  upload + config, dormant SonarCloud scan + `sonar-project.properties`, and a `test:coverage`
+  lcov script (99.84% line coverage). The badges go green after the **owner's one enablement
+  step** (nothing more in code):
+    1. **Codecov** — enable the Codecov GitHub app on `1fairyfox/fairyfox-games`; add repo secret
+       **`CODECOV_TOKEN`** (from codecov.io → repo → settings). Public repos also work tokenless.
+    2. **SonarCloud** — import the repo at sonarcloud.io (org `1fairyfox`, key
+       `1fairyfox_fairyfox-games`); add repo secret **`SONAR_TOKEN`** and repo **variable**
+       **`SONAR_ENABLED=true`** (Settings → Secrets and variables → Actions).
+    3. **CodeFactor** — sign in at codefactor.io with GitHub and add the repo (GitHub-app auth,
+       no secret). The badge resolves automatically once the repo is analysed.
+  Until then the slots render grey (a tracked, dated gap — never a silent drop). `gh secret list`
+  currently shows only `NETLIFY_AUTH_TOKEN`.
 - **docs-site chrome re-verify** — the 1.4.0 docs-site changes (whole-bundle chrome, firm
   subnav baseline, on-site Notes interface, compliance checklist) are browser-gated. This
   node's "docs site" is the game-farm Jekyll site itself. Deferred to a dedicated preview

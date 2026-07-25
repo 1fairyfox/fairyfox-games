@@ -2,7 +2,15 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.27.0` (single source of truth: repo-root `VERSION`). **v0.27.0** is a
+**Version:** `0.27.1` (single source of truth: repo-root `VERSION`). **v0.27.1** is a **CI** run:
+wired the three quality-badge services flagged as the `badges-service-wiring` gap in v0.27.0 —
+**Codecov** (a `test:coverage` lcov script → **99.84% line** coverage, uploaded by a non-blocking
+`ci.yml` job), **SonarCloud** (`sonar-project.properties` + a **dormant** `sonar.yml` gated on
+`vars.SONAR_ENABLED`), and **CodeFactor** (GitHub-app, no repo change). All non-blocking, so a
+release can't break; `main` has no required status checks. The four badge slots go green after the
+**owner's one enablement step** (add `CODECOV_TOKEN` + `SONAR_TOKEN` secrets + `SONAR_ENABLED=true`
+variable, enable the three apps) — precise checklist in `notes/reference/adoption-manifest.md`.
+783/783 green. Earlier: **v0.27.0** is a
 **STANDARDS** run: adopted the fairyfox hub batch **0.20.2 → 1.6.1 in full** (pre-authorized by
 the standing `adopt-standards-by-default` grant; full safety floor kept). Refreshed the
 git-ignored hub mirror (clean fast-forward `697bc5c → 2d614f0`), vendored the **5 new** standards

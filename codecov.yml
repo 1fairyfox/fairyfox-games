@@ -1,0 +1,32 @@
+# Codecov configuration — the README coverage badge + PR annotations.
+#
+# Coverage comes from the games' pure logic cores (`games/**/*.core.js`), measured by Node's
+# built-in test runner (`node --test --experimental-test-coverage`, lcov reporter) in CI under
+# the `node` flag. The rendering shells (each game's `index.html`) are exercised by hand/preview,
+# not unit-tested, so they're out of the coverage picture by design.
+#
+# Statuses are INFORMATIONAL so a coverage dip never blocks CI (the upload is already non-blocking
+# in ci.yml — `fail_ci_if_error: false`). Enable by turning on the Codecov GitHub app for the repo;
+# a CODECOV_TOKEN secret is recommended (public repos also work tokenless).
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: node
+      paths:
+        - games/
+
+comment:
+  layout: "condensed_header, files"
