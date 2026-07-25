@@ -46,7 +46,7 @@ copy of this standard). Don't infer an exception silently — name it.
 ## Registry
 
 A project's deploy target is reflected in its registry entry: `docs:` /
-public URL in [`../registry.yml`](registry.yml) and `_data/projects.yml` points at
+public URL in [`../registry.yml`](../registry.yml) and `_data/projects.yml` points at
 where it actually lives (`https://fairyfox.io/<key>/` for Pages projects; the app's
 host for Netlify apps). Keep both registries in step.
 

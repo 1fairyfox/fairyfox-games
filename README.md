@@ -4,24 +4,35 @@
 [![Contributors](https://img.shields.io/github/contributors/1fairyfox/fairyfox-games?style=flat-square&logo=github)](https://github.com/1fairyfox/fairyfox-games/graphs/contributors)
 [![Stars](https://img.shields.io/github/stars/1fairyfox/fairyfox-games?style=flat-square&logo=github)](https://github.com/1fairyfox/fairyfox-games/stargazers)
 [![Forks](https://img.shields.io/github/forks/1fairyfox/fairyfox-games?style=flat-square&logo=github)](https://github.com/1fairyfox/fairyfox-games/network/members)
+[![Watchers](https://img.shields.io/github/watchers/1fairyfox/fairyfox-games?style=flat-square&logo=github)](https://github.com/1fairyfox/fairyfox-games/watchers)
 
 <!-- Activity / release -->
 [![Last commit](https://img.shields.io/github/last-commit/1fairyfox/fairyfox-games?style=flat-square)](https://github.com/1fairyfox/fairyfox-games/commits)
+[![Commits](https://img.shields.io/github/commit-activity/t/1fairyfox/fairyfox-games?style=flat-square&label=commits)](https://github.com/1fairyfox/fairyfox-games/commits)
 [![Version](https://img.shields.io/github/v/tag/1fairyfox/fairyfox-games?style=flat-square&label=version)](https://github.com/1fairyfox/fairyfox-games/releases)
 
 <!-- Build / quality -->
 [![CI](https://img.shields.io/github/actions/workflow/status/1fairyfox/fairyfox-games/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/1fairyfox/fairyfox-games/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/1fairyfox/fairyfox-games?style=flat-square&logo=codecov&logoColor=white)](https://app.codecov.io/gh/1fairyfox/fairyfox-games)
+[![Code quality](https://img.shields.io/codefactor/grade/github/1fairyfox/fairyfox-games?style=flat-square&logo=codefactor&logoColor=white&label=code%20quality)](https://www.codefactor.io/repository/github/1fairyfox/fairyfox-games)
+[![Quality gate](https://img.shields.io/sonar/quality_gate/1fairyfox_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=quality%20gate)](https://sonarcloud.io/summary/new_code?id=1fairyfox_fairyfox-games)
+[![Tech debt](https://img.shields.io/sonar/tech_debt/1fairyfox_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=tech%20debt)](https://sonarcloud.io/summary/new_code?id=1fairyfox_fairyfox-games)
 
 <!-- Security -->
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/1fairyfox/fairyfox-games?style=flat-square&label=scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/1fairyfox/fairyfox-games)
 
 <!-- Docs / deploy -->
 [![Docs](https://img.shields.io/badge/docs-fairyfox.io-4c9?style=flat-square&logo=readthedocs&logoColor=white)](https://fairyfox.io/fairyfox-games/)
+[![Pages](https://img.shields.io/github/actions/workflow/status/1fairyfox/fairyfox-games/pages.yml?branch=main&style=flat-square&logo=githubpages&logoColor=white&label=pages)](https://github.com/1fairyfox/fairyfox-games/deployments)
 
 <!-- Issues / PRs / license -->
 [![Open issues](https://img.shields.io/github/issues/1fairyfox/fairyfox-games?style=flat-square)](https://github.com/1fairyfox/fairyfox-games/issues)
+[![Closed issues](https://img.shields.io/github/issues-closed/1fairyfox/fairyfox-games?style=flat-square)](https://github.com/1fairyfox/fairyfox-games/issues?q=is%3Aissue+is%3Aclosed)
 [![Open PRs](https://img.shields.io/github/issues-pr/1fairyfox/fairyfox-games?style=flat-square)](https://github.com/1fairyfox/fairyfox-games/pulls)
+[![Closed PRs](https://img.shields.io/github/issues-pr-closed/1fairyfox/fairyfox-games?style=flat-square)](https://github.com/1fairyfox/fairyfox-games/pulls?q=is%3Apr+is%3Aclosed)
 [![License](https://img.shields.io/github/license/1fairyfox/fairyfox-games?style=flat-square)](LICENSE)
+
+📖 **Documentation & play** — <https://fairyfox.io/fairyfox-games/>
 
 An **AI-managed game farm** — a library of small, simple games, planted and tended by AI.
 New games are sown regularly and the ones already growing keep getting deeper, so the
@@ -30,8 +41,16 @@ second and lose a few happy minutes to.
 
 Some are tiny, some are clever; all of them are here to be played and enjoyed.
 
-**▶ Play them:** <https://fairyfox.io/fairyfox-games/> — each game at
-`https://fairyfox.io/fairyfox-games/<game>/`.
+## Get it
+
+Everywhere this collection lives — pick your door in:
+
+- **▶ Play (live)** — <https://fairyfox.io/fairyfox-games/> · each game at
+  `https://fairyfox.io/fairyfox-games/<game>/` (static, published by GitHub Pages).
+- **📖 Docs / project page** — <https://fairyfox.io/fairyfox-games/>.
+- **⬇ Releases** — <https://github.com/1fairyfox/fairyfox-games/releases>.
+- **⌨ Source** — <https://github.com/1fairyfox/fairyfox-games> (the `notes/` tree records
+  how it's built).
 
 Part of the [Fairy Fox](https://fairyfox.io) project mesh, with the door open:
 **contributions are welcome** — see [CONTRIBUTING.md](CONTRIBUTING.md). File an issue,
@@ -118,3 +137,10 @@ the [issue templates](.github/ISSUE_TEMPLATE/).
 ## License
 
 [MIT](LICENSE) © Fairy Fox. Play, fork, learn from, and build on these freely.
+
+---
+
+Part of the **[Fairy Fox](https://fairyfox.io)** project mesh — a family of small, open
+projects that share standards and grow alongside each other. Browse the rest at
+[fairyfox.io](https://fairyfox.io) · this collection's home is
+[fairyfox.io/fairyfox-games/](https://fairyfox.io/fairyfox-games/).

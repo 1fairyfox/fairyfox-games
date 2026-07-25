@@ -6,8 +6,9 @@ bit repeatedly until a guard made it self-catching.
 
 > Canonical, project-agnostic standard. Portable starting scripts:
 > [`../templates/check-links.mjs`](../templates/check-links.mjs),
-> [`../templates/check-tidy.mjs`](../templates/check-tidy.mjs) — zero-dependency Node, wired into
-> the project's test gate. Adapt to the stack (a Ruby/Python project can port the ~70 lines).
+> [`../templates/check-tidy.mjs`](../templates/check-tidy.mjs),
+> [`../templates/check-standards.mjs`](../templates/check-standards.mjs) — zero-dependency Node,
+> wired into the project's test gate. Adapt to the stack (a Ruby/Python project can port them).
 
 ## The rules
 
@@ -15,7 +16,15 @@ bit repeatedly until a guard made it self-catching.
    generated/vendored trees) and **fails the build** on any relative link whose target doesn't
    exist. Wire it into the test gate **and** CI, so a rename/move/removal that leaves a dangling
    link turns the check red before it merges. Broken links are the *mechanically detectable* half
-   of doc drift — catch them for free; leave prose for human review.
+   of doc drift — catch them for free; leave prose for human review. The gate is **runtime-agnostic**
+   (zero-dep, bare `node`) — a JVM or Ruby repo runs the same script.
+   **Scope the gate to your *authored prose*, not adopted mirrors or permalinked content** —
+   two false-positive classes bite a naive file-existence check and must be added to the script's
+   SKIP: (1) **verbatim-adopted external docs** (e.g. `notes/reference/` mirroring hub standards,
+   which carry *hub-relative* links that resolve at the hub, not here), and (2) **static-site
+   content collections** whose `.md` links are **permalinks** (`[…](blueprint/)`), not filesystem
+   paths. The template also **strips code spans before matching**, so a doc that *quotes* a markdown
+   link (like this standard) doesn't trip its own gate.
 2. **Uncommitted-file guard.** A script fails on any **untracked, non-ignored** file (`git status`
    `??` entries) — the exact signature of "someone wrote a doc/report and never committed it".
    Run it **before finishing a session** (not in CI — a fresh checkout has none). Gitignored
@@ -39,6 +48,11 @@ bit repeatedly until a guard made it self-catching.
 6. **Verify merge status by full ref, never a bare name.** `git branch --merged` / rev-list against
    `origin/<bare-name>` when the real ref is `origin/feature/<name>` silently reports "not merged".
    Use the full ref + `git merge-base --is-ancestor origin/<full-ref> origin/main`.
+7. **Machine-check the invariants that machines can check.** The grep/API-checkable rules —
+   active primary-nav = Projects on a sub-project docs page, `VERSION` == newest `main` tag,
+   the subnav shape — go in a [`check-standards.mjs`](../templates/check-standards.mjs)-style
+   gate in CI, not left to a reviewer's eye. A rule a machine *can* catch and doesn't is a rule
+   that silently drifts ([`checklists-are-contracts`](checklists-are-contracts.md) R6).
 
 ## Verify (is it being followed?)
 
@@ -51,3 +65,4 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — `don
 | No **stranded useful files** (uncommitted reports/notes) | `git status` shows only gitignored junk untracked |
 | Current-state docs were **swept on the last rename/removal** | `git grep` a recently-renamed identifier for stale prose; links resolve |
 | **Branch auto-delete on** with the **work branch deletion-protected** | repo settings; `dev` survived the last release merge |
+| The **machine-checkable invariants** (active-nav = Projects, `VERSION` == newest tag, subnav shape) are gated in CI, not left to review | find `check-standards.mjs`-style checks in CI |

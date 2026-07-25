@@ -46,11 +46,19 @@ Ship a root [`SECURITY.md`](../templates/SECURITY.md) with a **private** reporti
 (GitHub private vulnerability reporting, and/or a contact address). Satisfies the
 Scorecard **Security-Policy** check.
 
-### 4. Signed releases (build provenance)
+### 4. Signed releases (build provenance) — attach the attestation AS a release asset
 
 The release workflow attaches keyless [SLSA build provenance](https://slsa.dev) with
 `actions/attest-build-provenance` (needs `id-token: write` + `attestations: write` at
-**job** scope). Satisfies **Signed-Releases**.
+**job** scope).
+
+**Attestation alone scores 0 on Scorecard's Signed-Releases** — the check reads release
+*assets*, not GitHub's attestation API. So also copy the attest step's `bundle-path` to a
+`*.intoto.jsonl` file and **attach it to the GitHub Release** (`softprops/action-gh-release`
+`files:`). A node's Signed-Releases went 0→2 on the first release that carried the asset,
+and climbs as more releases carry it. A tiny reusable
+[`provenance-asset`](../templates/provenance-asset.yml) snippet ships the identical steps so
+every release workflow attaches it the same way.
 
 ### 5. Branch protection on `main` — mandatory, solo config
 
@@ -77,9 +85,17 @@ reading the JSON from a **UTF-8 (no BOM) file**, not stdin:
 }
 ```
 
-Fill `contexts` with the CI job names you want required. **`gh api --input -` (stdin)
-fails from PowerShell** (UTF-16 stdin → "Problems parsing JSON") — always use a
-UTF-8-file `--input <file>`.
+Fill `contexts` with the **full CI suite by job name** — not just `build`, but SAST
+(CodeQL) **and every integration/smoke/e2e job** the project has. "Full CI before `main`"
+is documentation without teeth until the contexts are populated: a bare-`build` required
+check lets a merge through while the smoke job is red. Each repo's job names differ (a
+non-Minecraft node won't have "Server smoke"); the rule is *require the full suite, whatever
+its jobs are* (see [git-workflow → Full CI before `main`](git-workflow.md#full-ci-before-main--platform-enforced-every-job)).
+**`gh api --input -` (stdin) fails from PowerShell** (UTF-16 stdin → "Problems parsing
+JSON") — always use a UTF-8-file `--input <file>`. Setting just the required-checks slice
+also works via the field-flag form: `gh api -X PATCH …/branches/main/protection/required_status_checks
+-F strict=true -f "contexts[]=build" -f "contexts[]=…"` (the agent sandbox blocks the
+stdin-piped form but passes the field-flag form — see [`agent-tooling.md`](agent-tooling.md)).
 
 ### 6. Reconcile the release flow
 
@@ -95,6 +111,25 @@ node.
 Clear OSV/`npm audit` (or ecosystem-equivalent) findings — dev-only ones via
 `package.json` `overrides`/`resolutions` where no upstream fix exists yet. Pairs with the
 [dependencies standard](dependencies.md).
+
+### 8. SAST outlives toolchain bumps (the analyzer wins)
+
+A language/compiler upgrade must **not out-race the SAST analyzer's supported range.** A
+Dependabot bump of Kotlin 2.4.0 → 2.4.10 that CodeQL's extractor rejects ("too recent")
+would silently kill SAST — and dropping SAST to keep the bump is the wrong trade. **Pin the
+toolchain to the analyzer's supported maximum and bump both together**; revert (or hold) a
+toolchain bump that outruns the analyzer until it catches up. **Failing/absent SAST on a
+release is a blocker, not a deferrable** — a release with SAST dark ships blind. (Concrete
+save: CodeQL was briefly *removed* to keep a Kotlin bump; the right move was pinning Kotlin
+back to CodeQL's max and bumping the two in lockstep.)
+
+### 9. Workflow token & artifact hygiene
+
+Top-level `permissions: contents: read` on **every** workflow (elevate only at job scope —
+§1); every action SHA-pinned (§2); and **wrapper/artifact validation where the ecosystem has
+one** (e.g. `gradle/actions/wrapper-validation` backing a checked-in `gradle-wrapper.jar`,
+`actions/setup-node` with a lockfile). Individually tiny; collectively they cost Scorecard
+points every week and leave a checked-in binary unverified.
 
 ## Two honest caveats (state them; don't chase the impossible)
 
@@ -125,8 +160,10 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — repo
 | Every workflow has top-level `permissions: contents: read`; write is per-job | grep `.github/workflows/*.yml` for `permissions:` |
 | Every `uses:` is SHA-pinned with a version comment; Dependabot `github-actions` on | inspect workflows; `.github/dependabot.yml` |
 | Root `SECURITY.md` with a private reporting path exists | `ls SECURITY.md` |
-| The release workflow attests build provenance | grep `release.yml` for `attest-build-provenance` |
-| `main` is protected with the solo config (require PR, 0 approvals, strict checks, enforce-admins, no force-push, linear history off) | `gh api repos/OWNER/REPO/branches/main/protection` |
+| The release workflow attests build provenance **and attaches the `.intoto.jsonl` as a release asset** (attestation alone scores 0) | grep `release.yml` for `attest-build-provenance` + `gh-release … files:` |
+| `main` is protected with the solo config **and its required-status-check contexts list the full CI suite** (not just `build`) | `gh api repos/OWNER/REPO/branches/main/protection` — check `required_status_checks.contexts` |
+| SAST (CodeQL) is present and green on releases; the toolchain is pinned to the analyzer's supported range | `.github/workflows` for the SAST job; the toolchain pin + a comment tying it to the analyzer |
+| Checked-in build wrappers/artifacts are validated (e.g. gradle wrapper-validation) | grep workflows for wrapper/artifact validation |
 | Releases go through a PR merge (reconciled with git-workflow), not a blocked direct push | `git log --first-parent main`; branch-protection settings |
 | Dependency-vuln findings are cleared or overridden with a reason | `npm audit` / OSV scan; `overrides` in `package.json` |
 | The solo ceiling (~8) and badge lag are noted, not chased | the project's security notes acknowledge them |

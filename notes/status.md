@@ -2,7 +2,21 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.26.1` (single source of truth: repo-root `VERSION`). **v0.26.1** is a **GROW**
+**Version:** `0.27.0` (single source of truth: repo-root `VERSION`). **v0.27.0** is a
+**STANDARDS** run: adopted the fairyfox hub batch **0.20.2 → 1.6.1 in full** (pre-authorized by
+the standing `adopt-standards-by-default` grant; full safety floor kept). Refreshed the
+git-ignored hub mirror (clean fast-forward `697bc5c → 2d614f0`), vendored the **5 new** standards
+(`checklists-are-contracts`, `mandate-ledger`, `readme-structure`, `docker`, `ci-secrets`) + ~24
+refreshed ones into `notes/reference/`, and stood up the new required **adoption manifest**
+(`notes/reference/adoption-manifest.md` — honest per-standard `implemented`/`copied-only`/`gap`/
+`N-A` states). Player-facing: the README now carries the **full ordered 20-badge** block + a
+worded docs link + a **"Get it"** section + a **mesh footer**. Added `scripts/check-standards.mjs`.
+**Recorded remainders (dated gaps, not silent drops):** the coverage/CodeFactor/SonarCloud badge
+slots are present but unwired (owner's call to wire or except); the docs-site chrome re-verify is
+browser-gated (next preview session); Docker is honest **N-A** (static Jekyll + zero-dep
+cross-platform tests). **783/783** green; Jekyll build clean; no game logic touched. Gotcha filed
+for the hub: vendoring `readme.md` case-collided with `README.md` on Windows (fixed → the standard
+lives as `readme-structure.md`). Earlier: **v0.26.1** is a **GROW**
 run: **Sluice** gets the **"depth inside the mechanic"** layer — the **12th game** to carry it,
 and the last game still *named* as missing it (prior status: depth rollout 11 of 13, left:
 Sluice), so the retrofit list is now clear (the newer games ship depth from birth). All four

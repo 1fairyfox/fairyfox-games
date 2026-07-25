@@ -89,6 +89,14 @@ You CAN build, test, run, commit, and push — via PowerShell on the local machi
 (git + `gh` authed as `1fairyfox`; Node 18+ installed). CI runs the tests on every
 push and PR; GitHub Pages deploys on push to `main`.
 
+**Docker is N-A here (recorded, not skipped).** The hub `docker.md` standard is local-first
+build/test/setup for Linux-only or reproducibility-sensitive work. This project has neither:
+the tests are zero-dep `node --test` (cross-platform) and the site is a static Jekyll build,
+both of which run on the Windows host. Per `docker.md` "When it doesn't apply", that's an
+honest `N-A(reason)` in `notes/reference/adoption-manifest.md`, not a silent drop. **Plan
+non-trivial work in phases first** (`notes/reference/planning.md` — research → plan →
+implement), writing the plan to `notes/plans/` before executing.
+
 **Tooling (non-negotiable, per `notes/reference/agent-tooling.md`):** use **PowerShell +
 the file tools (Read/Edit/Write)** for everything — **never the Cowork bash sandbox**,
 which mangles line endings and can't touch `.git` on this machine. **Execute** the work

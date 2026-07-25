@@ -25,13 +25,23 @@ Google Fonts hot-link); general to every user-facing site in the mesh.
    **disclose the IP exposure** in Privacy/Cookies ([`legal-docs.md`](legal-docs.md)) and record it
    as an exception with a remediation path — don't claim "no third-party requests" while hot-linking.
 
-## Known exception (to remediate)
+## Formerly-open exception — now closed (0.22.0 / 0.22.2)
 
-**fairyfox.io (the hub) currently hot-links Google Fonts + cdnjs (Font Awesome).** This is
-disclosed truthfully in the hub's `/legal/privacy/` and `/legal/cookies/` pages (IP exposure to
-Google + Cloudflare flagged). It is a **recorded exception pending remediation** — vendor the
-typefaces + icon set into `assets/` and drop the hot-links — not a licence to hot-link. The farms
-(games, stories) already comply; the hub is the laggard here.
+The hub used to hot-link Google Fonts + cdnjs (Font Awesome); both are now **remediated**, so the
+hub makes **no third-party presentation request** and fully complies with this standard.
+
+- **Fonts (0.22.0).** The three OFL variable subsets (Fraunces / Inter / JetBrains Mono) live in
+  `assets/fonts/` with a local `fonts.css`; the shared chrome bundle (2.3.0) ships the same
+  self-hosted fonts, so **no node needs the font deviation** any more.
+- **Font Awesome (0.22.2).** Font Awesome Free 6.5.2 is vendored under `assets/font-awesome/`
+  (`css/all.min.css` + `webfonts/*.woff2`) and served from origin; `_includes/head.html` no longer
+  references `cdnjs.cloudflare.com`. The farms (games, stories) carry no Font Awesome, so this was
+  hub-only. (Note: NOT under `assets/vendor/` — the repo's `.gitignore` excludes any `vendor/` dir
+  for Bundler, which would silently drop the committed assets; keep self-hosted vendor assets on a
+  non-`vendor/` path.)
+
+This section is kept as the record that the exception existed and was closed; there is **no open
+hub exception** at present. If a new one ever arises, record it here with a remediation path (rule 4).
 
 ## Verify (is it being followed?)
 

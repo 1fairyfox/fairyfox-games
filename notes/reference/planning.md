@@ -29,7 +29,31 @@ For non-trivial work, write a short, structured plan before making changes:
 
 Keep plans in `notes/plans/` so they live with the project's other notes.
 
-## What's exempt
+## Break the work into as many phases as it needs — by default
+
+Non-trivial work is **decomposed into phases**, and there are as many as the work needs —
+this is a standing default, not a special-case for "big" tasks. Phases live at **three
+levels**, and a real task usually has several at each:
+
+- **Research phases.** Understand before you build. Research is a **first-class phase, not a
+  formality to rush past** — go to the primary source (the real codebase **locally** *and*
+  the upstream docs/spec/reference **online**, as the question needs), verify anything
+  load-bearing against the real system, and land the understanding in `notes/` the same
+  session ([`research-capture.md`](research-capture.md)). Skipping or skimming research is
+  how a plan gets built on a wrong model. Give it the phases it needs.
+- **Planning phases.** Plan **as often as needed** — not once at the start, but again
+  whenever a phase turns up something that changes the shape. Planning is **primarily for
+  the executor (the AI)**: it's what keeps a long, multi-part change coherent and catches
+  contradictions before they cost a rebuild. Re-plan freely; it is cheap next to reworking
+  built code.
+- **Implementation phases.** Build in coherent, shippable phases rather than one big-bang
+  push — each phase a self-contained, verifiable step (build/test/preview) that leaves the
+  tree working. Sequence them so later phases stand on verified earlier ones.
+
+The number of phases is set by the work, not by a template: a small change may be one of
+each; a feature or a standards pass may be many. **Err toward more, smaller phases** — under-
+phasing (one giant undifferentiated push) is the failure this rule closes. The phase
+breakdown is part of the written plan.
 
 Trivial, single-step changes (a typo, a one-line fix, an obvious rename) don't need a
 written plan — planning overhead shouldn't exceed the work. The bar is "non-trivial":
@@ -41,6 +65,10 @@ your way through.
 - Substantive work (a multi-file change, a release-worthy feature, a standards pass)
   has a **written plan that predates the execution** — typically a file in
   `notes/plans/`, or an in-thread plan agreed before edits began.
-- The Default Workflow in the project's `CLAUDE.md` states plan-before-execute.
+- The plan **breaks the work into phases** across research / planning / implementation, with
+  as many as the work needs — not one undifferentiated push. Research phases went to the
+  primary source (local + online) rather than being skipped or rushed.
+- The Default Workflow in the project's `CLAUDE.md` states plan-before-execute **and
+  phase-by-default**.
 - Trivial one-step changes are not gratuitously bureaucratized — the rule is applied
   with judgment, not as paperwork for its own sake.

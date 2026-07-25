@@ -39,6 +39,30 @@ deferring it.
    routine dep refresh), with the changelog entry riding in the same commit
    ([versioning](versioning.md), [git-workflow](git-workflow.md)).
 
+## Guardrails when a dependency actually changes
+
+Upgrading aggressively is safe **only behind these guardrails** — a session hit three
+dependency failures on a project that used *three* runtime libraries, so they generalize:
+
+1. **Pin the toolchain to what SAST supports.** A compiler/toolchain bump must not out-race
+   the SAST analyzer's supported range; a bump CodeQL's extractor rejects silently kills
+   SAST. Revert/hold such a bump until the analyzer catches up, and bump the two together.
+   (Cross-ref: [supply-chain-hardening §8](supply-chain-hardening.md#8-sast-outlives-toolchain-bumps-the-analyzer-wins).)
+2. **Keep test and runtime dependency versions in sync.** Dependabot bumps the build's *test*
+   deps but not a plugin/app's **runtime** dependency manifest (e.g. Paper's
+   `plugin.yml libraries:`, a Docker base image, a bundled runtime). When a runtime dep moves,
+   move the runtime manifest and the tested version **together** — a build-only bump ships a
+   version the runtime never loads.
+3. **Verify runtime deps against the real runtime resolver, not the build's.** `./gradlew build`
+   (or `npm ci`) resolves from the *build's* registry; the runtime loader may resolve from a
+   **lagging mirror**. A version present on the build registry but absent from the runtime
+   mirror passes the build and then fails to load in production. When runtime deps change,
+   HEAD-check each version against the **actual runtime resolver**, and let a real-runtime
+   smoke job be a required check ([git-workflow full-CI gate](git-workflow.md#full-ci-before-main--platform-enforced-every-job)).
+4. **Handle Dependabot with judgment, never blind-merge.** Close a bump that contradicts a
+   deliberate target (e.g. a Paper-API bump to a year-line the project deliberately doesn't
+   target) **with the reason recorded**; merge the rest through the full-CI gate.
+
 ## Verify (is it being followed?)
 
 The per-standard slice the [compliance audit](compliance.md) aggregates — report
@@ -47,6 +71,9 @@ The per-standard slice the [compliance audit](compliance.md) aggregates — repo
 | Passes only when… | How to check |
 |-------------------|--------------|
 | Dependabot is configured, grouped, weekly, targeting `dev` | `.github/dependabot.yml` |
+| Toolchain is pinned within the SAST analyzer's supported range | the pin + a comment tying it to the analyzer |
+| Runtime + test dep versions move together; runtime deps HEAD-checked against the real runtime resolver | the runtime manifest vs. tested version; a real-runtime smoke job |
+| Dependabot bumps that contradict a deliberate target are closed **with a reason**, not blind-merged | closed Dependabot PRs carry a reason |
 | A full test gate runs **locally**, not only in CI | the project's `test`/`check` scripts run green locally |
 | Dependencies are reasonably current (no long-stale majors without a reason) | `ncu` / `npm outdated`; check for old majors |
 | Any pin/deferral has a documented reason + revisit note | grep for `pinned`/`overrides`; `decisions/` notes |
