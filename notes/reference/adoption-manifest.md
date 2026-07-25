@@ -55,7 +55,7 @@ written without a backing row here. Governed by hub `checklists-are-contracts` +
 | readme-structure | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | README docs-link (top), "Get it" section, mesh footer; vendored as `readme-structure.md` (Windows case-collision with `README.md`) |
 | agent-tooling | implemented | 1.6.1 / 2d614f0 | 2026-07-25 pass | PowerShell + file tools; bash sandbox avoided; `.gitattributes` LF |
 | maintenance-sweep | copied-only | 1.6.1 / 2d614f0 | — | re-vendored |
-| ci-secrets | copied-only | 1.6.1 / 2d614f0 | — | standard vendored; CI uses no custom secrets beyond `GITHUB_TOKEN` |
+| ci-secrets | copied-only (+ tool) / gap(owner runs it) | 1.6.1 / 2d614f0 | 2026-07-25 partial | standard vendored + the provisioning tool `scripts/repo-tokens.ps1` (from `hub/tools/`) is now in-repo; the two referenced secrets (`SONAR_TOKEN`, `CODECOV_TOKEN`) still need the owner to run the tool (concealed prompt — tokens never transit the chat). `SCORECARD_TOKEN` N-A here (no scorecard workflow references it) |
 | docker | N-A(static Jekyll + zero-dep cross-platform Node tests) | 1.6.1 / 2d614f0 | 2026-07-25 | no Linux-only build/test/setup; `node --test` + Jekyll run on the Windows host; per docker.md "When it doesn't apply" |
 | farm-operating-model | copied-only | 1.6.1 / 2d614f0 | — | grow-daily / plant-periodically model lived; re-vendored |
 | new-project-setup | N-A(runbook) | 1.6.1 / 2d614f0 | — | join-time runbook, not a standing rule |
