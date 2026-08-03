@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-08-03",
+    "game": "Span",
+    "slug": "span",
+    "kind": "new",
+    "text": "A brand-new game joins the collection: Span, and a brand-new thing to do — you build. Your fox stands at the edge of a ledge with a gap ahead and the next ledge beyond it. Hold one control to grow a beam upward, let go to drop it flat across the gap: the length when you release is its reach. Fall short and the tip drops into the gap; grow it too long and it overshoots and you walk off the far end; land the tip on the ledge and you cross. Judge the length by eye — anyone can play it in three seconds. But merely crossing keeps you at one point a span forever; land on the bright centre stone and it's a keystone, and your multiplier climbs to nine. Tighter still, dead through the exact middle, is a razor line the game draws nowhere — thread it for a plumb and a bonus, string three plumbs and the bridge locks into a Truss where every point doubles. The beam only grows faster and the ledges only narrow the deeper you go, and past the Skyway there's a stage the start screen has never named. Ships with six named crossings that reshuffle every run, three lives, lifetime badges, and a Lanterns fun mode."
+  },
+  {
     "date": "2026-08-02",
     "game": "Reel",
     "slug": "reel",
