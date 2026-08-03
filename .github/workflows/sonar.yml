@@ -7,9 +7,10 @@ name: SonarCloud
 # DORMANT until you enable it: the job only runs when the repo VARIABLE `SONAR_ENABLED` is "true",
 # so until then this workflow is a no-op and never shows a spurious red X on a commit or PR.
 # One-time setup:
-#   1. Sign in at https://sonarcloud.io with GitHub and import 1fairyfox/fairyfox-games
-#      (organization `1fairyfox`). Confirm the project key is `1fairyfox_fairyfox-games`
-#      (matches sonar-project.properties + the README badge) — adjust both if Sonar differs.
+#   1. Sign in at https://sonarcloud.io with GitHub and import the repo under organization
+#      `junebug12851` (the owner's ORIGINAL GitHub username — the SonarCloud org keeps that key
+#      after the GitHub rename). Project key `junebug12851_fairyfox-games` (matches
+#      sonar-project.properties + the README badge).
 #   2. Add a repo SECRET `SONAR_TOKEN` (Sonar → My Account → Security).
 #   3. Add a repo VARIABLE `SONAR_ENABLED` = true
 #      (Settings → Secrets and variables → Actions → Variables).
