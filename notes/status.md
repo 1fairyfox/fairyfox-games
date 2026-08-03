@@ -2,7 +2,23 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.27.4` (single source of truth: repo-root `VERSION`). **v0.27.4** is a **GROW**
+**Version:** `0.28.0` (single source of truth: repo-root `VERSION`). **v0.28.0** is a **PLANT**
+run: a new game, **Reel** — a genuinely new verb (**give-and-take**: resist vs. yield against a
+*reacting* opponent) and the collection's **18th**. There's a catch on the line that fights back;
+you hold **one** control to reel it in, and it alternates **calm** (reel freely) ↔ **surge** (it
+thrashes — reeling now spikes line **tension** toward a **snap**). Fill progress to **land** it;
+three snaps end the run. Distinct from Brim (which meters *your own* one-shot pour with a fixed
+lag) — Reel is a continuous read/modulate loop against an adversary whose state keeps changing.
+**Ships on the depth layer + varied structure from birth:** the hidden **haul** (reel in the razor
+window the instant a surge *breaks* → a burst of progress + a ×2…×9 multiplier, taught nowhere;
+reel a hair too early, still mid-surge, and you over-tension toward a snap — precise = greedy on the
+one input), **Frenzy** (3 hauls in a row → ~5 s where every point doubles), a **no-plateau** surge
+asymptote (`surgeTenseScale` — thrashing gets fiercer forever), six stage-gated **temperaments**
+(Minnow · Steady · Darter · **Sunfish**=greed window · Diver · The Leviathan — every schedule
+starts calm, the frame-one guard), a stage arc (Ripple → Current → Undertow → Riptide → Maelstrom)
++ a **secret The Deep** stage, meta (`reel.meta`, 13 badges, legacy `reel.best`) and a **Glimmer**
+coin fun mode (additive render only). Pure `tick(g, holding)`-split core + 32 tests; collection
+green. Earlier: **v0.27.4** is a **GROW**
 run: **Tether** gets the **collection's first cross-run unlock** — the varied-structure standard's
 rule #3 (the meta layer *driving* variation) made real, on the least-recently-touched core
 (untouched since it was planted at v0.21.0). A new anchor-line, **Windfall** (a downhill plunge —
@@ -292,8 +308,41 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (17):**
+**Games so far (18):**
 
+- **Reel** (`games/reel/`) — a **give-and-take** game (a genuinely new verb: the collection's
+  first **resist / yield** mechanic — you're not steering, timing, aiming, metering, swinging,
+  remembering, guarding, herding, weaving or sorting, you're **modulating one sustained pull
+  against a living, reacting force**). There's a catch on the line that *fights back*; you hold
+  one control to **reel** it in, and it alternates **calm** (reel freely — the line barely
+  strains) ↔ **surge** (it thrashes — reeling now spikes the line **tension** fast, toward a
+  **snap**). Reeling in calm is efficient; resting through a surge bleeds tension but the catch
+  pulls a little away (you can't idle out every thrash). Fill the progress (the catch rises
+  toward the surface) to **land** it — bigger, feistier catches follow; max the tension and the
+  line **snaps** (a setback + a life; three snaps end the run). Distinct by construction from
+  Brim's *pour* (Brim meters *your own* one-shot fill with a fixed lag; Reel is a continuous
+  read/modulate loop against an adversary whose calm/surge state you must keep reading). **The
+  depth is the haul, discovered not told:** the tick a surge *breaks* (the catch tires) opens a
+  razor `HAUL_WIN` (10) window — snap back onto the reel in that instant and its spent lunge
+  converts to a burst of progress + a growing multiplier (×2…×9, `HAUL_BONUS` points); the safe
+  instinct is to keep resting, the greedy line is to re-grab at the break, and reeling a hair too
+  early (still mid-surge) over-tensions toward a snap (the precise/safe tension re-expressed as
+  pressure). A 3-haul streak → **Frenzy** (`FRENZY_TICKS` ~5 s where every point doubles; the
+  trigger never doubled). **On Varied Structure + the Growth Architecture from birth:** each
+  catch's fight is a seeded **schedule of segments** built from one named **temperament**
+  (`FORMATIONS`/`pickTemperament`/`nextCatch`, `minStage`-gated so climbing the stages **opens
+  the pool**; every build starts calm, so frame one — and every refill — can never ambush):
+  **Minnow** (long calm, gentle surges — the on-ramp) · **Steady** (an even give-and-take) ·
+  **Darter** (quick frequent thrashes) · **Sunfish** (long lazy calm, brief gentle surges — the
+  deliberate **greed window**, safe to over-reel + chain hauls) · **Diver** (long fierce surges —
+  patience) · **The Leviathan** (the crescendo). Notable temperaments flash a quiet name cue.
+  Plus a **stage arc** — one line of water (Ripple → Current → Undertow → Riptide → Maelstrom) —
+  with HUD chip + tint, a **secret The Deep stage** (55 landed, revealed only by reaching it), a
+  **no-plateau surge asymptote** (`surgeTenseScale`), and **meta-progression** (`reel.meta`:
+  lifetime catches/points/hauls + best stage/mult + 13 badges, run-report) — legacy `reel.best`
+  preserved — and the **Glimmer** coin fun mode (1 coin, bioluminescent additive render only,
+  score untouched). Pure `tick(g, holding)`-split core + 32 tests. **(Ships on varied structure +
+  the depth layer from day one.)**
 - **Loom** (`games/loom/`) — a **weave / interlace** game (a genuinely new verb: the
   collection's first **weaving** mechanic — you're not steering, timing, aiming, metering,
   swinging, remembering, guarding, herding or sorting, you're **choosing over/under at each
