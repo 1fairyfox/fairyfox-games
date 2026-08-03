@@ -15,8 +15,7 @@
     secret it prints exactly where to get the value, then prompts for it with the
     input CONCEALED (Read-Host -AsSecureString). The value never touches disk, the
     shell history, this script's command line, or an AI transcript — it is streamed to
-    `gh secret set ... --body-file -` over stdin and the plaintext copy is zeroed
-    immediately after.
+    `gh secret set ...` over stdin and the plaintext copy is zeroed immediately after.
 
     Leave a prompt BLANK and press Enter to SKIP that secret — nothing is sent to `gh`
     for it. Skip the ones a given repo doesn't use (e.g. a repo with no SonarCloud
@@ -144,7 +143,9 @@ foreach ($s in $rows) {
     $bstr  = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
         $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-        $plain | gh secret set $s.Name --repo $Repo --body-file - | Out-Null
+        # gh reads the secret value from stdin when --body is omitted. (Older/newer gh builds
+        # lack `--body-file`; piping over stdin is the portable form.)
+        $plain | gh secret set $s.Name --repo $Repo | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "gh secret set $($s.Name) failed (exit $LASTEXITCODE)." }
         Write-Host "   -> set on $Repo" -ForegroundColor Green
         $set += $s.Name

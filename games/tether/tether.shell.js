@@ -19,7 +19,7 @@
 import {
   createGame, start as startGame, grab, release, tick, reachable, amplitude,
   stageIndexAt, stageProgress, normalizeMeta, applyRun, newlyEarned, nearMissLine,
-  ACHIEVEMENTS,
+  unlockedFormations, newlyUnlockedFormations, ACHIEVEMENTS,
 } from './tether.core.js';
 import { grantForRun, spend, balance, onBalance, coinsReady } from '../shared/coins-game.js';
 
@@ -181,7 +181,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-game = createGame(W, H);
+game = createGame(W, H, { meta });
 updateStageChip();
 
 // world → screen
@@ -190,6 +190,9 @@ const sy = (wy) => (wy + 70) * scale;   // +70: a little sky above the highest a
 
 function beginRun() {
   beatBest = false;
+  // Refresh cross-run unlocks from the latest meta, so a formation earned last run appears
+  // this one (createGame only saw the meta at page load).
+  game.unlocked = unlockedFormations(game.cfg, meta);
   startGame(game);
   stageIdx = 0;
   tintCur = hexToRgb(game.cfg.STAGES[0].tint);
@@ -303,6 +306,14 @@ function onDeath() {
 
   if (badgesEl) {
     badgesEl.innerHTML = '';
+    // A cross-run formation just earned leads the list — a genuinely new line that will start
+    // showing up in future runs (announced, per the varied-structure standard).
+    for (const u of newlyUnlockedFormations(prev, meta, game.cfg)) {
+      const b = document.createElement('div');
+      b.className = 'badge unlock';
+      b.innerHTML = '<b>New line: ' + u.name + '</b><span>A new anchor-line now rides your deep runs.</span>';
+      badgesEl.appendChild(b);
+    }
     for (const a of newlyEarned(prev, meta)) {
       const b = document.createElement('div');
       b.className = 'badge';

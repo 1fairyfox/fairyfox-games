@@ -27,6 +27,9 @@
  *    discovered by cutting releases finer. Pays a flat bonus and builds a streak.
  *  - **Slipstream** — a streak of snaps earns a timed double-score window (the surprise).
  *  - a **secret final stage** (Zenith) past the last named one — the face-down card.
+ *  - a **cross-run unlock** (Windfall) — a new anchor-line that only starts appearing once
+ *    the player has banked enough whips across runs, so investing over sessions literally
+ *    makes future runs richer (the meta layer *driving* variation; announced when earned).
  *
  * `passed` (anchors you fly beyond) drives difficulty and the stage arc; `score` rewards
  * nerve. Gaps widen on a smooth asymptote, so the pressure never goes flat.
@@ -39,6 +42,16 @@
  *
  * @module tether.core
  */
+
+/**
+ * Lifetime whips that unlock the cross-run **Windfall** formation. A whip is the game's
+ * skill act (a clean, boosted release), so this gates the reward on *mastering the swing*,
+ * not on merely surviving: after enough whips banked across runs, a genuinely new anchor-line
+ * starts appearing in future runs (the meta layer *driving* variation — varied-structure
+ * rule #3). Skill-safe (a harder line to read, never a power boost) and announced on the
+ * game-over card the run it's earned.
+ */
+const UNLOCK_WHIPS = 150;
 
 /**
  * Tuning constants. Logical world units (the shell runs a camera over them); rates are
@@ -147,6 +160,12 @@ export const CONFIG = Object.freeze({
       weight: (s) => s, build: buildCanopy }),
     Object.freeze({ id: 'gauntlet', name: 'The Gauntlet', minStage: 2, notable: true,
       weight: (s) => Math.max(0, s - 1), build: buildGauntlet }),
+    // Windfall — a CROSS-RUN UNLOCK. Absent from the pool until the player has banked
+    // UNLOCK_WHIPS whips *across all their runs*; from then on it appears in every future
+    // deep run. The `unlock(meta)` predicate is what filters it in — see unlockedFormations.
+    Object.freeze({ id: 'windfall', name: 'Windfall', minStage: 2, notable: true,
+      unlock: (m) => (m && m.totals ? m.totals.whips | 0 : 0) >= UNLOCK_WHIPS,
+      weight: (s) => Math.max(0, s - 1), build: buildWindfall }),
   ]),
 });
 
@@ -221,6 +240,8 @@ export const ACHIEVEMENTS = Object.freeze([
  * @property {number} slip               Slipstream ticks remaining (0 = inactive)
  * @property {number} slips              Slipstream windows earned this run
  * @property {number} t                  ticks elapsed this run
+ * @property {?Set<string>} unlocked     earned cross-run formation ids (from meta); gates the
+ *                                       unlock-only formations into the pool. Not reset per run.
  */
 
 /**
@@ -230,6 +251,11 @@ export const ACHIEVEMENTS = Object.freeze([
  * @param {Object} [opts]
  * @param {() => number} [opts.rng=Math.random] RNG returning [0,1)
  * @param {Partial<TetherConfig>} [opts.config] config overrides (mainly tests)
+ * @param {Partial<Meta>} [opts.meta] the player's cross-run save — its lifetime totals decide
+ *   which unlock-gated formations are in the pool (see {@link unlockedFormations}). The shell
+ *   passes this in; the set can be refreshed each run via `g.unlocked`.
+ * @param {Set<string>} [opts.unlocked] an explicit set of earned formation ids (tests; wins
+ *   over `opts.meta`).
  * @returns {GameState}
  */
 export function createGame(width, height, opts = {}) {
@@ -247,6 +273,9 @@ export function createGame(width, height, opts = {}) {
     whips: 0, snaps: 0, snapStreak: 0, bestSnapStreak: 0,
     slip: 0, slips: 0, t: 0,
     formQ: [], formId: null, formName: null, formNotable: false,
+    // Cross-run unlocks earned by this player (a Set of formation ids). Not cleared by reset —
+    // it's a property of the account, not the run. The shell refreshes it each run from meta.
+    unlocked: opts.unlocked instanceof Set ? opts.unlocked : unlockedFormations(cfg, opts.meta),
   };
   reset(g);
   return g;
@@ -470,6 +499,61 @@ function buildGauntlet(ctx) {
   return out;
 }
 
+/** Windfall — the earned line (the cross-run unlock). Anchors *plunge* from the ceiling to
+ *  the floor of the sky, gap by gap — the mirror of the calm Rise, run downhill and fast. As
+ *  you descend the ropes shorten and the arcs quicken, so every release comes sooner than the
+ *  last and there is no rhythm to lean on: a downhill sprint that only a confident whip-chain
+ *  rides clean. It only appears once you've mastered the whip, and it asks for exactly that. */
+function buildWindfall(ctx) {
+  const { rng, cfg } = ctx;
+  const n = 4 + Math.floor(rng() * 3);            // 4..6 anchors
+  let y = cfg.A_Y_MIN + rng() * 25;               // launch high
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    y += 30 + rng() * 18;                          // plunge lower each step (clamped to the sky)
+    out.push({ dx: 210 + rng() * 30, y });         // long, wind-borne gaps
+  }
+  return out;
+}
+
+/**
+ * The set of unlock-gated formation ids this player has earned, read off their cross-run
+ * `meta` (lifetime totals). A formation with no `unlock` predicate is always available and is
+ * *not* listed here (it needs no gate); only the gated ones whose predicate passes are. Pure;
+ * never mutates the input. Feed the result to {@link pickFormation} / {@link loadFormation}.
+ * @param {TetherConfig} cfg
+ * @param {Partial<Meta>} [meta] the player's save (any shape; normalised internally)
+ * @returns {Set<string>} earned gated formation ids
+ */
+export function unlockedFormations(cfg, meta) {
+  const m = normalizeMeta(meta);
+  const set = new Set();
+  for (const f of cfg.FORMATIONS) {
+    if (typeof f.unlock === 'function' && f.unlock(m)) set.add(f.id);
+  }
+  return set;
+}
+
+/**
+ * The unlock-gated formations newly earned between two metas — the ones to announce on the
+ * game-over card the run they cross their threshold. In FORMATIONS order, as {id,name}. Pure.
+ * @param {Partial<Meta>} prevMeta the meta before this run
+ * @param {Partial<Meta>} nextMeta the meta after folding this run in
+ * @param {TetherConfig} [cfg=CONFIG]
+ * @returns {Array<{id:string,name:string}>}
+ */
+export function newlyUnlockedFormations(prevMeta, nextMeta, cfg = CONFIG) {
+  const before = unlockedFormations(cfg, prevMeta);
+  const after = unlockedFormations(cfg, nextMeta);
+  const out = [];
+  for (const f of cfg.FORMATIONS) {
+    if (typeof f.unlock === 'function' && after.has(f.id) && !before.has(f.id)) {
+      out.push({ id: f.id, name: f.name });
+    }
+  }
+  return out;
+}
+
 /**
  * Choose the next formation for a stage — a seeded, stage-weighted pick over the eligible
  * pool (`minStage` ≤ stage), softly avoiding an immediate repeat. Pure given `rng`. This is
@@ -479,10 +563,14 @@ function buildGauntlet(ctx) {
  * @param {number} stage current stage index
  * @param {() => number} rng
  * @param {?string} prevId id of the formation just finished (soft-avoided), or null
+ * @param {?Set<string>} [unlocked] ids of cross-run formations this player has earned; a
+ *   formation with an `unlock` predicate is excluded from the pool unless its id is in here
+ *   (default: none earned, so gated formations never appear). Keeps the pick pure.
  * @returns {{id:string,name:string,notable:boolean,build:Function}}
  */
-export function pickFormation(cfg, stage, rng, prevId) {
-  const pool = cfg.FORMATIONS.filter(f => stage >= f.minStage);
+export function pickFormation(cfg, stage, rng, prevId, unlocked) {
+  const pool = cfg.FORMATIONS.filter(f =>
+    stage >= f.minStage && (!f.unlock || (unlocked && unlocked.has(f.id))));
   const list = pool.length ? pool : [cfg.FORMATIONS[0]];
   const weights = list.map(f =>
     Math.max(0.0001, f.weight(stage)) * (f.id === prevId ? 0.35 : 1));
@@ -504,7 +592,7 @@ export function loadFormation(g) {
   const stage = stageIndexAt(cfg, g.passed);
   const last = g.anchors.length ? g.anchors[g.anchors.length - 1] : null;
   const lastY = last ? last.y : cfg.START_Y;
-  const f = pickFormation(cfg, stage, g.rng, g.formId);
+  const f = pickFormation(cfg, stage, g.rng, g.formId, g.unlocked);
   const specs = f.build({ rng: g.rng, lastY, stage, cfg });
   if (specs.length) specs[0].head = true;        // the leading anchor carries the name cue
   g.formQ = specs;
