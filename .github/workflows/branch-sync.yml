@@ -25,11 +25,22 @@ jobs:
           fetch-depth: 0
       - name: dev must contain every commit on main
         run: |
-          git fetch origin main dev
-          behind="$(git rev-list --count origin/dev..origin/main)"
-          if [ "$behind" -ne 0 ]; then
-            echo "::error::dev is missing $behind commit(s) that are on main — the release back-merge was skipped."
-            git log --oneline origin/dev..origin/main
-            exit 1
-          fi
-          echo "dev contains main (0 commits behind). OK."
+          # The release flow pushes the main-merge and the dev back-merge as two SEPARATE
+          # pushes; the back-merge lands a little after the merge that triggers this run. So
+          # on a `push: main` trigger we allow a short grace window for the back-merge to
+          # arrive before failing — a genuinely-skipped back-merge still fails after it, and
+          # the daily schedule remains the real backstop. Passes immediately once dev is
+          # caught up (so the scheduled/dispatch runs are unaffected).
+          for i in $(seq 1 10); do
+            git fetch -q origin main dev
+            behind="$(git rev-list --count origin/dev..origin/main)"
+            if [ "$behind" -eq 0 ]; then
+              echo "dev contains main (0 commits behind). OK."
+              exit 0
+            fi
+            echo "dev is $behind commit(s) behind main; waiting for the back-merge to land (attempt $i/10)…"
+            sleep 30
+          done
+          echo "::error::dev is still missing $behind commit(s) that are on main after the grace window — the release back-merge was skipped."
+          git log --oneline origin/dev..origin/main
+          exit 1
