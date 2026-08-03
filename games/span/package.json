@@ -1,0 +1,11 @@
+{
+  "name": "span",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Span — a one-mechanic, beat-your-own-score bridge-builder. Grow a beam, drop it to fit a gap. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

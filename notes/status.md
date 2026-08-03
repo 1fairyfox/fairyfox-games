@@ -2,7 +2,25 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.28.2` (single source of truth: repo-root `VERSION`). **v0.28.2** is a **POLISH/CI**
+**Version:** `0.29.0` (single source of truth: repo-root `VERSION`). **v0.29.0** is a **PLANT**
+run: a new game, **Span** — a genuinely new verb (**spanning / construction**: grow a length to fit
+a gap you can see) and the collection's **19th**. Your fox stands at a ledge with a gap ahead; you
+**hold** one control to grow a beam upright and **release** to drop it flat across the gap — the
+length at release is its reach. Fall **short** (tip drops into the gap) or **over** (overshoot the
+far ledge and walk off the end) and you lose a life; land the tip *on* the ledge and you cross.
+Two-sided miss (short *or* over) makes it distinct from Arc's ballistic charge and Brim's metered
+pour. Three misses end the run. **Ships on the depth layer + varied structure from birth:** land on
+the drawn **keystone** (centre stone) → the multiplier climbs (×2…×9), a loose land breaks it to ×1;
+the hidden tech is the **plumb** — a razor sub-window dead through the exact centre, **drawn nowhere**
+(`PLUMB_ABS`/`PLUMB_FRAC` inside the wider `KEYSTONE_*` band, both `max(abs, frac·width)`), paying a
+bonus + building a streak; `TRUSS_STREAK` (3) plumbs → **Truss** (~5 s double, trigger not doubled);
+two **no-plateau** asymptotes (`growRateOf` beam speed up, `widthFactorOf` ledge shrink, floored by
+`WIDTH_HARD_MIN`); six stage-gated **crossings** (Steady · Reach · **The Bench**=greed window ·
+Stagger · The Narrows · The Gauntlet — every build starts landable, the frame-one guard); a stage arc
+(Footbridge → Causeway → Trestle → Viaduct → Skyway) + a **secret Firmament** stage (110 crossings);
+meta (`span.meta`, 15 badges, legacy `span.best`) and a **Lanterns** coin fun mode (additive render
+only). Pure `tick(g, holding)`-split core + 34 tests; collection **855/855** green (821 + 34); tags
+**Bridging · Precision**; bespoke dark-neon `icon.png`. Earlier: **v0.28.2** is a **POLISH/CI**
 run (two fixes surfaced by a post-deploy live review of the Reel PLANT): (1) **Reel gains its own
 icon** — the PLANT shipped without `games/reel/icon.png`, so the landing card fell back to the
 generic play-triangle SVG; rendered a 512×512 dark-neon tile (a glowing cyan catch on a taut,
@@ -318,8 +336,41 @@ progression) and logs a player-facing changelog entry. Public copy = "AI-managed
 **Live:** static, published by **GitHub Pages** at `fairyfox.io/fairyfox-games/` (the
 sole host), plus each game at `…/games/<game>/`.
 
-**Games so far (18):**
+**Games so far (19):**
 
+- **Span** (`games/span/`) — a **spanning / construction** game (a genuinely new verb: the
+  collection's first **build** mechanic — you're not steering, timing, aiming, metering, swinging,
+  remembering, guarding, herding, weaving, sorting or resisting, you're **growing a length to fit a
+  gap you can see**). Your fox stands at the edge of a ledge; a gap yawns ahead, then the next
+  ledge. **Hold** one control to grow a beam upward (it rises), **release** to drop it flat across
+  the gap — the length at release is its horizontal reach, so the tip lands at that distance. Fall
+  **short** and the tip drops into the gap; grow it **too long** and it overshoots the far ledge and
+  you walk off the end; land the tip *on* the ledge and you cross to it. A miss can overshoot **or**
+  undershoot (two-sided), which is what makes it its own thing rather than Arc's *charge* (ballistic,
+  outcome hidden while charging) or Brim's *pour* (a metered value with a fixed lag) — the beam gives
+  continuous spatial feedback and the skill is judging a length by eye. **Three misses end the run.**
+  **The depth is the plumb, discovered not told:** landing *anywhere* on the ledge crosses (+points)
+  but a loose, off-centre landing snaps the multiplier to ×1; land on the drawn **keystone** (centre
+  stone) and it climbs (×2…×9); tighter still — dead through the *exact* centre and **drawn nowhere**
+  — is the **plumb** (`PLUMB_ABS`/`PLUMB_FRAC` inside the wider drawn `KEYSTONE_*` band, both
+  `max(abs, frac·width)` so they stay fair as ledges shrink), which pays `PLUMB_BONUS` + builds a
+  streak. The safe play (land anywhere) and the greedy play (thread the exact centre) share the one
+  control. `TRUSS_STREAK` (3) plumbs in a row → **Truss** (`TRUSS_TICKS` ~5 s where every point
+  doubles; the trigger land is not doubled). **On Varied Structure + the Growth Architecture from
+  birth:** a run is a seeded **sequence of named crossings** (`FORMATIONS`/`pickFormation`/
+  `loadFormation`, `minStage`-gated so climbing the stages **opens the pool**): **Steady** (calm
+  on-ramp) · **Reach** (gaps lengthen across the run) · **The Bench** (wide generous ledges — the
+  deliberate **greed window**, safe to hunt centre + chain plumbs) · **Stagger** (short/long gap
+  alternation) · **The Narrows** (narrow ledges, precision) · **The Gauntlet** (long gaps + narrow
+  ledges, the crescendo). Notable crossings flash a quiet name cue. Two **no-plateau asymptotes** —
+  `growRateOf` (beam grow speed rises forever toward `GROW_CAP`) and `widthFactorOf` (ledges narrow
+  toward `WFAC_MIN`, floored by `WIDTH_HARD_MIN` so they stay landable). Plus a **stage arc**
+  (Footbridge → Causeway → Trestle → Viaduct → Skyway) with HUD chip + tint, a **secret Firmament
+  stage** (110 crossings, revealed only by reaching it), and **meta-progression** (`span.meta`:
+  lifetime crossings/points/keystones/plumbs + best stage/mult + 15 badges, run-report) — legacy
+  `span.best` preserved — and the **Lanterns** coin fun mode (1 coin, additive render only, score
+  untouched). Pure `tick(g, holding)`-split core + 34 tests. **(Ships on varied structure + the
+  depth layer from day one.)**
 - **Reel** (`games/reel/`) — a **give-and-take** game (a genuinely new verb: the collection's
   first **resist / yield** mechanic — you're not steering, timing, aiming, metering, swinging,
   remembering, guarding, herding, weaving or sorting, you're **modulating one sustained pull

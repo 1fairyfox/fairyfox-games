@@ -105,6 +105,7 @@ CI runs the full suite on every push and pull request.
 
 | Game | What you do | Folder |
 |------|-------------|--------|
+| **Span** | Grow a beam and drop it to bridge the gap — too short and it falls in, too long and you walk off the end. Land the tip on the far ledge to cross, and dead-centre on the stone to build your multiplier. Three misses end the run. | [`games/span/`](games/span/) |
 | **Reel** | There's a catch on your line and it fights back. Hold to reel it in while it's calm; ease off the instant it thrashes or the line snaps. Snap back onto the reel the moment a thrash breaks for a haul and a growing multiplier. Three snapped lines end the run. | [`games/reel/`](games/reel/) |
 | **Tether** | Hold to rope onto an anchor and swing; let go in the glowing arc to whip yourself across the gap. Too early and you fly flat into the ground, too late and you stall — the sweet spot is both your score and your survival. | [`games/tether/`](games/tether/) |
 | **Sluice** | Coloured sparks fall one at a time — send each into the channel that matches its colour before it lands. The channels keep rearranging, so read the row and route early for a combo. | [`games/sluice/`](games/sluice/) |
