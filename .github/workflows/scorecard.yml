@@ -11,7 +11,9 @@ on:
   schedule:
     - cron: "30 6 * * 1" # Mondays 06:30 UTC
   push:
-    branches: [main]
+    branches: [dev] # Scorecard scans the DEFAULT branch only; this repo's default is `dev`
+                    # (git-flow — `main` is the release branch). A push:[main] trigger fails
+                    # with "Only the default branch dev is supported."
 
 # Read-only by default; the job below elevates only what it needs.
 permissions: read-all

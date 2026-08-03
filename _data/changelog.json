@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-08-02",
+    "game": "Reel",
+    "slug": "reel",
+    "kind": "new",
+    "text": "A brand-new game joins the collection: Reel, and a brand-new thing to do — a give-and-take. There's a catch on the end of your line and it fights back. You hold one control to reel it in, and the catch keeps switching between calm and thrashing: reel hard while it's calm, but the instant it fights the line runs hot, and reeling through a thrash spikes the tension until the line snaps. Fill the bar to land it; three snapped lines end the run. Anyone can play it in three seconds by just reeling in the calm and resting through the fight — but snap back onto the reel the very moment a thrash breaks and you land a haul the game never tells you about: bonus line and a multiplier that climbs to nine. String three hauls together and the water erupts into a Frenzy where every point doubles, and the fish never stop fighting harder however deep you go — past the Maelstrom there's a stage the start screen has never named. Ships with six named temperaments that reshuffle every run, a full stage ladder, lifetime badges, and a Glimmer fun mode."
+  },
+  {
+    "date": "2026-08-02",
     "game": "Tether",
     "slug": "tether",
     "kind": "grow",

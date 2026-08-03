@@ -1,0 +1,11 @@
+{
+  "name": "reel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reel — a one-mechanic, beat-your-own-score give-and-take game. Hold to reel a fighting catch, ease off when it thrashes. Pure logic core + browser render shell.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
