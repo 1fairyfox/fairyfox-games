@@ -15,8 +15,8 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/1fairyfox/fairyfox-games/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/1fairyfox/fairyfox-games/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/1fairyfox/fairyfox-games?style=flat-square&logo=codecov&logoColor=white)](https://app.codecov.io/gh/1fairyfox/fairyfox-games)
 [![Code quality](https://img.shields.io/codefactor/grade/github/1fairyfox/fairyfox-games?style=flat-square&logo=codefactor&logoColor=white&label=code%20quality)](https://www.codefactor.io/repository/github/1fairyfox/fairyfox-games)
-[![Quality gate](https://img.shields.io/sonar/quality_gate/1fairyfox_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=quality%20gate)](https://sonarcloud.io/summary/new_code?id=1fairyfox_fairyfox-games)
-[![Tech debt](https://img.shields.io/sonar/tech_debt/1fairyfox_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=tech%20debt)](https://sonarcloud.io/summary/new_code?id=1fairyfox_fairyfox-games)
+[![Quality gate](https://img.shields.io/sonar/quality_gate/junebug12851_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=quality%20gate)](https://sonarcloud.io/summary/new_code?id=junebug12851_fairyfox-games)
+[![Tech debt](https://img.shields.io/sonar/tech_debt/junebug12851_fairyfox-games?server=https%3A%2F%2Fsonarcloud.io&style=flat-square&logo=sonarcloud&logoColor=white&label=tech%20debt)](https://sonarcloud.io/summary/new_code?id=junebug12851_fairyfox-games)
 
 <!-- Security -->
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/1fairyfox/fairyfox-games?style=flat-square&label=scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/1fairyfox/fairyfox-games)
