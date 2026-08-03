@@ -14,10 +14,11 @@ Ordered, current. Remove as done; history lives in `../sessions/`.
 > remaining** — the daily GROW lever now shifts to *adding* to the layer: a new formation, a
 > new sub-pattern, or a cross-run unlock on whichever game is thinnest.
 >
-> ## 🔧 Dependabot — 4 CI-action PRs open (as of 2026-07-24)
+> ## 🔧 Dependabot — 5 CI-action PRs open (as of 2026-08-02)
 >
-> All target `dev`. Two are safe patch/minor bumps; two are **major** and want a careful look
+> All target `dev`. Mostly safe patch/minor bumps; two are **major** and want a careful look
 > (bump the action, watch `gh pr checks` go green on the PR, only then merge):
+> - **#74** `github/codeql-action/upload-sarif` 4.36.3 → 4.37.3 (patch — safe; new 2026-07-30)
 > - **#67** `actions/checkout` 7.0.0 → 7.0.1 (patch — safe)
 > - **#66** `ruby/setup-ruby` 1.319.0 → 1.321.0 (minor — safe; a #47 sibling merged cleanly before)
 > - **#46** `actions/setup-node` 6.4.0 → **7.0.0** (major — verify Node/runner still builds)

@@ -18,6 +18,7 @@ import {
   CONFIG, ACHIEVEMENTS, createGame, reset, start, tick, grab, release, reachable,
   amplitude, maxOmega, gapScale, stageIndexAt, stageAt, stageProgress, milestoneAt,
   pickFormation, loadFormation, spawnAnchor, ensureAhead,
+  unlockedFormations, newlyUnlockedFormations,
   normalizeMeta, applyRun, newlyEarned, nearMissLine,
 } from './tether.core.js';
 
@@ -370,6 +371,95 @@ test('gapScale climbs monotonically and never plateaus below its ceiling', () =>
   assert.ok(at(50) > at(0));
   assert.ok(at(500) > at(50), 'the ramp must still be creeping upward deep into a run');
   assert.ok(at(100000) < 1 + g.cfg.GAP_GROW, 'but it never actually reaches the ceiling');
+});
+
+// ── 5b. Cross-run unlock (Windfall) ───────────────────────────────────────────────
+
+test('Windfall is a cross-run unlock: absent until earned, present once the whips are banked', () => {
+  const wf = CONFIG.FORMATIONS.find(f => f.id === 'windfall');
+  assert.ok(wf, 'the Windfall formation exists in the pool');
+  assert.equal(typeof wf.unlock, 'function', 'it carries an unlock predicate');
+  assert.ok(wf.minStage >= 1, 'it is a demanding, later-stage line');
+
+  // A brand-new save has not earned it — nothing gated is unlocked at zero.
+  assert.equal(unlockedFormations(CONFIG, normalizeMeta(null)).has('windfall'), false);
+  assert.equal(unlockedFormations(CONFIG, null).size, 0);
+
+  // A veteran who has banked plenty of whips has it.
+  const veteran = normalizeMeta({ totals: { whips: 100000 } });
+  assert.ok(unlockedFormations(CONFIG, veteran).has('windfall'),
+    'enough lifetime whips must unlock Windfall');
+});
+
+test('the unlock is monotonic in lifetime whips, and is not free', () => {
+  let unlockedAt = -1, prev = false;
+  for (let w = 0; w <= 600; w += 5) {
+    const on = unlockedFormations(CONFIG, normalizeMeta({ totals: { whips: w } })).has('windfall');
+    if (on && !prev) unlockedAt = w;
+    if (prev) assert.ok(on, `Windfall must stay unlocked once earned (re-locked at ${w})`);
+    prev = on;
+  }
+  assert.ok(unlockedAt > 0, 'it must actually take some banked whips — it is not free');
+});
+
+test('pickFormation only yields Windfall when the unlocked set allows it (still minStage-gated)', () => {
+  const set = new Set(['windfall']);
+  // Without the set, a gated formation can never be picked, at any stage.
+  const r0 = rng(3);
+  for (let i = 0; i < 500; i++) assert.notEqual(pickFormation(CONFIG, 5, r0, null).id, 'windfall');
+  // With it, at a late enough stage, Windfall appears…
+  const r1 = rng(3);
+  const seen = new Set();
+  for (let i = 0; i < 500; i++) seen.add(pickFormation(CONFIG, 5, r1, null, set).id);
+  assert.ok(seen.has('windfall'), 'an unlocked Windfall must be reachable at a late stage');
+  // …but the unlock never bypasses minStage.
+  const r2 = rng(3);
+  for (let i = 0; i < 500; i++)
+    assert.notEqual(pickFormation(CONFIG, 0, r2, null, set).id, 'windfall',
+      'the unlock does not let it skip its minStage');
+  // Deterministic under a seed even with the unlocked set.
+  const a = rng(7), b = rng(7);
+  for (let i = 0; i < 50; i++)
+    assert.equal(pickFormation(CONFIG, 5, a, null, set).id, pickFormation(CONFIG, 5, b, null, set).id);
+});
+
+test('newlyUnlockedFormations announces Windfall exactly on the run it is earned', () => {
+  const below = normalizeMeta({ totals: { whips: 0 } });
+  const above = normalizeMeta({ totals: { whips: 100000 } });
+  assert.deepEqual(newlyUnlockedFormations(below, above).map(u => u.id), ['windfall'],
+    'the crossing run announces Windfall');
+  assert.equal(newlyUnlockedFormations(above, above).length, 0, 'earned once, announced once');
+  assert.equal(newlyUnlockedFormations(below, below).length, 0, 'nothing to announce below the line');
+});
+
+test('an unlocked Windfall still spawns only reachable, on-field anchors', () => {
+  const g = game(5);
+  start(g);
+  g.unlocked = new Set(['windfall']);
+  g.passed = 200;         // a deep run, past Windfall's minStage
+  g.formQ = [];           // force a fresh formation load under the new unlock
+  let sawWindfall = false;
+  for (let i = 0; i < 400; i++) {
+    spawnAnchor(g);
+    if (g.formName === 'Windfall') sawWindfall = true;
+  }
+  assert.ok(sawWindfall, 'Windfall must actually load once unlocked and deep enough');
+  for (let i = 1; i < g.anchors.length; i++) {
+    const dx = g.anchors[i].x - g.anchors[i - 1].x;
+    const y = g.anchors[i].y;
+    assert.ok(dx >= g.cfg.DX_MIN - 1e-9 && dx <= g.cfg.DX_MAX * (1 + g.cfg.GAP_GROW) + 1e-9,
+      `Windfall gap ${dx} out of the legal band`);
+    assert.ok(y >= g.cfg.A_Y_MIN && y <= g.cfg.A_Y_MAX, `Windfall anchor y ${y} left the sky`);
+  }
+});
+
+test('createGame reads unlocks from a passed-in meta', () => {
+  const veteranMeta = normalizeMeta({ totals: { whips: 100000 } });
+  const g = createGame(900, 600, { rng: rng(1), meta: veteranMeta });
+  assert.ok(g.unlocked instanceof Set && g.unlocked.has('windfall'),
+    'a veteran meta seeds the unlocked set at construction');
+  const fresh = createGame(900, 600, { rng: rng(1) });
+  assert.equal(fresh.unlocked.has('windfall'), false, 'a fresh game has nothing gated unlocked');
 });
 
 // ── 6. Stages, milestones, meta ──────────────────────────────────────────────────

@@ -2,7 +2,24 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.27.1` (single source of truth: repo-root `VERSION`). **v0.27.1** is a **CI** run:
+**Version:** `0.27.4` (single source of truth: repo-root `VERSION`). **v0.27.4** is a **GROW**
+run: **Tether** gets the **collection's first cross-run unlock** — the varied-structure standard's
+rule #3 (the meta layer *driving* variation) made real, on the least-recently-touched core
+(untouched since it was planted at v0.21.0). A new anchor-line, **Windfall** (a downhill plunge —
+anchors drop ceiling→floor of the sky, ropes shorten and arcs quicken; the mirror of the calm
+Rise), is **absent from the pool until the player has banked `UNLOCK_WHIPS` (150) whips across all
+their runs**, then appears in every deep run after. It gates on *whips* — the game's skill act —
+so the reward tracks mastery, not survival (skill-safe: a harder line to read, never a power
+boost), and is **announced on the game-over card** the run it's earned. New pure exports
+`unlockedFormations`/`newlyUnlockedFormations`; `pickFormation` takes an optional `unlocked` set
+(default none → every prior call unchanged, gated formations never leak into an unearned run);
+`createGame` seeds `g.unlocked` from `opts.meta`, the shell refreshes it each run and leads the
+badge list with a warm-accented "New line: Windfall" notice. Tether **32 → 38** test functions;
+collection **789/789** green. (Prior-run bookkeeping: dev had already advanced through two
+**CI** runs the status line hadn't caught up to — **v0.27.2** (vendored the
+`scripts/repo-tokens.ps1` token-provisioning tool + a token-backed OpenSSF `scorecard.yml`) and
+**v0.27.3** (a `repo-tokens.ps1` stdin fix), the latter landing *concurrently* with this GROW, so
+this run took **0.27.4**.) Earlier: **v0.27.1** is a **CI** run:
 wired the three quality-badge services flagged as the `badges-service-wiring` gap in v0.27.0 —
 **Codecov** (a `test:coverage` lcov script → **99.84% line** coverage, uploaded by a non-blocking
 `ci.yml` job), **SonarCloud** (`sonar-project.properties` + a **dormant** `sonar.yml` gated on
@@ -434,7 +451,12 @@ sole host), plus each game at `…/games/<game>/`.
   `tether.best` preserved. **Depth inside the one verb:** a hidden **snap** sub-window straddling the
   true optimum (the whip arc *is* drawn on screen; the snap window inside it deliberately is **not**),
   **Slipstream** (a snap streak → a timed double-score window), and a **secret Zenith stage**.
-  Pure core + 32 tests. **(9th game on varied structure — ships on the pattern from day one.)**
+  **Cross-run unlock (v0.27.4):** **Windfall** — a 7th anchor-line (a downhill plunge, the mirror
+  of Rise) that is **absent until the player banks `UNLOCK_WHIPS` 150 whips lifetime**, then rides
+  every deep run after; gated on *whips* (the skill act), skill-safe, announced on the game-over
+  card the run it's earned (`unlockedFormations`/`newlyUnlockedFormations`, `pickFormation`'s
+  optional `unlocked` set — the collection's first meta-driven formation). Pure core + 38 tests.
+  **(9th game on varied structure — ships on the pattern from day one.)**
 - **Ink Bloom** (`games/ink-bloom/`) — steer a growing line, eat motes, don't cross
   your trail. **On Varied Structure + Growth**: each run is a seeded **sequence of mote
   spawn patterns** (Scatter · Drift · Vine · Ring · Thicket · Spectrum) that **unlock as you
