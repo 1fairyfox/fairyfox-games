@@ -2,7 +2,17 @@
 
 _Current state only._ For history see `sessions/`; for the changelog see `version.md`.
 
-**Version:** `0.28.0` (single source of truth: repo-root `VERSION`). **v0.28.0** is a **PLANT**
+**Version:** `0.28.2` (single source of truth: repo-root `VERSION`). **v0.28.2** is a **POLISH/CI**
+run (two fixes surfaced by a post-deploy live review of the Reel PLANT): (1) **Reel gains its own
+icon** — the PLANT shipped without `games/reel/icon.png`, so the landing card fell back to the
+generic play-triangle SVG; rendered a 512×512 dark-neon tile (a glowing cyan catch on a taut,
+red-rimmed line — the give-and-take motif) via the headless-Chrome icon pipeline. (2) **Fixed the
+`branch-sync` CI false-alarm** — it triggers on the push-to-`main` but the `dev` back-merge is a
+separate push landing seconds later, so every release showed a red X; it now allows a short
+back-merge grace window before failing (daily schedule remains the backstop; invariant verified via
+`git merge-base --is-ancestor origin/main origin/dev`). Earlier: **v0.28.1** — fix: SonarCloud org
+key is `junebug12851` (kept after the GitHub rename), finishing the quality-badge wiring. Earlier:
+**v0.28.0** is a **PLANT**
 run: a new game, **Reel** — a genuinely new verb (**give-and-take**: resist vs. yield against a
 *reacting* opponent) and the collection's **18th**. There's a catch on the line that fights back;
 you hold **one** control to reel it in, and it alternates **calm** (reel freely) ↔ **surge** (it
